@@ -14,8 +14,8 @@ import (
 //
 // It used to be the body of asksd's main, which meant the only way to run the
 // service was to run that binary. One program registered once per capability is
-// the shape the platforms activate (research/svc195/PROPOSAL.md § 6), and a
-// program cannot host a capability whose entry point is a main.
+// the shape a Windows service, a launchd job and a systemd unit all activate,
+// and a program cannot host a capability whose entry point is a main.
 //
 // The CLI is unaffected: `asks` is what an adopter types and it has not moved.
 func Serve(args []string) error {
