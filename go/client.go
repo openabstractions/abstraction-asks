@@ -31,12 +31,22 @@ func DefaultStateDir() string {
 }
 
 func (c *Client) do(ctx context.Context, req Request) (Response, error) {
+	if err := ctx.Err(); err != nil {
+		return Response{}, err
+	}
 	req.Admin = c.Admin
 	nc, err := listen.Dial(c.Endpoint)
 	if err != nil {
+		if ctx.Err() != nil {
+			return Response{}, ctx.Err()
+		}
 		return Response{}, fmt.Errorf("%w at %s (%v)", ErrNoService, c.Endpoint, err)
 	}
 	defer nc.Close()
+	return exchange(ctx, nc, req)
+}
+
+func exchange(ctx context.Context, nc net.Conn, req Request) (Response, error) {
 	stop := context.AfterFunc(ctx, func() { nc.Close() })
 	defer stop()
 	raw, err := json.Marshal(req)
@@ -44,19 +54,24 @@ func (c *Client) do(ctx context.Context, req Request) (Response, error) {
 		return Response{}, err
 	}
 	if _, err := nc.Write(append(raw, '\n')); err != nil {
+		if ctx.Err() != nil {
+			return Response{}, ctx.Err()
+		}
 		return Response{}, err
 	}
-	resp, err := read(nc)
-	if ctx.Err() != nil {
-		return Response{}, ctx.Err()
-	}
-	return resp, err
+	return read(ctx, nc)
 }
 
-func read(nc net.Conn) (Response, error) {
+func read(ctx context.Context, nc net.Conn) (Response, error) {
 	sc := bufio.NewScanner(nc)
 	sc.Buffer(make([]byte, maxLine), maxLine)
 	if !sc.Scan() {
+		if ctx.Err() != nil {
+			return Response{}, ctx.Err()
+		}
+		if err := sc.Err(); err != nil {
+			return Response{}, err
+		}
 		return Response{}, errors.New("asks: the service closed the connection")
 	}
 	var resp Response
