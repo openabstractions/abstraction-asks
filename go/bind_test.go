@@ -14,6 +14,20 @@ type unbound struct{ net.Conn }
 
 func (unbound) Bind() (*identity.Binding, error) { return nil, identity.ErrNoBinding }
 
+func TestUnboundCallerRefusedBeforeProvider(t *testing.T) {
+	// Deliberately no book/provider: refusal must precede every entry point's
+	// provider access, including on platforms that refuse Start altogether.
+	s := &Service{}
+	for _, op := range []string{OpAsk, OpPending, OpAnswered, OpAnswer, OpForget} {
+		t.Run(op, func(t *testing.T) {
+			resp := serveUnbound(t, s, Request{Op: op, Ask: &reach})
+			if resp.Code != CodeCallerRefused || !strings.Contains(resp.Error, identity.ErrNoBinding.Error()) {
+				t.Fatalf("unbound caller not refused: %+v", resp)
+			}
+		})
+	}
+}
+
 func TestEveryEntryPointRefusesACallerTheKernelCannotIdentify(t *testing.T) {
 	s, app, tool := start(t, t.TempDir())
 	asked, err := app.Ask(context.Background(), reach)

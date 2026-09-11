@@ -2,19 +2,23 @@ package asks
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	identity "github.com/openabstractions/abstraction-identity"
+	"github.com/openabstractions/abstraction-identity/listen"
 )
 
 func start(t *testing.T, dir string) (*Service, *Client, *Client) {
 	t.Helper()
-	endpoint := fmt.Sprintf(`\\.\pipe\asks-test-%d-%s`, os.Getpid(), t.Name())
-	if runtime.GOOS != "windows" {
-		endpoint = filepath.Join(dir, "s")
+	if runtime.GOOS == "darwin" {
+		t.Skip("UNPROVEN successful service calls: current Darwin transport cannot meet Program proof; XPC is planned. TestUnsupportedPlatformRefusesBeforeProvider verifies refusal")
 	}
+	endpoint := testEndpoint(t)
 	s, err := Start(endpoint, dir)
 	if err != nil {
 		t.Fatal(err)
@@ -22,6 +26,47 @@ func start(t *testing.T, dir string) (*Service, *Client, *Client) {
 	t.Cleanup(func() { s.Close() })
 	admin, _ := os.ReadFile(filepath.Join(dir, "admin.secret"))
 	return s, &Client{Endpoint: endpoint}, &Client{Endpoint: endpoint, Admin: string(admin)}
+}
+
+// Socket pathname limits include the temporary directory. Darwin's default
+// temporary root plus a descriptive subtest name can exceed that limit.
+func testEndpoint(t *testing.T) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		return fmt.Sprintf(`\\.\pipe\asks-test-%d-%s`, os.Getpid(), t.Name())
+	}
+	dir, err := os.MkdirTemp("/tmp", "asks-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	return filepath.Join(dir, "s")
+}
+
+func TestUnsupportedPlatformRefusesBeforeProvider(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("Darwin transport proof ceiling")
+	}
+	if err := identity.CanEver(listen.Program); !errors.Is(err, identity.ErrNotProven) {
+		t.Fatalf("expected current transport's Program refusal, got %v", err)
+	}
+	dir := filepath.Join(t.TempDir(), "provider-not-created")
+	endpoint := testEndpoint(t)
+	s, err := Start(endpoint, dir)
+	if s != nil {
+		s.Close()
+		t.Fatal("unsupported service started")
+	}
+	if !errors.Is(err, identity.ErrNotProven) {
+		t.Fatalf("expected proof refusal, got %v", err)
+	}
+	if _, err := os.Stat(dir); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("provider state touched: %v", err)
+	}
+	if _, err := os.Stat(endpoint); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("listener created: %v", err)
+	}
+	t.Log("UNPROVEN successful Darwin service calls; startup refuses before provider state or endpoint creation")
 }
 
 var reach = Ask{Asker: "dl", Key: "download.reach", Slots: map[string]string{"host": "example.com"}}

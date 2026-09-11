@@ -7,11 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/openabstractions/abstraction-identity/listen"
-	"os"
-	"path/filepath"
-	"runtime"
 	"testing"
-	"time"
 )
 
 func TestClientRefusalCompatibility(t *testing.T) {
@@ -22,10 +18,7 @@ func TestClientRefusalCompatibility(t *testing.T) {
 		{"known", `{"code":"` + CodeUnknownQuestion + `","error":"human reason"}`, CodeUnknownQuestion, "human reason"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			at := filepath.Join(t.TempDir(), "service.sock")
-			if runtime.GOOS == "windows" {
-				at = listen.Endpoint(fmt.Sprintf("asks-codes-%d-%d", os.Getpid(), time.Now().UnixNano()))
-			}
+			at := testEndpoint(t)
 			listener, err := listen.Listen(at)
 			if err != nil {
 				t.Fatal(err)
