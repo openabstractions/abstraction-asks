@@ -61,6 +61,18 @@ choose from.
 
 ## Contract
 
+Your application can distinguish an unknown question from an invalid answer
+without parsing an error message. The message is for the person; the code is for the program.
+
+Service refusals carry an optional stable `code` alongside the existing diagnostic
+`error` text. Either nonempty field means refusal. Old text-only replies remain
+valid; unknown codes remain refusals and must not be treated as success. Servers
+continue sending diagnostic text for older clients. Go clients return
+`*RemoteError`, retaining the code and message; `Response.Err()` applies the same
+rule to a decoded reply. Known native sentinels remain accessible through
+`errors.Is`. The [code constants](go/errors.go) define the vocabulary; an
+unclassified service failure uses `internal`. Diagnostic wording is not an API.
+
 - **An application phrases nothing.** It names a question from `Questions` in
   [`go/questions.go`](go/questions.go) and fills the slots that question
   declares — one line each, at most 200 characters. An unknown question, a

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -75,7 +76,7 @@ func random(n int) string {
 func (b *Book) Ask(a Ask, via listen.Seen) (Record, bool, error) {
 	q, ok := Find(a.Key)
 	if !ok {
-		return Record{}, false, errors.New(ErrUnknownQuestion.Error() + ": " + a.Key)
+		return Record{}, false, fmt.Errorf("%w: %s", ErrUnknownQuestion, a.Key)
 	}
 	if strings.TrimSpace(a.Asker) == "" {
 		return Record{}, false, errors.New("asks: an asker needs a name")
@@ -156,7 +157,7 @@ func (b *Book) Answer(id, option string) (Record, error) {
 		q, _ := Find(r.Key)
 		o, ok := q.Option(option)
 		if !ok {
-			return errors.New(ErrUnknownOption.Error() + ": " + option + "; one of " + strings.Join(r.Options, ", "))
+			return fmt.Errorf("%w: %s; one of %s", ErrUnknownOption, option, strings.Join(r.Options, ", "))
 		}
 		r.Option, r.Yes, r.Kept, r.Answered = o.Name, o.Yes, o.Kept, time.Now().UTC()
 		out = *r

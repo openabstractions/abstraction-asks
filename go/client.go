@@ -63,8 +63,8 @@ func read(nc net.Conn) (Response, error) {
 	if err := json.Unmarshal(sc.Bytes(), &resp); err != nil {
 		return Response{}, err
 	}
-	if resp.Error != "" {
-		return Response{}, errors.New(resp.Error)
+	if err := resp.Err(); err != nil {
+		return Response{}, err
 	}
 	return resp, nil
 }

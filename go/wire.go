@@ -24,6 +24,7 @@ type Request struct {
 }
 
 type Response struct {
+	Code    string   `json:"code,omitempty"`
 	Error   string   `json:"error,omitempty"`
 	Answer  *Answer  `json:"answer,omitempty"`
 	Records []Record `json:"records,omitempty"`

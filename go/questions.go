@@ -2,6 +2,7 @@ package asks
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -75,7 +76,7 @@ func (q Question) Render(a Ask) (string, error) {
 	}
 	for k, v := range slots {
 		if utf8.RuneCountInString(v) > maxSlot || strings.ContainsAny(v, "\r\n") {
-			return "", errors.New(ErrBadSlot.Error() + " " + k + ": one line, at most 200 characters")
+			return "", fmt.Errorf("%w %s: one line, at most 200 characters", ErrBadSlot, k)
 		}
 	}
 	var missing []string
@@ -87,7 +88,7 @@ func (q Question) Render(a Ask) (string, error) {
 		return v
 	})
 	if len(missing) > 0 {
-		return "", errors.New(ErrBadSlot.Error() + " " + strings.Join(missing, ", ") + " not given")
+		return "", fmt.Errorf("%w %s not given", ErrBadSlot, strings.Join(missing, ", "))
 	}
 	return text, nil
 }

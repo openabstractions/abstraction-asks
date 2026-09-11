@@ -113,12 +113,12 @@ func (s *Service) serve(c listen.Conn) {
 	kill.Stop()
 	defer k.Close()
 	if err != nil {
-		reply(k, Response{Error: "asks: refused, " + err.Error()})
+		reply(k, Response{Code: CodeCallerRefused, Error: "asks: refused, " + err.Error()})
 		return
 	}
 	var req Request
 	if err := json.Unmarshal(k.Frame, &req); err != nil {
-		reply(k, Response{Error: "not a request: " + err.Error()})
+		reply(k, Response{Code: CodeInvalidRequest, Error: "not a request: " + err.Error()})
 		return
 	}
 	if req.Op != OpAsk {
@@ -139,12 +139,12 @@ func reply(c io.Writer, r Response) error {
 
 func (s *Service) ask(k *listen.Call, req Request) {
 	if req.Ask == nil {
-		reply(k, Response{Error: "asks: nothing was asked"})
+		reply(k, Response{Code: CodeInvalidRequest, Error: "asks: nothing was asked"})
 		return
 	}
 	r, asked, err := s.book.Ask(*req.Ask, k.Caller)
 	if err != nil {
-		reply(k, Response{Error: err.Error()})
+		reply(k, failure(err))
 		return
 	}
 	if asked {
@@ -161,7 +161,7 @@ func (s *Service) ask(k *listen.Call, req Request) {
 			return
 		}
 		if r, _ = s.book.Get(r.ID); r.Pending() {
-			reply(k, Response{Error: "asks: the question was withdrawn"})
+			reply(k, Response{Code: CodeWithdrawn, Error: "asks: the question was withdrawn"})
 			return
 		}
 	}
@@ -170,9 +170,9 @@ func (s *Service) ask(k *listen.Call, req Request) {
 
 func (s *Service) administer(req Request, by listen.Seen) Response {
 	if subtle.ConstantTimeCompare([]byte(hashOf(req.Admin)), []byte(s.admin)) != 1 {
-		return Response{Error: "asks: not the person's tool"}
+		return Response{Code: CodeNotAdministrator, Error: "asks: not the person's tool"}
 	}
-	fail := func(err error) Response { return Response{Error: err.Error()} }
+	fail := func(err error) Response { return failure(err) }
 	switch req.Op {
 	case OpPending:
 		return Response{Records: s.book.List(true)}
@@ -192,5 +192,5 @@ func (s *Service) administer(req Request, by listen.Seen) Response {
 		slog.Info("forgotten", "id", req.ID, "by", by.Path)
 		return Response{}
 	}
-	return Response{Error: "asks: unknown op " + req.Op}
+	return Response{Code: CodeUnknownOperation, Error: "asks: unknown op " + req.Op}
 }
