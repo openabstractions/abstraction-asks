@@ -41,7 +41,8 @@ named in it.
   Standard library plus
   [abstraction-identity](https://github.com/openabstractions/abstraction-identity)
   (which brings `golang.org/x/sys`).
-- **Python, C++.** None.
+- **Other languages.** See generated protocol and shared transport/client packages
+  in this repository and the facade. Native provider support is separate.
 
 ## Run
 
@@ -117,7 +118,7 @@ unclassified service failure uses `internal`. Diagnostic wording is not an API.
 
 ## Today
 
-**Go only.** Verified on Windows 11 over a named pipe. **Not examined: Linux,
+**Native Go provider profile.** Verified on Windows 11 over a named pipe. **Not examined: Linux,
 macOS** — the unix socket listener is shared with `rights` and has never run
 there either.
 
