@@ -22,13 +22,16 @@ var (
 )
 
 type book struct {
-	Asks []*Record `json:"asks"`
+	Asks       []*Record              `json:"asks"`
+	Profile    string                 `json:"profile,omitempty"`
+	Admissions []applicationAdmission `json:"admissions,omitempty"`
 }
 
 type Book struct {
-	mu      sync.Mutex
-	path    string
-	decided map[string]chan struct{}
+	mu          sync.Mutex
+	path        string
+	decided     map[string]chan struct{}
+	application bool
 }
 
 func LoadBook(path string) (*Book, error) {
@@ -38,20 +41,33 @@ func LoadBook(path string) (*Book, error) {
 }
 
 func (b *Book) read() (book, error) {
+	if b.application {
+		return b.readApplication()
+	}
 	var f book
 	raw, err := cas.Read(b.path)
 	if err != nil || raw == nil {
 		return f, err
 	}
-	return f, json.Unmarshal(raw, &f)
+	err = json.Unmarshal(raw, &f)
+	if err == nil && f.Profile != "" {
+		err = errors.New("asks: application profile requires LoadApplicationBook")
+	}
+	return f, err
 }
 
 func (b *Book) change(edit func(*book) error) error {
+	if b.application {
+		return b.changeApplication(edit)
+	}
 	return cas.Change(b.path, func(cur []byte) ([]byte, error) {
 		var f book
 		if cur != nil {
 			if err := json.Unmarshal(cur, &f); err != nil {
 				return nil, err
+			}
+			if f.Profile != "" {
+				return nil, errors.New("asks: application profile requires LoadApplicationBook")
 			}
 		}
 		if err := edit(&f); err != nil {
@@ -74,6 +90,9 @@ func random(n int) string {
 }
 
 func (b *Book) Ask(a Ask, via listen.Seen) (Record, bool, error) {
+	if b.application {
+		return Record{}, false, errors.New("asks: use caller-bound application admission")
+	}
 	q, ok := Find(a.Key)
 	if !ok {
 		return Record{}, false, fmt.Errorf("%w: %s", ErrUnknownQuestion, a.Key)

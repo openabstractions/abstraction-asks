@@ -1,5 +1,12 @@
 # abstraction-asks
 
+Application adopters use the generated `abstraction.asks/application@1` service
+through `go/client.New(endpoint).AskContext` and `ObserveContext`. Admission is
+bound to the receiving account and program, with stable request-key replay and
+bounded waiting. [Application contract](CONTRACT.md) specifies this profile and
+its explicit operator-integration requirement. The native CLI/provider workflows
+below are retained adoption interfaces.
+
 **In development.** Tagged `go/v0.1.1`, but no conformance scenario cites this
 layer, and the API carries no stability promise.
 
@@ -156,3 +163,18 @@ Go 1.26 or newer. Windows 11 verified; Linux and macOS not run.
 ## Licence
 
 Apache-2.0. See [LICENSE](https://github.com/openabstractions/abstraction-asks/blob/main/LICENSE).
+
+### Operator answering and history
+
+The generated `QuestionOperator` service provides bounded latest-book history
+and explicit catalog-option answering. A host enables it with a typed peer
+authorization callback before serving. The callback can use the rights service;
+ordinary same-account applications remain unauthorized by default.
+
+Go applications use `client.NewOperator(selectedEndpoint)` and
+`ListQuestionsContext` / `AnswerQuestionContext`. Resolve the
+`abstraction.asks/operator@1` contract before selecting its endpoint. A history
+gap requires restarting enumeration from an empty cursor. After an uncertain
+answer reply, explicitly retry the same ID and option to recover the original
+decision. Recorded answers do not grant resource authority. See CONTRACT.md for
+limits, restart behavior and the separate native retirement API.
