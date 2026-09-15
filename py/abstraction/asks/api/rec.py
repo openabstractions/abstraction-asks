@@ -158,12 +158,19 @@ OPERATORDECISIONOUTCOME_NAMES = ["answered", "conflict", "unknown", "invalid", "
 OPERATORDECISIONOUTCOME_UNKNOWN = "refuse"
 
 
+OPERATORRETIREMENTOUTCOME_NAMES = ["retired", "unknown", "invalid", "forbidden", "unavailable"]
+OPERATORRETIREMENTOUTCOME_UNKNOWN = "refuse"
+
+
 OPERATIONS = ["ask", "pending", "answered", "answer", "forget"]
 
 
 REFUSAL_CODES = ["internal", "invalid_request", "caller_refused", "unknown_operation", "not_administrator", "withdrawn", "unknown_question", "unknown_option", "bad_slot", "nothing_pending", "no_record"]
 
 
+# Own Ask fields. The service owns question text/options; callers supply a known
+# key and slots. Native Ask.For carries optional peer observation evidence and
+# remains a transport supplement, never caller authority.
 class Question:
     def __init__(self, **kw):
         self.asker = kw.get("asker", "")
@@ -171,6 +178,9 @@ class Question:
         self.slots = kw.get("slots", {})
 
 
+# Existing question operation concepts. Wait cancellation belongs to the native
+# client context. This metadata descriptor does not replace the existing
+# handwritten line transport.
 class Request:
     def __init__(self, **kw):
         self.op = kw.get("op", "")
@@ -190,6 +200,9 @@ class Answer:
         self.kept = kw.get("kept", False)
 
 
+# Own question-history fields; timestamps retain existing RFC3339
+# representation. Native Record includes Via/For Seen evidence from shared
+# identity. Empty option means pending.
 class RecordMetadata:
     def __init__(self, **kw):
         self.id = kw.get("id", "")
@@ -205,6 +218,9 @@ class RecordMetadata:
         self.yes = kw.get("yes", False)
 
 
+# Own response projection. Any nonempty code/error refuses, including unknown
+# future codes. Evidence supplement and existing wire handling remain native; no
+# generated complete service interface is claimed.
 class ResponseMetadata:
     def __init__(self, **kw):
         self.code = kw.get("code", "")
@@ -213,6 +229,12 @@ class ResponseMetadata:
         self.records = kw.get("records", [])
 
 
+# Stable caller-owned request key (1..128 UTF-8 bytes, no control characters),
+# known question key and exactly its declared slots. Each slot is one line of at
+# most 200 Unicode characters. No asker or authority fields are accepted. The
+# receiving account and executable-path proof scope the request. Retry uncertain
+# submission with this same key and unchanged content; a fresh key requests a
+# new admission.
 class ApplicationQuestion:
     def __init__(self, **kw):
         self.request_key = kw.get("request_key", "")
@@ -220,12 +242,28 @@ class ApplicationQuestion:
         self.slots = kw.get("slots", {})
 
 
+# Answer is present exactly for pending/answered. Pending has no option/yes/kept
+# decision. Unknown is an unobserved key in this caller's scope. Gone retains a
+# forgotten admission's key and never admits it again. Conflict means the key
+# was previously used with different content. Unavailable includes
+# storage/capacity refusal and establishes no human decision. Answered reports
+# the recorded human choice; it grants no resource authority by itself.
 class QuestionObservation:
     def __init__(self, **kw):
         self.outcome = kw.get("outcome", "")
         self.answer = kw.get("answer", None)
 
 
+# Latest-book enumeration for an explicitly authorized operator, including
+# pending and answered questions. Page has at most the requested 1..64 records
+# and 256 KiB per encoded reply, with conservative record, indentation and
+# envelope accounting. Complete means this snapshot was exhausted; otherwise
+# next is nonempty. Refusals contain no records, next or complete flag. Opaque
+# cursors (at most 256 UTF-8 bytes) bind receiving caller scope, host epoch and
+# exact book revision. Change, restart or scope mismatch returns gap: restart
+# from empty cursor. No historical change replay or stable snapshot across edits
+# is promised. Native Via/For evidence stays server-side; display fields confer
+# no authority.
 class OperatorPage:
     def __init__(self, **kw):
         self.outcome = kw.get("outcome", "")
@@ -234,7 +272,26 @@ class OperatorPage:
         self.complete = kw.get("complete", False)
 
 
+# Record is present exactly for answered. Same ID and option replays the
+# original decision including its timestamp and kept/once meaning; another
+# option conflicts. Unknown means no retained question. Invalid includes an
+# unknown option or invalid ID. Unavailable establishes no decision or noncommit
+# claim: retry the same ID/option or inspect fresh history. Answering records a
+# human choice, never a resource grant.
 class OperatorDecision:
+    def __init__(self, **kw):
+        self.outcome = kw.get("outcome", "")
+        self.record = kw.get("record", None)
+
+
+# Retired removes a retained pending or answered question from the Book. Record
+# carries its last metadata on the retiring call and is absent when replaying an
+# already retired ID. A pending question retired without an answer carries no
+# decision. Admission tombstones remain: application replay and observation of
+# its key report gone, and that key never admits again. Unknown means no
+# retained or retired question. Invalid means a malformed ID. Unavailable
+# establishes no retirement claim: retry the same ID or inspect fresh history.
+class OperatorRetirement:
     def __init__(self, **kw):
         self.outcome = kw.get("outcome", "")
         self.record = kw.get("record", None)
@@ -261,6 +318,11 @@ class OAQuestionOperatorAnswerQuestionArguments:
     def __init__(self, **kw):
         self.id = kw.get("id", "")
         self.option = kw.get("option", "")
+
+
+class OAQuestionOperatorRetireQuestionArguments:
+    def __init__(self, **kw):
+        self.id = kw.get("id", "")
 
 
 class OAServiceFrame:
@@ -304,6 +366,11 @@ class OAQuestionOperatorListQuestionsResult:
 class OAQuestionOperatorAnswerQuestionResult:
     def __init__(self, **kw):
         self.value = kw.get("value", OperatorDecision())
+
+
+class OAQuestionOperatorRetireQuestionResult:
+    def __init__(self, **kw):
+        self.value = kw.get("value", OperatorRetirement())
 
 
 def enc_question(out, v, depth):
@@ -636,6 +703,27 @@ def enc_operatordecision(out, v, depth):
     out += b"}"
 
 
+def enc_operatorretirement(out, v, depth):
+    if type(v.outcome) is not str: raise Refusal("wrong_type",0)
+    if v.outcome != "retired" and v.outcome != "unknown" and v.outcome != "invalid" and v.outcome != "forbidden" and v.outcome != "unavailable": raise Refusal("bad_enum",0)
+    out += b"{"
+    out += b"\n"
+    pad(out, depth + 1)
+    esc(out, "outcome")
+    out += b": "
+    esc(out, v.outcome)
+    if v.record is not None:
+        out += b","
+        out += b"\n"
+        pad(out, depth + 1)
+        esc(out, "record")
+        out += b": "
+        enc_recordmetadata(out, v.record, depth + 1)
+    out += b"\n"
+    pad(out, depth)
+    out += b"}"
+
+
 def enc_oaquestionapplicationaskarguments(out, v, depth):
     out += b"{"
     out += b"\n"
@@ -697,6 +785,18 @@ def enc_oaquestionoperatoranswerquestionarguments(out, v, depth):
     esc(out, "option")
     out += b": "
     esc(out, v.option)
+    out += b"\n"
+    pad(out, depth)
+    out += b"}"
+
+
+def enc_oaquestionoperatorretirequestionarguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    pad(out, depth + 1)
+    esc(out, "id")
+    out += b": "
+    esc(out, v.id)
     out += b"\n"
     pad(out, depth)
     out += b"}"
@@ -829,6 +929,18 @@ def enc_oaquestionoperatoranswerquestionresult(out, v, depth):
     esc(out, "value")
     out += b": "
     enc_operatordecision(out, v.value, depth + 1)
+    out += b"\n"
+    pad(out, depth)
+    out += b"}"
+
+
+def enc_oaquestionoperatorretirequestionresult(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    pad(out, depth + 1)
+    esc(out, "value")
+    out += b": "
+    enc_operatorretirement(out, v.value, depth + 1)
     out += b"\n"
     pad(out, depth)
     out += b"}"
@@ -1695,6 +1807,51 @@ def _decode_operatordecision(r):
     return v
 
 
+def _decode_operatorretirement(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = OperatorRetirement()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "record":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.record = _decode_recordmetadata(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    if v.outcome != "retired" and v.outcome != "unknown" and v.outcome != "invalid" and v.outcome != "forbidden" and v.outcome != "unavailable": raise r.refuse("bad_enum")
+    return v
+
+
 def _decode_oaquestionapplicationaskarguments(r):
     if r.at() != _LBRACE:
         raise r.refuse("wrong_type")
@@ -1862,6 +2019,45 @@ def _decode_oaquestionoperatoranswerquestionarguments(r):
     r.pos += 1
     r.depth -= 1
     if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _decode_oaquestionoperatorretirequestionarguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = OAQuestionOperatorRetireQuestionArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
         raise r.refuse("missing_field")
     return v
 
@@ -2179,6 +2375,45 @@ def _decode_oaquestionoperatoranswerquestionresult(r):
     return v
 
 
+def _decode_oaquestionoperatorretirequestionresult(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = OAQuestionOperatorRetireQuestionResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _decode_operatorretirement(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
 def decode(data):
     r = _Reader(bytes(data))
     r.ws()
@@ -2313,10 +2548,12 @@ _SERVICE_RECORDS = {
     "QuestionObservation": (QuestionObservation, [("outcome","string","never"),("answer","Answer","absent"),]),
     "OperatorPage": (OperatorPage, [("outcome","string","never"),("records","list<RecordMetadata>","never"),("next","string","never"),("complete","bool","never"),]),
     "OperatorDecision": (OperatorDecision, [("outcome","string","never"),("record","RecordMetadata","absent"),]),
+    "OperatorRetirement": (OperatorRetirement, [("outcome","string","never"),("record","RecordMetadata","absent"),]),
     "OAQuestionApplicationAskArguments": (OAQuestionApplicationAskArguments, [("question","ApplicationQuestion","never"),]),
     "OAQuestionApplicationObserveArguments": (OAQuestionApplicationObserveArguments, [("request_key","string","never"),("wait_ms","i64","never"),]),
     "OAQuestionOperatorListQuestionsArguments": (OAQuestionOperatorListQuestionsArguments, [("cursor","string","never"),("limit","i64","never"),]),
     "OAQuestionOperatorAnswerQuestionArguments": (OAQuestionOperatorAnswerQuestionArguments, [("id","string","never"),("option","string","never"),]),
+    "OAQuestionOperatorRetireQuestionArguments": (OAQuestionOperatorRetireQuestionArguments, [("id","string","never"),]),
     "OAServiceFrame": (OAServiceFrame, [("version","i32","never"),("service","string","never"),("method","string","never"),("arguments","json","never"),]),
     "OAServiceReply": (OAServiceReply, [("version","i32","never"),("service","string","never"),("method","string","never"),("ok","bool","never"),("payload","json","never"),]),
     "OAServiceError": (OAServiceError, [("code","string","never"),("message","string","never"),]),
@@ -2324,6 +2561,7 @@ _SERVICE_RECORDS = {
     "OAQuestionApplicationObserveResult": (OAQuestionApplicationObserveResult, [("value","QuestionObservation","never"),]),
     "OAQuestionOperatorListQuestionsResult": (OAQuestionOperatorListQuestionsResult, [("value","OperatorPage","never"),]),
     "OAQuestionOperatorAnswerQuestionResult": (OAQuestionOperatorAnswerQuestionResult, [("value","OperatorDecision","never"),]),
+    "OAQuestionOperatorRetireQuestionResult": (OAQuestionOperatorRetireQuestionResult, [("value","OperatorRetirement","never"),]),
 }
 
 
@@ -2365,10 +2603,12 @@ class QuestionApplicationClient(QuestionApplication):
 
 
 class QuestionOperator:
-    __doc__ = "Operator history and answering on the configured application Book. Host must explicitly authorize the receiving operator; requests contain no credentials, authority claims or provider paths. Authorization callbacks are trusted service configuration and may use the rights service. Native Forget remains explicit provider integration and retains admission tombstones."
+    __doc__ = "Operator history, answering and retirement on the configured application Book. Host must explicitly authorize the receiving operator; requests contain no credentials, authority claims or provider paths. Authorization callbacks are trusted service configuration and may use the rights service. Retirement and native Forget both retain admission tombstones."
     def ListQuestions(self, cursor: "str", limit: "int") -> "OperatorPage":
         raise NotImplementedError
     def AnswerQuestion(self, id: "str", option: "str") -> "OperatorDecision":
+        raise NotImplementedError
+    def RetireQuestion(self, id: "str") -> "OperatorRetirement":
         raise NotImplementedError
 
 
@@ -2400,4 +2640,15 @@ class QuestionOperatorClient(QuestionOperator):
         _oa_request = _service_request("abstraction.asks/operator@1", "AnswerQuestion", _oa_arguments)
         _oa_payload = _service_response(self._transport.exchange_frame(_oa_request), "abstraction.asks/operator@1", "AnswerQuestion")
         _oa_result = _service_decode(_decode_oaquestionoperatoranswerquestionresult, _oa_payload, 1)
+        return _oa_result.value
+
+    def RetireQuestion(self, id: "str") -> "OperatorRetirement":
+        _service_check("string", id)
+        _oa_args = OAQuestionOperatorRetireQuestionArguments()
+        _oa_args.id = id
+        _oa_arguments = _service_encode(enc_oaquestionoperatorretirequestionarguments, _oa_args, 1)
+        _service_decode(_decode_oaquestionoperatorretirequestionarguments, _oa_arguments, 1)
+        _oa_request = _service_request("abstraction.asks/operator@1", "RetireQuestion", _oa_arguments)
+        _oa_payload = _service_response(self._transport.exchange_frame(_oa_request), "abstraction.asks/operator@1", "RetireQuestion")
+        _oa_result = _service_decode(_decode_oaquestionoperatorretirequestionresult, _oa_payload, 1)
         return _oa_result.value

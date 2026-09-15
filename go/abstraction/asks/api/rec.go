@@ -274,16 +274,36 @@ const OperatorDecisionOutcomeUnavailable = "unavailable"
 
 const OperatorDecisionOutcomeUnknownPolicy = "refuse"
 
+var OperatorRetirementOutcomeNames = []string{"retired", "unknown", "invalid", "forbidden", "unavailable"}
+
+const OperatorRetirementOutcomeRetired = "retired"
+
+const OperatorRetirementOutcomeUnknown = "unknown"
+
+const OperatorRetirementOutcomeInvalid = "invalid"
+
+const OperatorRetirementOutcomeForbidden = "forbidden"
+
+const OperatorRetirementOutcomeUnavailable = "unavailable"
+
+const OperatorRetirementOutcomeUnknownPolicy = "refuse"
+
 var Operations = []string{"ask", "pending", "answered", "answer", "forget"}
 
 var RefusalCodes = []string{"internal", "invalid_request", "caller_refused", "unknown_operation", "not_administrator", "withdrawn", "unknown_question", "unknown_option", "bad_slot", "nothing_pending", "no_record"}
 
+// Own Ask fields. The service owns question text/options; callers supply a
+// known key and slots. Native Ask.For carries optional peer observation
+// evidence and remains a transport supplement, never caller authority.
 type Question struct {
 	Asker string
 	Key   string
 	Slots map[string]string
 }
 
+// Existing question operation concepts. Wait cancellation belongs to the native
+// client context. This metadata descriptor does not replace the existing
+// handwritten line transport.
 type Request struct {
 	Op     string
 	Ask    *Question
@@ -301,6 +321,9 @@ type Answer struct {
 	Kept    bool
 }
 
+// Own question-history fields; timestamps retain existing RFC3339
+// representation. Native Record includes Via/For Seen evidence from shared
+// identity. Empty option means pending.
 type RecordMetadata struct {
 	Id       string
 	Asker    string
@@ -315,6 +338,9 @@ type RecordMetadata struct {
 	Yes      bool
 }
 
+// Own response projection. Any nonempty code/error refuses, including unknown
+// future codes. Evidence supplement and existing wire handling remain native;
+// no generated complete service interface is claimed.
 type ResponseMetadata struct {
 	Code    string
 	Error   string
@@ -322,17 +348,40 @@ type ResponseMetadata struct {
 	Records []RecordMetadata
 }
 
+// Stable caller-owned request key (1..128 UTF-8 bytes, no control characters),
+// known question key and exactly its declared slots. Each slot is one line of
+// at most 200 Unicode characters. No asker or authority fields are accepted.
+// The receiving account and executable-path proof scope the request. Retry
+// uncertain submission with this same key and unchanged content; a fresh key
+// requests a new admission.
 type ApplicationQuestion struct {
 	RequestKey string
 	Key        string
 	Slots      map[string]string
 }
 
+// Answer is present exactly for pending/answered. Pending has no
+// option/yes/kept decision. Unknown is an unobserved key in this caller's
+// scope. Gone retains a forgotten admission's key and never admits it again.
+// Conflict means the key was previously used with different content.
+// Unavailable includes storage/capacity refusal and establishes no human
+// decision. Answered reports the recorded human choice; it grants no resource
+// authority by itself.
 type QuestionObservation struct {
 	Outcome string
 	Answer  *Answer
 }
 
+// Latest-book enumeration for an explicitly authorized operator, including
+// pending and answered questions. Page has at most the requested 1..64 records
+// and 256 KiB per encoded reply, with conservative record, indentation and
+// envelope accounting. Complete means this snapshot was exhausted; otherwise
+// next is nonempty. Refusals contain no records, next or complete flag. Opaque
+// cursors (at most 256 UTF-8 bytes) bind receiving caller scope, host epoch and
+// exact book revision. Change, restart or scope mismatch returns gap: restart
+// from empty cursor. No historical change replay or stable snapshot across
+// edits is promised. Native Via/For evidence stays server-side; display fields
+// confer no authority.
 type OperatorPage struct {
 	Outcome  string
 	Records  []RecordMetadata
@@ -340,7 +389,25 @@ type OperatorPage struct {
 	Complete bool
 }
 
+// Record is present exactly for answered. Same ID and option replays the
+// original decision including its timestamp and kept/once meaning; another
+// option conflicts. Unknown means no retained question. Invalid includes an
+// unknown option or invalid ID. Unavailable establishes no decision or
+// noncommit claim: retry the same ID/option or inspect fresh history. Answering
+// records a human choice, never a resource grant.
 type OperatorDecision struct {
+	Outcome string
+	Record  *RecordMetadata
+}
+
+// Retired removes a retained pending or answered question from the Book. Record
+// carries its last metadata on the retiring call and is absent when replaying
+// an already retired ID. A pending question retired without an answer carries
+// no decision. Admission tombstones remain: application replay and observation
+// of its key report gone, and that key never admits again. Unknown means no
+// retained or retired question. Invalid means a malformed ID. Unavailable
+// establishes no retirement claim: retry the same ID or inspect fresh history.
+type OperatorRetirement struct {
 	Outcome string
 	Record  *RecordMetadata
 }
@@ -362,6 +429,10 @@ type OAQuestionOperatorListQuestionsArguments struct {
 type OAQuestionOperatorAnswerQuestionArguments struct {
 	Id     string
 	Option string
+}
+
+type OAQuestionOperatorRetireQuestionArguments struct {
+	Id string
 }
 
 type OAServiceFrame struct {
@@ -398,6 +469,10 @@ type OAQuestionOperatorListQuestionsResult struct {
 
 type OAQuestionOperatorAnswerQuestionResult struct {
 	Value OperatorDecision
+}
+
+type OAQuestionOperatorRetireQuestionResult struct {
+	Value OperatorRetirement
 }
 
 func encQuestion(out []byte, v *Question, depth int) []byte {
@@ -786,6 +861,29 @@ func encOperatorDecision(out []byte, v *OperatorDecision, depth int) []byte {
 	return append(out, '}')
 }
 
+func encOperatorRetirement(out []byte, v *OperatorRetirement, depth int) []byte {
+	if v.Outcome != "retired" && v.Outcome != "unknown" && v.Outcome != "invalid" && v.Outcome != "forbidden" && v.Outcome != "unavailable" {
+		panic(&Refusal{Word: "bad_enum", Offset: 0})
+	}
+	out = append(out, '{')
+	out = append(out, '\n')
+	out = pad(out, depth+1)
+	out = esc(out, "outcome")
+	out = append(out, ':', ' ')
+	out = esc(out, v.Outcome)
+	if v.Record != nil {
+		out = append(out, ',')
+		out = append(out, '\n')
+		out = pad(out, depth+1)
+		out = esc(out, "record")
+		out = append(out, ':', ' ')
+		out = encRecordMetadata(out, v.Record, depth+1)
+	}
+	out = append(out, '\n')
+	out = pad(out, depth)
+	return append(out, '}')
+}
+
 func encOAQuestionApplicationAskArguments(out []byte, v *OAQuestionApplicationAskArguments, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
@@ -847,6 +945,18 @@ func encOAQuestionOperatorAnswerQuestionArguments(out []byte, v *OAQuestionOpera
 	out = esc(out, "option")
 	out = append(out, ':', ' ')
 	out = esc(out, v.Option)
+	out = append(out, '\n')
+	out = pad(out, depth)
+	return append(out, '}')
+}
+
+func encOAQuestionOperatorRetireQuestionArguments(out []byte, v *OAQuestionOperatorRetireQuestionArguments, depth int) []byte {
+	out = append(out, '{')
+	out = append(out, '\n')
+	out = pad(out, depth+1)
+	out = esc(out, "id")
+	out = append(out, ':', ' ')
+	out = esc(out, v.Id)
 	out = append(out, '\n')
 	out = pad(out, depth)
 	return append(out, '}')
@@ -983,6 +1093,18 @@ func encOAQuestionOperatorAnswerQuestionResult(out []byte, v *OAQuestionOperator
 	out = esc(out, "value")
 	out = append(out, ':', ' ')
 	out = encOperatorDecision(out, &v.Value, depth+1)
+	out = append(out, '\n')
+	out = pad(out, depth)
+	return append(out, '}')
+}
+
+func encOAQuestionOperatorRetireQuestionResult(out []byte, v *OAQuestionOperatorRetireQuestionResult, depth int) []byte {
+	out = append(out, '{')
+	out = append(out, '\n')
+	out = pad(out, depth+1)
+	out = esc(out, "value")
+	out = append(out, ':', ' ')
+	out = encOperatorRetirement(out, &v.Value, depth+1)
 	out = append(out, '\n')
 	out = pad(out, depth)
 	return append(out, '}')
@@ -2400,6 +2522,78 @@ func (r *reader) decodeOperatorDecision() (*OperatorDecision, error) {
 	return v, nil
 }
 
+func (r *reader) decodeOperatorRetirement() (*OperatorRetirement, error) {
+	if r.at() != '{' {
+		return nil, r.refuse("wrong_type")
+	}
+	if err := r.enter(); err != nil {
+		return nil, err
+	}
+	r.pos++
+	v := &OperatorRetirement{}
+	var seen uint32
+	r.ws()
+	if r.at() != '}' {
+		for {
+			r.ws()
+			if r.at() != '"' {
+				return nil, r.refuse("malformed")
+			}
+			key, err := r.str()
+			if err != nil {
+				return nil, err
+			}
+			r.ws()
+			if r.at() != ':' {
+				return nil, r.refuse("malformed")
+			}
+			r.pos++
+			r.ws()
+			switch key {
+			case "outcome":
+				if seen&1 != 0 {
+					return nil, r.refuse("duplicate_field")
+				}
+				seen |= 1
+				x, err := r.str()
+				if err != nil {
+					return nil, err
+				}
+				v.Outcome = x
+			case "record":
+				if seen&2 != 0 {
+					return nil, r.refuse("duplicate_field")
+				}
+				seen |= 2
+				x, err := r.decodeRecordMetadata()
+				if err != nil {
+					return nil, err
+				}
+				v.Record = x
+			default:
+				return nil, r.refuse("unknown_field")
+			}
+			r.ws()
+			if r.at() != ',' {
+				break
+			}
+			r.pos++
+		}
+	}
+	if r.at() != '}' {
+		return nil, r.refuse("malformed")
+	}
+	r.pos++
+	r.depth--
+	if seen&1 != 1 {
+		return nil, r.refuse("missing_field")
+	}
+	if v.Outcome != "retired" && v.Outcome != "unknown" && v.Outcome != "invalid" && v.Outcome != "forbidden" && v.Outcome != "unavailable" {
+		return nil, r.refuse("bad_enum")
+	}
+	return v, nil
+}
+
 func (r *reader) decodeOAQuestionApplicationAskArguments() (*OAQuestionApplicationAskArguments, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
@@ -2661,6 +2855,65 @@ func (r *reader) decodeOAQuestionOperatorAnswerQuestionArguments() (*OAQuestionO
 	r.pos++
 	r.depth--
 	if seen&3 != 3 {
+		return nil, r.refuse("missing_field")
+	}
+	return v, nil
+}
+
+func (r *reader) decodeOAQuestionOperatorRetireQuestionArguments() (*OAQuestionOperatorRetireQuestionArguments, error) {
+	if r.at() != '{' {
+		return nil, r.refuse("wrong_type")
+	}
+	if err := r.enter(); err != nil {
+		return nil, err
+	}
+	r.pos++
+	v := &OAQuestionOperatorRetireQuestionArguments{}
+	var seen uint32
+	r.ws()
+	if r.at() != '}' {
+		for {
+			r.ws()
+			if r.at() != '"' {
+				return nil, r.refuse("malformed")
+			}
+			key, err := r.str()
+			if err != nil {
+				return nil, err
+			}
+			r.ws()
+			if r.at() != ':' {
+				return nil, r.refuse("malformed")
+			}
+			r.pos++
+			r.ws()
+			switch key {
+			case "id":
+				if seen&1 != 0 {
+					return nil, r.refuse("duplicate_field")
+				}
+				seen |= 1
+				x, err := r.str()
+				if err != nil {
+					return nil, err
+				}
+				v.Id = x
+			default:
+				return nil, r.refuse("unknown_field")
+			}
+			r.ws()
+			if r.at() != ',' {
+				break
+			}
+			r.pos++
+		}
+	}
+	if r.at() != '}' {
+		return nil, r.refuse("malformed")
+	}
+	r.pos++
+	r.depth--
+	if seen&1 != 1 {
 		return nil, r.refuse("missing_field")
 	}
 	return v, nil
@@ -3159,6 +3412,65 @@ func (r *reader) decodeOAQuestionOperatorAnswerQuestionResult() (*OAQuestionOper
 	return v, nil
 }
 
+func (r *reader) decodeOAQuestionOperatorRetireQuestionResult() (*OAQuestionOperatorRetireQuestionResult, error) {
+	if r.at() != '{' {
+		return nil, r.refuse("wrong_type")
+	}
+	if err := r.enter(); err != nil {
+		return nil, err
+	}
+	r.pos++
+	v := &OAQuestionOperatorRetireQuestionResult{}
+	var seen uint32
+	r.ws()
+	if r.at() != '}' {
+		for {
+			r.ws()
+			if r.at() != '"' {
+				return nil, r.refuse("malformed")
+			}
+			key, err := r.str()
+			if err != nil {
+				return nil, err
+			}
+			r.ws()
+			if r.at() != ':' {
+				return nil, r.refuse("malformed")
+			}
+			r.pos++
+			r.ws()
+			switch key {
+			case "value":
+				if seen&1 != 0 {
+					return nil, r.refuse("duplicate_field")
+				}
+				seen |= 1
+				x, err := r.decodeOperatorRetirement()
+				if err != nil {
+					return nil, err
+				}
+				v.Value = *x
+			default:
+				return nil, r.refuse("unknown_field")
+			}
+			r.ws()
+			if r.at() != ',' {
+				break
+			}
+			r.pos++
+		}
+	}
+	if r.at() != '}' {
+		return nil, r.refuse("malformed")
+	}
+	r.pos++
+	r.depth--
+	if seen&1 != 1 {
+		return nil, r.refuse("missing_field")
+	}
+	return v, nil
+}
+
 func Decode(in []byte) (*Request, error) {
 	r := &reader{buf: in}
 	r.ws()
@@ -3529,6 +3841,7 @@ func (d *QuestionApplicationDispatcher) invokeObserve(args *OAQuestionApplicatio
 type QuestionOperator interface {
 	ListQuestions(string, int64) (OperatorPage, error)
 	AnswerQuestion(string, string) (OperatorDecision, error)
+	RetireQuestion(string) (OperatorRetirement, error)
 }
 type QuestionOperatorTransport interface {
 	FrameExchanger
@@ -3625,6 +3938,48 @@ func (c *QuestionOperatorClient) AnswerQuestion(arg0 string, arg1 string) (resul
 	result = decoded.Value
 	return
 }
+func (c *QuestionOperatorClient) RetireQuestion(arg0 string) (result OperatorRetirement, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			if e, ok := p.(*Refusal); ok {
+				err = e
+			} else {
+				panic(p)
+			}
+		}
+	}()
+	args := OAQuestionOperatorRetireQuestionArguments{Id: arg0}
+	v := OAServiceFrame{Version: 1, Service: "abstraction.asks/operator@1", Method: "RetireQuestion", Arguments: Raw(encOAQuestionOperatorRetireQuestionArguments(nil, &args, 1))}
+	frame := encOAServiceFrame(nil, &v, 0)
+	if _, err = servicePayload(frame); err != nil {
+		return
+	}
+	var response []byte
+	response, err = c.transport.ExchangeFrame(frame)
+	if err != nil {
+		return
+	}
+	var payload Raw
+	payload, err = serviceResponse(response, v.Service, v.Method)
+	if err != nil {
+		return
+	}
+	r := &reader{buf: []byte(payload), depth: 1}
+	r.ws()
+	var decoded *OAQuestionOperatorRetireQuestionResult
+	decoded, err = r.decodeOAQuestionOperatorRetireQuestionResult()
+	if err != nil {
+		return
+	}
+	_ = decoded
+	r.ws()
+	if r.pos != len(r.buf) {
+		err = r.refuse("trailing_bytes")
+		return
+	}
+	result = decoded.Value
+	return
+}
 func (d *QuestionOperatorDispatcher) WriteFrame(frame []byte) error {
 	v, err := servicePayload(frame)
 	if err != nil {
@@ -3637,6 +3992,8 @@ func (d *QuestionOperatorDispatcher) WriteFrame(frame []byte) error {
 	case "ListQuestions":
 		return DispatchError("wrong_mode")
 	case "AnswerQuestion":
+		return DispatchError("wrong_mode")
+	case "RetireQuestion":
 		return DispatchError("wrong_mode")
 	default:
 		return DispatchError("unknown_method")
@@ -3676,6 +4033,19 @@ func (d *QuestionOperatorDispatcher) ExchangeFrame(frame []byte) ([]byte, error)
 			return serviceReply(v, "", r.refuse("trailing_bytes"))
 		}
 		payload, err := d.invokeAnswerQuestion(args)
+		return serviceReply(v, payload, err)
+	case "RetireQuestion":
+		r := &reader{buf: []byte(v.Arguments), depth: 1}
+		r.ws()
+		args, err := r.decodeOAQuestionOperatorRetireQuestionArguments()
+		if err != nil {
+			return serviceReply(v, "", err)
+		}
+		r.ws()
+		if r.pos != len(r.buf) {
+			return serviceReply(v, "", r.refuse("trailing_bytes"))
+		}
+		payload, err := d.invokeRetireQuestion(args)
 		return serviceReply(v, payload, err)
 	default:
 		return serviceReply(v, "", DispatchError("unknown_method"))
@@ -3734,6 +4104,38 @@ func (d *QuestionOperatorDispatcher) invokeAnswerQuestion(args *OAQuestionOperat
 	r := &reader{buf: []byte(payload), depth: 1}
 	r.ws()
 	if _, e := r.decodeOAQuestionOperatorAnswerQuestionResult(); e != nil {
+		payload = ""
+		err = &ServiceError{Code: "invalid_result"}
+		return
+	}
+	r.ws()
+	if r.pos != len(r.buf) {
+		payload = ""
+		err = &ServiceError{Code: "invalid_result"}
+	}
+	return
+}
+func (d *QuestionOperatorDispatcher) invokeRetireQuestion(args *OAQuestionOperatorRetireQuestionArguments) (payload Raw, err error) {
+	defer func() {
+		if p := recover(); p != nil {
+			payload = ""
+			if _, ok := p.(*Refusal); ok {
+				err = &ServiceError{Code: "invalid_result"}
+			} else {
+				err = &ServiceError{Code: "handler_error", Message: "handler failed"}
+			}
+		}
+	}()
+	var result OperatorRetirement
+	result, err = d.Handler.RetireQuestion(args.Id)
+	if err != nil {
+		return
+	}
+	value := OAQuestionOperatorRetireQuestionResult{Value: result}
+	payload = Raw(encOAQuestionOperatorRetireQuestionResult(nil, &value, 1))
+	r := &reader{buf: []byte(payload), depth: 1}
+	r.ws()
+	if _, e := r.decodeOAQuestionOperatorRetireQuestionResult(); e != nil {
 		payload = ""
 		err = &ServiceError{Code: "invalid_result"}
 		return

@@ -89,5 +89,22 @@ Missing IDs return `unknown`; invalid options return `invalid`. `answered` alone
 carries a record. A lost reply or storage error may leave an uncertain outcome;
 clients never retry automatically. Explicit same-ID/option retry or fresh history
 reconciles it. Native Forget remains explicitly selected provider integration;
-its admission tombstones prevent re-admission. Retention/retirement management
-is not added by this operator profile.
+its admission tombstones prevent re-admission.
+
+`RetireQuestion(id)` removes a retained pending or answered question for an
+authorized operator. Authorization and context are rechecked inside the atomic
+edit after lock waiting and before removal. The first retirement returns
+`retired` with the question's last metadata; a pending question carries no
+decision. Admission tombstones remain: application Ask replay and Observe of its
+key report `gone`, and the key never admits again. Retiring an ID that only an
+admission still names replays `retired` without a record, including after a
+restart. `unknown` means no retained or retired question and `invalid` a
+malformed ID. Storage failure is `unavailable` and establishes no retirement.
+Clients never retry automatically; an explicit same-ID retry or fresh history
+reconciles an uncertain call. Retirement grants and revokes no resource authority.
+
+The operator UI obtains the person's selection or retirement decision and
+submits it through this service. Retirement removes questions from operator
+history; the application learns the outcome as `gone` and must not treat it as a
+refusal or approval. Tombstones stay within the Book's 4096-admission bound, so
+retirement frees record capacity and leaves admission capacity unchanged.

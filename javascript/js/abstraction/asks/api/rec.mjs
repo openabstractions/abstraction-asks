@@ -151,6 +151,9 @@ export const OperatorPageOutcomeUnknown = "refuse";
 export const OperatorDecisionOutcomeNames = ["answered", "conflict", "unknown", "invalid", "forbidden", "unavailable"];
 export const OperatorDecisionOutcomeUnknown = "refuse";
 
+export const OperatorRetirementOutcomeNames = ["retired", "unknown", "invalid", "forbidden", "unavailable"];
+export const OperatorRetirementOutcomeUnknown = "refuse";
+
 export const operations = ["ask", "pending", "answered", "answer", "forget"];
 
 export const refusalCodes = ["internal", "invalid_request", "caller_refused", "unknown_operation", "not_administrator", "withdrawn", "unknown_question", "unknown_option", "bad_slot", "nothing_pending", "no_record"];
@@ -501,6 +504,28 @@ export function enc_operatordecision(out, v, depth) {
   out.byte(0x7d);
 }
 
+export function enc_operatorretirement(out, v, depth) {
+    if (typeof v.outcome !== "string") throw new Refusal("wrong_type",0);
+    if (v.outcome !== "retired" && v.outcome !== "unknown" && v.outcome !== "invalid" && v.outcome !== "forbidden" && v.outcome !== "unavailable") { throw new Refusal("bad_enum",0); }
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "outcome");
+  out.ascii(": ");
+  esc(out, v.outcome);
+  if (v.record !== undefined && v.record !== null) {
+    out.byte(0x2c);
+    out.byte(0x0a);
+    pad(out, depth + 1);
+    esc(out, "record");
+    out.ascii(": ");
+    enc_recordmetadata(out, v.record, depth + 1);
+  }
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
 export function enc_oaquestionapplicationaskarguments(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
@@ -562,6 +587,18 @@ export function enc_oaquestionoperatoranswerquestionarguments(out, v, depth) {
   esc(out, "option");
   out.ascii(": ");
   esc(out, v.option);
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
+export function enc_oaquestionoperatorretirequestionarguments(out, v, depth) {
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "id");
+  out.ascii(": ");
+  esc(out, v.id);
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
@@ -694,6 +731,18 @@ export function enc_oaquestionoperatoranswerquestionresult(out, v, depth) {
   esc(out, "value");
   out.ascii(": ");
   enc_operatordecision(out, v.value, depth + 1);
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
+export function enc_oaquestionoperatorretirequestionresult(out, v, depth) {
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "value");
+  out.ascii(": ");
+  enc_operatorretirement(out, v.value, depth + 1);
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
@@ -1031,10 +1080,16 @@ function decodeList(r, elem) {
   return out;
 }
 
+// Own Ask fields. The service owns question text/options; callers supply a
+// known key and slots. Native Ask.For carries optional peer observation
+// evidence and remains a transport supplement, never caller authority.
 export function newQuestion() {
   return { asker: "", key: "", slots: {} };
 }
 
+// Existing question operation concepts. Wait cancellation belongs to the native
+// client context. This metadata descriptor does not replace the existing
+// handwritten line transport.
 export function newRequest() {
   return { op: "", ask: null, wait: false, id: "", option: "", admin: "" };
 }
@@ -1043,27 +1098,73 @@ export function newAnswer() {
   return { id: "", pending: false, option: "", yes: false, kept: false };
 }
 
+// Own question-history fields; timestamps retain existing RFC3339
+// representation. Native Record includes Via/For Seen evidence from shared
+// identity. Empty option means pending.
 export function newRecordMetadata() {
   return { id: "", asker: "", key: "", about: "", text: "", options: [], asked: "", option: "", answered: "", kept: false, yes: false };
 }
 
+// Own response projection. Any nonempty code/error refuses, including unknown
+// future codes. Evidence supplement and existing wire handling remain native;
+// no generated complete service interface is claimed.
 export function newResponseMetadata() {
   return { code: "", error: "", answer: null, records: [] };
 }
 
+// Stable caller-owned request key (1..128 UTF-8 bytes, no control characters),
+// known question key and exactly its declared slots. Each slot is one line of
+// at most 200 Unicode characters. No asker or authority fields are accepted.
+// The receiving account and executable-path proof scope the request. Retry
+// uncertain submission with this same key and unchanged content; a fresh key
+// requests a new admission.
 export function newApplicationQuestion() {
   return { request_key: "", key: "", slots: {} };
 }
 
+// Answer is present exactly for pending/answered. Pending has no
+// option/yes/kept decision. Unknown is an unobserved key in this caller's
+// scope. Gone retains a forgotten admission's key and never admits it again.
+// Conflict means the key was previously used with different content.
+// Unavailable includes storage/capacity refusal and establishes no human
+// decision. Answered reports the recorded human choice; it grants no resource
+// authority by itself.
 export function newQuestionObservation() {
   return { outcome: "", answer: null };
 }
 
+// Latest-book enumeration for an explicitly authorized operator, including
+// pending and answered questions. Page has at most the requested 1..64 records
+// and 256 KiB per encoded reply, with conservative record, indentation and
+// envelope accounting. Complete means this snapshot was exhausted; otherwise
+// next is nonempty. Refusals contain no records, next or complete flag. Opaque
+// cursors (at most 256 UTF-8 bytes) bind receiving caller scope, host epoch and
+// exact book revision. Change, restart or scope mismatch returns gap: restart
+// from empty cursor. No historical change replay or stable snapshot across
+// edits is promised. Native Via/For evidence stays server-side; display fields
+// confer no authority.
 export function newOperatorPage() {
   return { outcome: "", records: [], next: "", complete: false };
 }
 
+// Record is present exactly for answered. Same ID and option replays the
+// original decision including its timestamp and kept/once meaning; another
+// option conflicts. Unknown means no retained question. Invalid includes an
+// unknown option or invalid ID. Unavailable establishes no decision or
+// noncommit claim: retry the same ID/option or inspect fresh history. Answering
+// records a human choice, never a resource grant.
 export function newOperatorDecision() {
+  return { outcome: "", record: null };
+}
+
+// Retired removes a retained pending or answered question from the Book. Record
+// carries its last metadata on the retiring call and is absent when replaying
+// an already retired ID. A pending question retired without an answer carries
+// no decision. Admission tombstones remain: application replay and observation
+// of its key report gone, and that key never admits again. Unknown means no
+// retained or retired question. Invalid means a malformed ID. Unavailable
+// establishes no retirement claim: retry the same ID or inspect fresh history.
+export function newOperatorRetirement() {
   return { outcome: "", record: null };
 }
 
@@ -1081,6 +1182,10 @@ export function newOAQuestionOperatorListQuestionsArguments() {
 
 export function newOAQuestionOperatorAnswerQuestionArguments() {
   return { id: "", option: "" };
+}
+
+export function newOAQuestionOperatorRetireQuestionArguments() {
+  return { id: "" };
 }
 
 export function newOAServiceFrame() {
@@ -1109,6 +1214,10 @@ export function newOAQuestionOperatorListQuestionsResult() {
 
 export function newOAQuestionOperatorAnswerQuestionResult() {
   return { value: newOperatorDecision() };
+}
+
+export function newOAQuestionOperatorRetireQuestionResult() {
+  return { value: newOperatorRetirement() };
 }
 
 function decode_question(r) {
@@ -1552,6 +1661,46 @@ function decode_operatordecision(r) {
   return v;
 }
 
+function decode_operatorretirement(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newOperatorRetirement();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "outcome") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.outcome = r.string();
+      } else if (key === "record") {
+        if (seen & 2) throw r.refuse("duplicate_field");
+        seen |= 2;
+        v.record = decode_recordmetadata(r);
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 1) >>> 0) !== 1) throw r.refuse("missing_field");
+    if (v.outcome !== "retired" && v.outcome !== "unknown" && v.outcome !== "invalid" && v.outcome !== "forbidden" && v.outcome !== "unavailable") { throw r.refuse("bad_enum"); }
+  return v;
+}
+
 function decode_oaquestionapplicationaskarguments(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
@@ -1701,6 +1850,41 @@ function decode_oaquestionoperatoranswerquestionarguments(r) {
   r.pos++;
   r.depth--;
   if (((seen & 3) >>> 0) !== 3) throw r.refuse("missing_field");
+  return v;
+}
+
+function decode_oaquestionoperatorretirequestionarguments(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newOAQuestionOperatorRetireQuestionArguments();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "id") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.id = r.string();
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 1) >>> 0) !== 1) throw r.refuse("missing_field");
   return v;
 }
 
@@ -1981,6 +2165,41 @@ function decode_oaquestionoperatoranswerquestionresult(r) {
   return v;
 }
 
+function decode_oaquestionoperatorretirequestionresult(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newOAQuestionOperatorRetireQuestionResult();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "value") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.value = decode_operatorretirement(r);
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 1) >>> 0) !== 1) throw r.refuse("missing_field");
+  return v;
+}
+
 export function decode(data) {
   const r = new Reader(data);
   r.ws();
@@ -2059,10 +2278,12 @@ _serviceRecords["ApplicationQuestion"] = [["request_key","string","never"],["key
 _serviceRecords["QuestionObservation"] = [["outcome","string","never"],["answer","Answer","absent"],];
 _serviceRecords["OperatorPage"] = [["outcome","string","never"],["records","list<RecordMetadata>","never"],["next","string","never"],["complete","bool","never"],];
 _serviceRecords["OperatorDecision"] = [["outcome","string","never"],["record","RecordMetadata","absent"],];
+_serviceRecords["OperatorRetirement"] = [["outcome","string","never"],["record","RecordMetadata","absent"],];
 _serviceRecords["OAQuestionApplicationAskArguments"] = [["question","ApplicationQuestion","never"],];
 _serviceRecords["OAQuestionApplicationObserveArguments"] = [["request_key","string","never"],["wait_ms","i64","never"],];
 _serviceRecords["OAQuestionOperatorListQuestionsArguments"] = [["cursor","string","never"],["limit","i64","never"],];
 _serviceRecords["OAQuestionOperatorAnswerQuestionArguments"] = [["id","string","never"],["option","string","never"],];
+_serviceRecords["OAQuestionOperatorRetireQuestionArguments"] = [["id","string","never"],];
 _serviceRecords["OAServiceFrame"] = [["version","i32","never"],["service","string","never"],["method","string","never"],["arguments","json","never"],];
 _serviceRecords["OAServiceReply"] = [["version","i32","never"],["service","string","never"],["method","string","never"],["ok","bool","never"],["payload","json","never"],];
 _serviceRecords["OAServiceError"] = [["code","string","never"],["message","string","never"],];
@@ -2070,6 +2291,7 @@ _serviceRecords["OAQuestionApplicationAskResult"] = [["value","QuestionObservati
 _serviceRecords["OAQuestionApplicationObserveResult"] = [["value","QuestionObservation","never"],];
 _serviceRecords["OAQuestionOperatorListQuestionsResult"] = [["value","OperatorPage","never"],];
 _serviceRecords["OAQuestionOperatorAnswerQuestionResult"] = [["value","OperatorDecision","never"],];
+_serviceRecords["OAQuestionOperatorRetireQuestionResult"] = [["value","OperatorRetirement","never"],];
 
 function _serviceRequest(service, method, argumentsBytes) {
   return _serviceEncode(enc_oaserviceframe, {
@@ -2142,6 +2364,17 @@ export class QuestionOperatorClient {
     const request = _serviceRequest("abstraction.asks/operator@1", "AnswerQuestion", payload);
     const reply = _serviceResponse(await this._transport.exchangeFrame(request), "abstraction.asks/operator@1", "AnswerQuestion");
     const result = _serviceDecode(decode_oaquestionoperatoranswerquestionresult, reply, 1);
+    return result.value;
+  }
+  async RetireQuestion(arg0) {
+    const args = newOAQuestionOperatorRetireQuestionArguments();
+    args["id"] = arg0;
+    _serviceCheck("OAQuestionOperatorRetireQuestionArguments", args);
+    const payload = _serviceEncode(enc_oaquestionoperatorretirequestionarguments, args, 1);
+    _serviceDecode(decode_oaquestionoperatorretirequestionarguments, payload, 1);
+    const request = _serviceRequest("abstraction.asks/operator@1", "RetireQuestion", payload);
+    const reply = _serviceResponse(await this._transport.exchangeFrame(request), "abstraction.asks/operator@1", "RetireQuestion");
+    const result = _serviceDecode(decode_oaquestionoperatorretirequestionresult, reply, 1);
     return result.value;
   }
 }

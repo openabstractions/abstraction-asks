@@ -30,7 +30,7 @@
 <div class="wrap"><table>
 <thead><tr><th>kind</th><th>types</th></tr></thead>
 <tbody>
-<tr><td>built in</td><td><code>ObservationOutcome</code> <code>OperatorDecisionOutcome</code> <code>OperatorPageOutcome</code> <code>bool</code> <code>string</code></td></tr>
+<tr><td>built in</td><td><code>ObservationOutcome</code> <code>OperatorDecisionOutcome</code> <code>OperatorPageOutcome</code> <code>OperatorRetirementOutcome</code> <code>bool</code> <code>string</code></td></tr>
 <tr><td>declared below</td><td><code>Answer</code> <code>Question</code> <code>RecordMetadata</code></td></tr>
 <tr><td>container <span class="tag">[DEF-T3]</span></td><td><code>list&lt;string&gt;</code></td></tr>
 <tr><td>repeated record <span class="tag">[DEF-A9]</span></td><td><code>list&lt;RecordMetadata&gt;</code></td></tr>
@@ -132,6 +132,14 @@
 <tr><td>1</td><td><code>outcome</code></td><td><code>OperatorDecisionOutcome</code></td><td>required</td><td>—</td></tr>
 <tr><td>2</td><td><code>record</code></td><td><code>RecordMetadata</code></td><td>optional · omitted when absent</td><td>—</td></tr>
 </tbody></table></div>
+<h3 id="struct-OperatorRetirement"><code>OperatorRetirement</code></h3>
+<p class="meta">unknown fields <code>refuse</code></p>
+<div class="wrap"><table>
+<thead><tr><th>id</th><th>field</th><th>type</th><th>presence</th><th>named elsewhere</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><code>outcome</code></td><td><code>OperatorRetirementOutcome</code></td><td>required</td><td>—</td></tr>
+<tr><td>2</td><td><code>record</code></td><td><code>RecordMetadata</code></td><td>optional · omitted when absent</td><td>—</td></tr>
+</tbody></table></div>
 <h2 id="enums">Enumerations <span class="tag">[DEF-T5]</span></h2>
 <p>Enum fields carry JSON strings containing exact member names, never numeric IDs. Unknown names are preserved with grant and refused as bad_enum with refuse on read and write. Optional absent fields preserve presence separately from an empty string.</p>
 <p class="meta">An enumeration is a closed vocabulary of wire names, and each one says on its own what a reader does with a member it has never heard of <span class="tag">[DEF-A5]</span>.</p>
@@ -172,6 +180,17 @@
 <tr><td>5</td><td><code>forbidden</code></td></tr>
 <tr><td>6</td><td><code>unavailable</code></td></tr>
 </tbody></table></div>
+<h3 id="enum-OperatorRetirementOutcome"><code>OperatorRetirementOutcome</code></h3>
+<p class="meta">a member this reader does not know is <code>refuse</code></p>
+<div class="wrap"><table>
+<thead><tr><th>id</th><th>member</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><code>retired</code></td></tr>
+<tr><td>2</td><td><code>unknown</code></td></tr>
+<tr><td>3</td><td><code>invalid</code></td></tr>
+<tr><td>4</td><td><code>forbidden</code></td></tr>
+<tr><td>5</td><td><code>unavailable</code></td></tr>
+</tbody></table></div>
 <h2 id="constants">Constants <span class="tag">[DEF-A6]</span></h2>
 <div class="wrap"><table>
 <thead><tr><th>name</th><th>type</th><th>value</th></tr></thead>
@@ -211,7 +230,7 @@
 <li>Argument 2: <code>i64</code> <code>wait_ms</code> (required, including zero/false/empty)</li>
 </ul>
 <h2 id="service-QuestionOperator">Service <code>QuestionOperator</code> <span class="tag">[DEF-S1]</span></h2>
-<p>Operator history and answering on the configured application Book. Host must explicitly authorize the receiving operator; requests contain no credentials, authority claims or provider paths. Authorization callbacks are trusted service configuration and may use the rights service. Native Forget remains explicit provider integration and retains admission tombstones.</p>
+<p>Operator history, answering and retirement on the configured application Book. Host must explicitly authorize the receiving operator; requests contain no credentials, authority claims or provider paths. Authorization callbacks are trusted service configuration and may use the rights service. Retirement and native Forget both retain admission tombstones.</p>
 <p>Wire identity: <code>abstraction.asks/operator@1</code></p>
 <p>Multiple services share this namespace. Generated ServiceName (Go) and service_name (C++/Python) validate the request envelope and version before returning its service identity for routing. The selected generated dispatcher validates the method and typed arguments; the selector does not authorize callers or interpret method payloads.</p>
 <p>Frames carry version, service, method and typed arguments. Transport owns framing, associated exchanges, deadlines and connections. Unknown version/service/method and malformed arguments are rejected before invoking a handler. One-way WriteFrame success means local submission, not remote acceptance or persistence.</p>
@@ -225,6 +244,10 @@
 <h3><code>AnswerQuestion</code></h3><p><code>request-response</code> <code>OperatorDecision</code></p><ul>
 <li>Argument 1: <code>string</code> <code>id</code> (required, including zero/false/empty)</li>
 <li>Argument 2: <code>string</code> <code>option</code> (required, including zero/false/empty)</li>
+</ul>
+<p>Retire one question for an explicitly authorized operator. ID is 1..128 UTF-8 bytes without control characters. Authorization and context are rechecked inside the atomic edit before removal. Retiring an already retired ID replays retired without a record. No automatic retry; retirement grants and revokes no resource authority.</p>
+<h3><code>RetireQuestion</code></h3><p><code>request-response</code> <code>OperatorRetirement</code></p><ul>
+<li>Argument 1: <code>string</code> <code>id</code> (required, including zero/false/empty)</li>
 </ul>
 
 <footer>

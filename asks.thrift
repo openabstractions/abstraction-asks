@@ -116,7 +116,19 @@ struct OperatorDecision {
  1: required OperatorDecisionOutcome outcome
  2: optional RecordMetadata record(omit="absent")
 }(unknown_fields="refuse",doc="Record is present exactly for answered. Same ID and option replays the original decision including its timestamp and kept/once meaning; another option conflicts. Unknown means no retained question. Invalid includes an unknown option or invalid ID. Unavailable establishes no decision or noncommit claim: retry the same ID/option or inspect fresh history. Answering records a human choice, never a resource grant.")
+enum OperatorRetirementOutcome {
+ 1: retired
+ 2: unknown
+ 3: invalid
+ 4: forbidden
+ 5: unavailable
+}(unknown="refuse")
+struct OperatorRetirement {
+ 1: required OperatorRetirementOutcome outcome
+ 2: optional RecordMetadata record(omit="absent")
+}(unknown_fields="refuse",doc="Retired removes a retained pending or answered question from the Book. Record carries its last metadata on the retiring call and is absent when replaying an already retired ID. A pending question retired without an answer carries no decision. Admission tombstones remain: application replay and observation of its key report gone, and that key never admits again. Unknown means no retained or retired question. Invalid means a malformed ID. Unavailable establishes no retirement claim: retry the same ID or inspect fresh history.")
 service QuestionOperator {
  OperatorPage ListQuestions(1:string cursor,2:i64 limit)(doc="Read bounded current-book pages. Empty cursor starts enumeration; a gap requires an explicit restart. Receiver checks same-account Program identity and its configured operator authorization on every call before reading the Book. Slow/disconnected callers retain no server enumeration state.")
  OperatorDecision AnswerQuestion(1:string id,2:string option)(doc="Record an explicitly authorized operator's choice using the catalog's existing options. ID and option are 1..128 UTF-8 bytes without control characters. Atomic same-option replay preserves the original decision. No automatic retry and no implicit resource authorization. A missing operator policy refuses; account identity alone is insufficient.")
-}(wire_name="abstraction.asks/operator@1",doc="Operator history and answering on the configured application Book. Host must explicitly authorize the receiving operator; requests contain no credentials, authority claims or provider paths. Authorization callbacks are trusted service configuration and may use the rights service. Native Forget remains explicit provider integration and retains admission tombstones.")
+ OperatorRetirement RetireQuestion(1:string id)(doc="Retire one question for an explicitly authorized operator. ID is 1..128 UTF-8 bytes without control characters. Authorization and context are rechecked inside the atomic edit before removal. Retiring an already retired ID replays retired without a record. No automatic retry; retirement grants and revokes no resource authority.")
+}(wire_name="abstraction.asks/operator@1",doc="Operator history, answering and retirement on the configured application Book. Host must explicitly authorize the receiving operator; requests contain no credentials, authority claims or provider paths. Authorization callbacks are trusted service configuration and may use the rights service. Retirement and native Forget both retain admission tombstones.")

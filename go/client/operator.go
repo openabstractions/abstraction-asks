@@ -83,6 +83,25 @@ func (c *Operator) AnswerQuestionContext(ctx context.Context, id, option string)
 	}
 	return result, nil
 }
+
+// RetireQuestionContext never retries. After a transport error, inspect history
+// or explicitly retry the same ID; retirement may already be recorded.
+func (c *Operator) RetireQuestionContext(ctx context.Context, id string) (wire.OperatorRetirement, error) {
+	if err := ctx.Err(); err != nil {
+		return wire.OperatorRetirement{}, err
+	}
+	if !operatorWord(id) {
+		return wire.OperatorRetirement{}, errors.New("asks: invalid retirement")
+	}
+	result, err := wire.NewQuestionOperatorClient(c.transport.WithContext(ctx)).RetireQuestion(id)
+	if err != nil {
+		return wire.OperatorRetirement{}, err
+	}
+	if r := result.Record; r != nil && (result.Outcome != "retired" || !validOperatorRecord(*r) || r.Id != id) {
+		return wire.OperatorRetirement{}, errors.New("asks: malformed operator retirement")
+	}
+	return result, nil
+}
 func operatorWord(s string) bool {
 	return len(s) > 0 && len(s) <= 128 && utf8.ValidString(s) && strings.IndexFunc(s, unicode.IsControl) < 0
 }

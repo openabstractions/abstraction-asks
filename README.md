@@ -177,5 +177,12 @@ Go applications use `client.NewOperator(selectedEndpoint)` and
 `abstraction.asks/operator@1` contract before selecting its endpoint. A history
 gap requires restarting enumeration from an empty cursor. After an uncertain
 answer reply, explicitly retry the same ID and option to recover the original
-decision. Recorded answers do not grant resource authority. See CONTRACT.md for
-limits, restart behavior and the separate native retirement API.
+decision. Recorded answers do not grant resource authority.
+
+`RetireQuestionContext(ctx, id)` removes a retained pending or answered question.
+It returns `retired` with the question's last metadata, `unknown`, `invalid`,
+`forbidden` or `unavailable`. Repeat the same ID to reconcile an uncertain
+reply. An application's later Ask or Observe for that key reports `gone`, and
+the key never admits a new question. Python operators use
+`Machine.resolve_asks_operator()`. See [CONTRACT.md](CONTRACT.md) for limits and
+restart behavior.

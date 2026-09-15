@@ -137,6 +137,21 @@ func (r *operatorReceiver) ListQuestions(cursor string, limit int64) (wire.Opera
 	}
 	return page, nil
 }
+func (r *operatorReceiver) RetireQuestion(id string) (wire.OperatorRetirement, error) {
+	if _, err := r.authorize(); err != nil {
+		return wire.OperatorRetirement{Outcome: operatorError(err)}, nil
+	}
+	record, outcome, err := r.host.book.RetireApplicationAuthorized(id, func() error { _, err := r.authorize(); return err })
+	if err != nil {
+		return wire.OperatorRetirement{Outcome: operatorError(err)}, nil
+	}
+	result := wire.OperatorRetirement{Outcome: outcome}
+	if outcome == "retired" && record.ID != "" {
+		value := operatorMetadata(record)
+		result.Record = &value
+	}
+	return result, nil
+}
 func (r *operatorReceiver) AnswerQuestion(id, option string) (wire.OperatorDecision, error) {
 	if _, err := r.authorize(); err != nil {
 		return wire.OperatorDecision{Outcome: operatorError(err)}, nil

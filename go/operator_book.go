@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"slices"
 	"time"
 )
 
@@ -97,5 +98,53 @@ func (b *Book) AnswerApplicationAuthorized(id, option string, authorize func() e
 	if outcome == "answered" {
 		b.settle(id)
 	}
+	return out, outcome, nil
+}
+
+// RetireApplicationAuthorized removes a retained pending or answered question.
+// Trusted operator admission is rechecked inside the atomic edit, after lock
+// waiting and before removal. Admission tombstones remain, so application
+// replay and observation report gone. An ID named only by an admission was
+// already retired or forgotten and replays retired without a record.
+func (b *Book) RetireApplicationAuthorized(id string, authorize func() error) (Record, string, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.application {
+		return Record{}, "unavailable", errors.New("asks: application Book required")
+	}
+	if !ValidRequestKey(id) {
+		return Record{}, "invalid", nil
+	}
+	var out Record
+	outcome := "unknown"
+	unchanged := errors.New("asks: retirement without edit")
+	err := b.changeApplication(func(f *book) error {
+		if authorize != nil {
+			if err := authorize(); err != nil {
+				return err
+			}
+		}
+		i := f.index(id)
+		if i < 0 {
+			for _, a := range f.Admissions {
+				if a.ID == id {
+					outcome = "retired"
+					break
+				}
+			}
+			return unchanged
+		}
+		out = *f.Asks[i]
+		f.Asks = slices.Delete(f.Asks, i, i+1)
+		outcome = "retired"
+		return nil
+	})
+	if errors.Is(err, unchanged) {
+		return Record{}, outcome, nil
+	}
+	if err != nil {
+		return Record{}, "unavailable", err
+	}
+	b.settle(id)
 	return out, outcome, nil
 }
