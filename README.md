@@ -1,18 +1,27 @@
 # abstraction-asks
 
-Application adopters use the generated `abstraction.asks/application@1` service
-through `go/client.New(endpoint).AskContext` and `ObserveContext`. Admission is
-bound to the receiving account and program, with stable request-key replay and
-bounded waiting. [Application contract](CONTRACT.md) specifies this profile and
-its explicit operator-integration requirement. The native CLI/provider workflows
-below are retained adoption interfaces.
+Ask a person once and remember the answer after the application closes. Typical
+questions include allowing a first model call, choosing where content belongs,
+or approving a known recovery action. The service supplies the wording and
+choices, keeps the pending question and retains the answer.
+
+Applications resolve `abstraction.asks/application@1` through the facade, then
+call `AskContext` and `ObserveContext` with a stable request key. The application
+chooses a question from the service's fixed catalogue and supplies its values.
+Operators use the separate asks operator client to list and answer pending
+questions. The
+receiving account and native program identity scope every application request.
+
+[CONTRACT.md](CONTRACT.md) specifies replay, waiting, authorization and operator
+integration. The native CLI/provider workflow below remains an explicit adopter
+path.
 
 **In development.** Tagged `go/v0.1.1`, but no conformance scenario cites this
 layer, and the API carries no stability promise.
 
-A question an application puts to a person is a record with options, phrased
-by the service and not the asker, answered once, and kept — so the same
-question is not asked twice and *never* is an answer to every question.
+A question is a record with fixed options, service-owned wording and one
+retained answer. A kept answer prevents the same application question from
+being asked again. The `never` option is a retained refusal.
 
 ## The problem
 

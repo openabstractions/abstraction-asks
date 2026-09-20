@@ -224,73 +224,515 @@ func encList[T any](out []byte, v []T, depth int, enc func([]byte, *T, int) []by
 	return append(out, ']')
 }
 
-var ObservationOutcomeNames = []string{"pending", "answered", "unknown", "gone", "invalid", "conflict", "forbidden", "unavailable"}
+// ObservationOutcome is a closed vocabulary. Its numeric values are private implementation
+// tags; String and ParseObservationOutcome preserve the exact wire words.
+type ObservationOutcome uint32
 
-const ObservationOutcomePending = "pending"
+const (
+	ObservationOutcomePending     ObservationOutcome = 1
+	ObservationOutcomeAnswered    ObservationOutcome = 2
+	ObservationOutcomeUnknown     ObservationOutcome = 3
+	ObservationOutcomeGone        ObservationOutcome = 4
+	ObservationOutcomeInvalid     ObservationOutcome = 5
+	ObservationOutcomeConflict    ObservationOutcome = 6
+	ObservationOutcomeForbidden   ObservationOutcome = 7
+	ObservationOutcomeUnavailable ObservationOutcome = 8
+)
 
-const ObservationOutcomeAnswered = "answered"
+// String returns v's exact wire word, or the empty string for an invalid value.
+func (v ObservationOutcome) String() string {
+	word, _ := v.WireName()
+	return word
+}
 
-const ObservationOutcomeUnknown = "unknown"
+// WireName returns v's exact wire word and whether v names a member.
+func (v ObservationOutcome) WireName() (string, bool) {
+	switch v {
+	case ObservationOutcomePending:
+		return "pending", true
+	case ObservationOutcomeAnswered:
+		return "answered", true
+	case ObservationOutcomeUnknown:
+		return "unknown", true
+	case ObservationOutcomeGone:
+		return "gone", true
+	case ObservationOutcomeInvalid:
+		return "invalid", true
+	case ObservationOutcomeConflict:
+		return "conflict", true
+	case ObservationOutcomeForbidden:
+		return "forbidden", true
+	case ObservationOutcomeUnavailable:
+		return "unavailable", true
+	}
+	return "", false
+}
 
-const ObservationOutcomeGone = "gone"
+// ParseObservationOutcome returns the member named by an exact wire word.
+func ParseObservationOutcome(word string) (ObservationOutcome, bool) {
+	switch word {
+	case "pending":
+		return ObservationOutcomePending, true
+	case "answered":
+		return ObservationOutcomeAnswered, true
+	case "unknown":
+		return ObservationOutcomeUnknown, true
+	case "gone":
+		return ObservationOutcomeGone, true
+	case "invalid":
+		return ObservationOutcomeInvalid, true
+	case "conflict":
+		return ObservationOutcomeConflict, true
+	case "forbidden":
+		return ObservationOutcomeForbidden, true
+	case "unavailable":
+		return ObservationOutcomeUnavailable, true
+	}
+	return ObservationOutcome(0), false
+}
 
-const ObservationOutcomeInvalid = "invalid"
+// MarshalText preserves the member's exact wire word for standard text users,
+// including JSON object keys. Invalid and zero values are refused.
+func (v ObservationOutcome) MarshalText() ([]byte, error) {
+	word, ok := v.WireName()
+	if !ok {
+		return nil, &Refusal{Word: "bad_enum", Offset: 0}
+	}
+	return []byte(word), nil
+}
 
-const ObservationOutcomeConflict = "conflict"
+// UnmarshalText accepts an exact wire word and refuses unknown text.
+func (v *ObservationOutcome) UnmarshalText(text []byte) error {
+	word, ok := ParseObservationOutcome(string(text))
+	if !ok {
+		return &Refusal{Word: "bad_enum", Offset: 0}
+	}
+	*v = word
+	return nil
+}
 
-const ObservationOutcomeForbidden = "forbidden"
+// MarshalJSON keeps closed vocabularies as JSON strings rather than their
+// private numeric implementation tags.
+func (v ObservationOutcome) MarshalJSON() ([]byte, error) {
+	word, ok := v.WireName()
+	if !ok {
+		return nil, &Refusal{Word: "bad_enum", Offset: 0}
+	}
+	return esc(nil, word), nil
+}
 
-const ObservationOutcomeUnavailable = "unavailable"
+// UnmarshalJSON accepts only an exact JSON string member. Numbers, null and
+// unknown strings are refused by the same codec rules as generated records.
+func (v *ObservationOutcome) UnmarshalJSON(data []byte) error {
+	r := reader{buf: data}
+	r.ws()
+	word, err := r.str()
+	if err != nil {
+		return err
+	}
+	r.ws()
+	if r.pos != len(r.buf) {
+		return r.refuse("trailing_bytes")
+	}
+	parsed, ok := ParseObservationOutcome(word)
+	if !ok {
+		return r.refuse("bad_enum")
+	}
+	*v = parsed
+	return nil
+}
 
-const ObservationOutcomeUnknownPolicy = "refuse"
+// ObservationOutcomeValues returns every member of ObservationOutcome in declaration order, in a new slice.
+func ObservationOutcomeValues() []ObservationOutcome {
+	return []ObservationOutcome{ObservationOutcomePending, ObservationOutcomeAnswered, ObservationOutcomeUnknown, ObservationOutcomeGone, ObservationOutcomeInvalid, ObservationOutcomeConflict, ObservationOutcomeForbidden, ObservationOutcomeUnavailable}
+}
 
-var OperatorPageOutcomeNames = []string{"page", "gap", "invalid", "forbidden", "unavailable"}
+// Known reports whether v is a member of ObservationOutcome.
+func (v ObservationOutcome) Known() bool {
+	_, ok := v.WireName()
+	return ok
+}
 
-const OperatorPageOutcomePage = "page"
+// OperatorPageOutcome is a closed vocabulary. Its numeric values are private implementation
+// tags; String and ParseOperatorPageOutcome preserve the exact wire words.
+type OperatorPageOutcome uint32
 
-const OperatorPageOutcomeGap = "gap"
+const (
+	OperatorPageOutcomePage        OperatorPageOutcome = 1
+	OperatorPageOutcomeGap         OperatorPageOutcome = 2
+	OperatorPageOutcomeInvalid     OperatorPageOutcome = 3
+	OperatorPageOutcomeForbidden   OperatorPageOutcome = 4
+	OperatorPageOutcomeUnavailable OperatorPageOutcome = 5
+)
 
-const OperatorPageOutcomeInvalid = "invalid"
+// String returns v's exact wire word, or the empty string for an invalid value.
+func (v OperatorPageOutcome) String() string {
+	word, _ := v.WireName()
+	return word
+}
 
-const OperatorPageOutcomeForbidden = "forbidden"
+// WireName returns v's exact wire word and whether v names a member.
+func (v OperatorPageOutcome) WireName() (string, bool) {
+	switch v {
+	case OperatorPageOutcomePage:
+		return "page", true
+	case OperatorPageOutcomeGap:
+		return "gap", true
+	case OperatorPageOutcomeInvalid:
+		return "invalid", true
+	case OperatorPageOutcomeForbidden:
+		return "forbidden", true
+	case OperatorPageOutcomeUnavailable:
+		return "unavailable", true
+	}
+	return "", false
+}
 
-const OperatorPageOutcomeUnavailable = "unavailable"
+// ParseOperatorPageOutcome returns the member named by an exact wire word.
+func ParseOperatorPageOutcome(word string) (OperatorPageOutcome, bool) {
+	switch word {
+	case "page":
+		return OperatorPageOutcomePage, true
+	case "gap":
+		return OperatorPageOutcomeGap, true
+	case "invalid":
+		return OperatorPageOutcomeInvalid, true
+	case "forbidden":
+		return OperatorPageOutcomeForbidden, true
+	case "unavailable":
+		return OperatorPageOutcomeUnavailable, true
+	}
+	return OperatorPageOutcome(0), false
+}
 
-const OperatorPageOutcomeUnknown = "refuse"
+// MarshalText preserves the member's exact wire word for standard text users,
+// including JSON object keys. Invalid and zero values are refused.
+func (v OperatorPageOutcome) MarshalText() ([]byte, error) {
+	word, ok := v.WireName()
+	if !ok {
+		return nil, &Refusal{Word: "bad_enum", Offset: 0}
+	}
+	return []byte(word), nil
+}
 
-var OperatorDecisionOutcomeNames = []string{"answered", "conflict", "unknown", "invalid", "forbidden", "unavailable"}
+// UnmarshalText accepts an exact wire word and refuses unknown text.
+func (v *OperatorPageOutcome) UnmarshalText(text []byte) error {
+	word, ok := ParseOperatorPageOutcome(string(text))
+	if !ok {
+		return &Refusal{Word: "bad_enum", Offset: 0}
+	}
+	*v = word
+	return nil
+}
 
-const OperatorDecisionOutcomeAnswered = "answered"
+// MarshalJSON keeps closed vocabularies as JSON strings rather than their
+// private numeric implementation tags.
+func (v OperatorPageOutcome) MarshalJSON() ([]byte, error) {
+	word, ok := v.WireName()
+	if !ok {
+		return nil, &Refusal{Word: "bad_enum", Offset: 0}
+	}
+	return esc(nil, word), nil
+}
 
-const OperatorDecisionOutcomeConflict = "conflict"
+// UnmarshalJSON accepts only an exact JSON string member. Numbers, null and
+// unknown strings are refused by the same codec rules as generated records.
+func (v *OperatorPageOutcome) UnmarshalJSON(data []byte) error {
+	r := reader{buf: data}
+	r.ws()
+	word, err := r.str()
+	if err != nil {
+		return err
+	}
+	r.ws()
+	if r.pos != len(r.buf) {
+		return r.refuse("trailing_bytes")
+	}
+	parsed, ok := ParseOperatorPageOutcome(word)
+	if !ok {
+		return r.refuse("bad_enum")
+	}
+	*v = parsed
+	return nil
+}
 
-const OperatorDecisionOutcomeUnknown = "unknown"
+// OperatorPageOutcomeValues returns every member of OperatorPageOutcome in declaration order, in a new slice.
+func OperatorPageOutcomeValues() []OperatorPageOutcome {
+	return []OperatorPageOutcome{OperatorPageOutcomePage, OperatorPageOutcomeGap, OperatorPageOutcomeInvalid, OperatorPageOutcomeForbidden, OperatorPageOutcomeUnavailable}
+}
 
-const OperatorDecisionOutcomeInvalid = "invalid"
+// Known reports whether v is a member of OperatorPageOutcome.
+func (v OperatorPageOutcome) Known() bool {
+	_, ok := v.WireName()
+	return ok
+}
 
-const OperatorDecisionOutcomeForbidden = "forbidden"
+// OperatorDecisionOutcome is a closed vocabulary. Its numeric values are private implementation
+// tags; String and ParseOperatorDecisionOutcome preserve the exact wire words.
+type OperatorDecisionOutcome uint32
 
-const OperatorDecisionOutcomeUnavailable = "unavailable"
+const (
+	OperatorDecisionOutcomeAnswered    OperatorDecisionOutcome = 1
+	OperatorDecisionOutcomeConflict    OperatorDecisionOutcome = 2
+	OperatorDecisionOutcomeUnknown     OperatorDecisionOutcome = 3
+	OperatorDecisionOutcomeInvalid     OperatorDecisionOutcome = 4
+	OperatorDecisionOutcomeForbidden   OperatorDecisionOutcome = 5
+	OperatorDecisionOutcomeUnavailable OperatorDecisionOutcome = 6
+)
 
-const OperatorDecisionOutcomeUnknownPolicy = "refuse"
+// String returns v's exact wire word, or the empty string for an invalid value.
+func (v OperatorDecisionOutcome) String() string {
+	word, _ := v.WireName()
+	return word
+}
 
-var OperatorRetirementOutcomeNames = []string{"retired", "unknown", "invalid", "forbidden", "unavailable"}
+// WireName returns v's exact wire word and whether v names a member.
+func (v OperatorDecisionOutcome) WireName() (string, bool) {
+	switch v {
+	case OperatorDecisionOutcomeAnswered:
+		return "answered", true
+	case OperatorDecisionOutcomeConflict:
+		return "conflict", true
+	case OperatorDecisionOutcomeUnknown:
+		return "unknown", true
+	case OperatorDecisionOutcomeInvalid:
+		return "invalid", true
+	case OperatorDecisionOutcomeForbidden:
+		return "forbidden", true
+	case OperatorDecisionOutcomeUnavailable:
+		return "unavailable", true
+	}
+	return "", false
+}
 
-const OperatorRetirementOutcomeRetired = "retired"
+// ParseOperatorDecisionOutcome returns the member named by an exact wire word.
+func ParseOperatorDecisionOutcome(word string) (OperatorDecisionOutcome, bool) {
+	switch word {
+	case "answered":
+		return OperatorDecisionOutcomeAnswered, true
+	case "conflict":
+		return OperatorDecisionOutcomeConflict, true
+	case "unknown":
+		return OperatorDecisionOutcomeUnknown, true
+	case "invalid":
+		return OperatorDecisionOutcomeInvalid, true
+	case "forbidden":
+		return OperatorDecisionOutcomeForbidden, true
+	case "unavailable":
+		return OperatorDecisionOutcomeUnavailable, true
+	}
+	return OperatorDecisionOutcome(0), false
+}
 
-const OperatorRetirementOutcomeUnknown = "unknown"
+// MarshalText preserves the member's exact wire word for standard text users,
+// including JSON object keys. Invalid and zero values are refused.
+func (v OperatorDecisionOutcome) MarshalText() ([]byte, error) {
+	word, ok := v.WireName()
+	if !ok {
+		return nil, &Refusal{Word: "bad_enum", Offset: 0}
+	}
+	return []byte(word), nil
+}
 
-const OperatorRetirementOutcomeInvalid = "invalid"
+// UnmarshalText accepts an exact wire word and refuses unknown text.
+func (v *OperatorDecisionOutcome) UnmarshalText(text []byte) error {
+	word, ok := ParseOperatorDecisionOutcome(string(text))
+	if !ok {
+		return &Refusal{Word: "bad_enum", Offset: 0}
+	}
+	*v = word
+	return nil
+}
 
-const OperatorRetirementOutcomeForbidden = "forbidden"
+// MarshalJSON keeps closed vocabularies as JSON strings rather than their
+// private numeric implementation tags.
+func (v OperatorDecisionOutcome) MarshalJSON() ([]byte, error) {
+	word, ok := v.WireName()
+	if !ok {
+		return nil, &Refusal{Word: "bad_enum", Offset: 0}
+	}
+	return esc(nil, word), nil
+}
 
-const OperatorRetirementOutcomeUnavailable = "unavailable"
+// UnmarshalJSON accepts only an exact JSON string member. Numbers, null and
+// unknown strings are refused by the same codec rules as generated records.
+func (v *OperatorDecisionOutcome) UnmarshalJSON(data []byte) error {
+	r := reader{buf: data}
+	r.ws()
+	word, err := r.str()
+	if err != nil {
+		return err
+	}
+	r.ws()
+	if r.pos != len(r.buf) {
+		return r.refuse("trailing_bytes")
+	}
+	parsed, ok := ParseOperatorDecisionOutcome(word)
+	if !ok {
+		return r.refuse("bad_enum")
+	}
+	*v = parsed
+	return nil
+}
 
-const OperatorRetirementOutcomeUnknownPolicy = "refuse"
+// OperatorDecisionOutcomeValues returns every member of OperatorDecisionOutcome in declaration order, in a new slice.
+func OperatorDecisionOutcomeValues() []OperatorDecisionOutcome {
+	return []OperatorDecisionOutcome{OperatorDecisionOutcomeAnswered, OperatorDecisionOutcomeConflict, OperatorDecisionOutcomeUnknown, OperatorDecisionOutcomeInvalid, OperatorDecisionOutcomeForbidden, OperatorDecisionOutcomeUnavailable}
+}
+
+// Known reports whether v is a member of OperatorDecisionOutcome.
+func (v OperatorDecisionOutcome) Known() bool {
+	_, ok := v.WireName()
+	return ok
+}
+
+// OperatorRetirementOutcome is a closed vocabulary. Its numeric values are private implementation
+// tags; String and ParseOperatorRetirementOutcome preserve the exact wire words.
+type OperatorRetirementOutcome uint32
+
+const (
+	OperatorRetirementOutcomeRetired     OperatorRetirementOutcome = 1
+	OperatorRetirementOutcomeUnknown     OperatorRetirementOutcome = 2
+	OperatorRetirementOutcomeInvalid     OperatorRetirementOutcome = 3
+	OperatorRetirementOutcomeForbidden   OperatorRetirementOutcome = 4
+	OperatorRetirementOutcomeUnavailable OperatorRetirementOutcome = 5
+)
+
+// String returns v's exact wire word, or the empty string for an invalid value.
+func (v OperatorRetirementOutcome) String() string {
+	word, _ := v.WireName()
+	return word
+}
+
+// WireName returns v's exact wire word and whether v names a member.
+func (v OperatorRetirementOutcome) WireName() (string, bool) {
+	switch v {
+	case OperatorRetirementOutcomeRetired:
+		return "retired", true
+	case OperatorRetirementOutcomeUnknown:
+		return "unknown", true
+	case OperatorRetirementOutcomeInvalid:
+		return "invalid", true
+	case OperatorRetirementOutcomeForbidden:
+		return "forbidden", true
+	case OperatorRetirementOutcomeUnavailable:
+		return "unavailable", true
+	}
+	return "", false
+}
+
+// ParseOperatorRetirementOutcome returns the member named by an exact wire word.
+func ParseOperatorRetirementOutcome(word string) (OperatorRetirementOutcome, bool) {
+	switch word {
+	case "retired":
+		return OperatorRetirementOutcomeRetired, true
+	case "unknown":
+		return OperatorRetirementOutcomeUnknown, true
+	case "invalid":
+		return OperatorRetirementOutcomeInvalid, true
+	case "forbidden":
+		return OperatorRetirementOutcomeForbidden, true
+	case "unavailable":
+		return OperatorRetirementOutcomeUnavailable, true
+	}
+	return OperatorRetirementOutcome(0), false
+}
+
+// MarshalText preserves the member's exact wire word for standard text users,
+// including JSON object keys. Invalid and zero values are refused.
+func (v OperatorRetirementOutcome) MarshalText() ([]byte, error) {
+	word, ok := v.WireName()
+	if !ok {
+		return nil, &Refusal{Word: "bad_enum", Offset: 0}
+	}
+	return []byte(word), nil
+}
+
+// UnmarshalText accepts an exact wire word and refuses unknown text.
+func (v *OperatorRetirementOutcome) UnmarshalText(text []byte) error {
+	word, ok := ParseOperatorRetirementOutcome(string(text))
+	if !ok {
+		return &Refusal{Word: "bad_enum", Offset: 0}
+	}
+	*v = word
+	return nil
+}
+
+// MarshalJSON keeps closed vocabularies as JSON strings rather than their
+// private numeric implementation tags.
+func (v OperatorRetirementOutcome) MarshalJSON() ([]byte, error) {
+	word, ok := v.WireName()
+	if !ok {
+		return nil, &Refusal{Word: "bad_enum", Offset: 0}
+	}
+	return esc(nil, word), nil
+}
+
+// UnmarshalJSON accepts only an exact JSON string member. Numbers, null and
+// unknown strings are refused by the same codec rules as generated records.
+func (v *OperatorRetirementOutcome) UnmarshalJSON(data []byte) error {
+	r := reader{buf: data}
+	r.ws()
+	word, err := r.str()
+	if err != nil {
+		return err
+	}
+	r.ws()
+	if r.pos != len(r.buf) {
+		return r.refuse("trailing_bytes")
+	}
+	parsed, ok := ParseOperatorRetirementOutcome(word)
+	if !ok {
+		return r.refuse("bad_enum")
+	}
+	*v = parsed
+	return nil
+}
+
+// OperatorRetirementOutcomeValues returns every member of OperatorRetirementOutcome in declaration order, in a new slice.
+func OperatorRetirementOutcomeValues() []OperatorRetirementOutcome {
+	return []OperatorRetirementOutcome{OperatorRetirementOutcomeRetired, OperatorRetirementOutcomeUnknown, OperatorRetirementOutcomeInvalid, OperatorRetirementOutcomeForbidden, OperatorRetirementOutcomeUnavailable}
+}
+
+// Known reports whether v is a member of OperatorRetirementOutcome.
+func (v OperatorRetirementOutcome) Known() bool {
+	_, ok := v.WireName()
+	return ok
+}
+
+// ServiceErrorCode is an open vocabulary: a reader keeps a word it has never heard, so
+// a value may be none of the constants below. ServiceErrorCode(word) and string(v)
+// convert between the raw word and the vocabulary.
+type ServiceErrorCode string
+
+const (
+	ServiceErrorCodeHandlerError   ServiceErrorCode = "handler_error"
+	ServiceErrorCodeInvalidResult  ServiceErrorCode = "invalid_result"
+	ServiceErrorCodeUnknownVersion ServiceErrorCode = "unknown_version"
+	ServiceErrorCodeUnknownService ServiceErrorCode = "unknown_service"
+	ServiceErrorCodeUnknownMethod  ServiceErrorCode = "unknown_method"
+	ServiceErrorCodeWrongMode      ServiceErrorCode = "wrong_mode"
+)
+
+// ServiceErrorCodeValues returns every member of ServiceErrorCode in declaration order, in a new slice.
+func ServiceErrorCodeValues() []ServiceErrorCode {
+	return []ServiceErrorCode{ServiceErrorCodeHandlerError, ServiceErrorCodeInvalidResult, ServiceErrorCodeUnknownVersion, ServiceErrorCodeUnknownService, ServiceErrorCodeUnknownMethod, ServiceErrorCodeWrongMode}
+}
+
+// Known reports whether v is a member of ServiceErrorCode.
+func (v ServiceErrorCode) Known() bool {
+	switch v {
+	case ServiceErrorCodeHandlerError, ServiceErrorCodeInvalidResult, ServiceErrorCodeUnknownVersion, ServiceErrorCodeUnknownService, ServiceErrorCodeUnknownMethod, ServiceErrorCodeWrongMode:
+		return true
+	}
+	return false
+}
 
 var Operations = []string{"ask", "pending", "answered", "answer", "forget"}
 
 var RefusalCodes = []string{"internal", "invalid_request", "caller_refused", "unknown_operation", "not_administrator", "withdrawn", "unknown_question", "unknown_option", "bad_slot", "nothing_pending", "no_record"}
+
+var ResourceActions = []string{"abstraction.asks/question.ask"}
 
 // Own Ask fields. The service owns question text/options; callers supply a
 // known key and slots. Native Ask.For carries optional peer observation
@@ -308,13 +750,13 @@ type Request struct {
 	Op     string
 	Ask    *Question
 	Wait   bool
-	Id     string
+	ID     string
 	Option string
 	Admin  string
 }
 
 type Answer struct {
-	Id      string
+	ID      string
 	Pending bool
 	Option  string
 	Yes     bool
@@ -325,7 +767,7 @@ type Answer struct {
 // representation. Native Record includes Via/For Seen evidence from shared
 // identity. Empty option means pending.
 type RecordMetadata struct {
-	Id       string
+	ID       string
 	Asker    string
 	Key      string
 	About    string
@@ -368,7 +810,7 @@ type ApplicationQuestion struct {
 // decision. Answered reports the recorded human choice; it grants no resource
 // authority by itself.
 type QuestionObservation struct {
-	Outcome string
+	Outcome ObservationOutcome
 	Answer  *Answer
 }
 
@@ -383,7 +825,7 @@ type QuestionObservation struct {
 // edits is promised. Native Via/For evidence stays server-side; display fields
 // confer no authority.
 type OperatorPage struct {
-	Outcome  string
+	Outcome  OperatorPageOutcome
 	Records  []RecordMetadata
 	Next     string
 	Complete bool
@@ -396,7 +838,7 @@ type OperatorPage struct {
 // noncommit claim: retry the same ID/option or inspect fresh history. Answering
 // records a human choice, never a resource grant.
 type OperatorDecision struct {
-	Outcome string
+	Outcome OperatorDecisionOutcome
 	Record  *RecordMetadata
 }
 
@@ -408,41 +850,41 @@ type OperatorDecision struct {
 // retained or retired question. Invalid means a malformed ID. Unavailable
 // establishes no retirement claim: retry the same ID or inspect fresh history.
 type OperatorRetirement struct {
-	Outcome string
+	Outcome OperatorRetirementOutcome
 	Record  *RecordMetadata
 }
 
-type OAQuestionApplicationAskArguments struct {
+type oaQuestionApplicationAskArguments struct {
 	Question ApplicationQuestion
 }
 
-type OAQuestionApplicationObserveArguments struct {
+type oaQuestionApplicationObserveArguments struct {
 	RequestKey string
 	WaitMs     int64
 }
 
-type OAQuestionOperatorListQuestionsArguments struct {
+type oaQuestionOperatorListQuestionsArguments struct {
 	Cursor string
 	Limit  int64
 }
 
-type OAQuestionOperatorAnswerQuestionArguments struct {
-	Id     string
+type oaQuestionOperatorAnswerQuestionArguments struct {
+	ID     string
 	Option string
 }
 
-type OAQuestionOperatorRetireQuestionArguments struct {
-	Id string
+type oaQuestionOperatorRetireQuestionArguments struct {
+	ID string
 }
 
-type OAServiceFrame struct {
+type oaServiceFrame struct {
 	Version   int32
 	Service   string
 	Method    string
 	Arguments Raw
 }
 
-type OAServiceReply struct {
+type oaServiceReply struct {
 	Version int32
 	Service string
 	Method  string
@@ -450,28 +892,28 @@ type OAServiceReply struct {
 	Payload Raw
 }
 
-type OAServiceError struct {
+type oaServiceError struct {
 	Code    string
 	Message string
 }
 
-type OAQuestionApplicationAskResult struct {
+type oaQuestionApplicationAskResult struct {
 	Value QuestionObservation
 }
 
-type OAQuestionApplicationObserveResult struct {
+type oaQuestionApplicationObserveResult struct {
 	Value QuestionObservation
 }
 
-type OAQuestionOperatorListQuestionsResult struct {
+type oaQuestionOperatorListQuestionsResult struct {
 	Value OperatorPage
 }
 
-type OAQuestionOperatorAnswerQuestionResult struct {
+type oaQuestionOperatorAnswerQuestionResult struct {
 	Value OperatorDecision
 }
 
-type OAQuestionOperatorRetireQuestionResult struct {
+type oaQuestionOperatorRetireQuestionResult struct {
 	Value OperatorRetirement
 }
 
@@ -528,13 +970,13 @@ func encRequest(out []byte, v *Request, depth int) []byte {
 			out = append(out, 'f', 'a', 'l', 's', 'e')
 		}
 	}
-	if v.Id != "" {
+	if v.ID != "" {
 		out = append(out, ',')
 		out = append(out, '\n')
 		out = pad(out, depth+1)
 		out = esc(out, "id")
 		out = append(out, ':', ' ')
-		out = esc(out, v.Id)
+		out = esc(out, v.ID)
 	}
 	if v.Option != "" {
 		out = append(out, ',')
@@ -563,7 +1005,7 @@ func encAnswer(out []byte, v *Answer, depth int) []byte {
 	out = pad(out, depth+1)
 	out = esc(out, "id")
 	out = append(out, ':', ' ')
-	out = esc(out, v.Id)
+	out = esc(out, v.ID)
 	if v.Pending {
 		out = append(out, ',')
 		out = append(out, '\n')
@@ -619,7 +1061,7 @@ func encRecordMetadata(out []byte, v *RecordMetadata, depth int) []byte {
 	out = pad(out, depth+1)
 	out = esc(out, "id")
 	out = append(out, ':', ' ')
-	out = esc(out, v.Id)
+	out = esc(out, v.ID)
 	out = append(out, ',')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -779,7 +1221,7 @@ func encApplicationQuestion(out []byte, v *ApplicationQuestion, depth int) []byt
 }
 
 func encQuestionObservation(out []byte, v *QuestionObservation, depth int) []byte {
-	if v.Outcome != "pending" && v.Outcome != "answered" && v.Outcome != "unknown" && v.Outcome != "gone" && v.Outcome != "invalid" && v.Outcome != "conflict" && v.Outcome != "forbidden" && v.Outcome != "unavailable" {
+	if !(v.Outcome).Known() {
 		panic(&Refusal{Word: "bad_enum", Offset: 0})
 	}
 	out = append(out, '{')
@@ -787,7 +1229,7 @@ func encQuestionObservation(out []byte, v *QuestionObservation, depth int) []byt
 	out = pad(out, depth+1)
 	out = esc(out, "outcome")
 	out = append(out, ':', ' ')
-	out = esc(out, v.Outcome)
+	out = esc(out, v.Outcome.String())
 	if v.Answer != nil {
 		out = append(out, ',')
 		out = append(out, '\n')
@@ -802,7 +1244,7 @@ func encQuestionObservation(out []byte, v *QuestionObservation, depth int) []byt
 }
 
 func encOperatorPage(out []byte, v *OperatorPage, depth int) []byte {
-	if v.Outcome != "page" && v.Outcome != "gap" && v.Outcome != "invalid" && v.Outcome != "forbidden" && v.Outcome != "unavailable" {
+	if !(v.Outcome).Known() {
 		panic(&Refusal{Word: "bad_enum", Offset: 0})
 	}
 	out = append(out, '{')
@@ -810,7 +1252,7 @@ func encOperatorPage(out []byte, v *OperatorPage, depth int) []byte {
 	out = pad(out, depth+1)
 	out = esc(out, "outcome")
 	out = append(out, ':', ' ')
-	out = esc(out, v.Outcome)
+	out = esc(out, v.Outcome.String())
 	out = append(out, ',')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -839,7 +1281,7 @@ func encOperatorPage(out []byte, v *OperatorPage, depth int) []byte {
 }
 
 func encOperatorDecision(out []byte, v *OperatorDecision, depth int) []byte {
-	if v.Outcome != "answered" && v.Outcome != "conflict" && v.Outcome != "unknown" && v.Outcome != "invalid" && v.Outcome != "forbidden" && v.Outcome != "unavailable" {
+	if !(v.Outcome).Known() {
 		panic(&Refusal{Word: "bad_enum", Offset: 0})
 	}
 	out = append(out, '{')
@@ -847,7 +1289,7 @@ func encOperatorDecision(out []byte, v *OperatorDecision, depth int) []byte {
 	out = pad(out, depth+1)
 	out = esc(out, "outcome")
 	out = append(out, ':', ' ')
-	out = esc(out, v.Outcome)
+	out = esc(out, v.Outcome.String())
 	if v.Record != nil {
 		out = append(out, ',')
 		out = append(out, '\n')
@@ -862,7 +1304,7 @@ func encOperatorDecision(out []byte, v *OperatorDecision, depth int) []byte {
 }
 
 func encOperatorRetirement(out []byte, v *OperatorRetirement, depth int) []byte {
-	if v.Outcome != "retired" && v.Outcome != "unknown" && v.Outcome != "invalid" && v.Outcome != "forbidden" && v.Outcome != "unavailable" {
+	if !(v.Outcome).Known() {
 		panic(&Refusal{Word: "bad_enum", Offset: 0})
 	}
 	out = append(out, '{')
@@ -870,7 +1312,7 @@ func encOperatorRetirement(out []byte, v *OperatorRetirement, depth int) []byte 
 	out = pad(out, depth+1)
 	out = esc(out, "outcome")
 	out = append(out, ':', ' ')
-	out = esc(out, v.Outcome)
+	out = esc(out, v.Outcome.String())
 	if v.Record != nil {
 		out = append(out, ',')
 		out = append(out, '\n')
@@ -884,7 +1326,7 @@ func encOperatorRetirement(out []byte, v *OperatorRetirement, depth int) []byte 
 	return append(out, '}')
 }
 
-func encOAQuestionApplicationAskArguments(out []byte, v *OAQuestionApplicationAskArguments, depth int) []byte {
+func encOAQuestionApplicationAskArguments(out []byte, v *oaQuestionApplicationAskArguments, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -896,7 +1338,7 @@ func encOAQuestionApplicationAskArguments(out []byte, v *OAQuestionApplicationAs
 	return append(out, '}')
 }
 
-func encOAQuestionApplicationObserveArguments(out []byte, v *OAQuestionApplicationObserveArguments, depth int) []byte {
+func encOAQuestionApplicationObserveArguments(out []byte, v *oaQuestionApplicationObserveArguments, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -914,7 +1356,7 @@ func encOAQuestionApplicationObserveArguments(out []byte, v *OAQuestionApplicati
 	return append(out, '}')
 }
 
-func encOAQuestionOperatorListQuestionsArguments(out []byte, v *OAQuestionOperatorListQuestionsArguments, depth int) []byte {
+func encOAQuestionOperatorListQuestionsArguments(out []byte, v *oaQuestionOperatorListQuestionsArguments, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -932,13 +1374,13 @@ func encOAQuestionOperatorListQuestionsArguments(out []byte, v *OAQuestionOperat
 	return append(out, '}')
 }
 
-func encOAQuestionOperatorAnswerQuestionArguments(out []byte, v *OAQuestionOperatorAnswerQuestionArguments, depth int) []byte {
+func encOAQuestionOperatorAnswerQuestionArguments(out []byte, v *oaQuestionOperatorAnswerQuestionArguments, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
 	out = esc(out, "id")
 	out = append(out, ':', ' ')
-	out = esc(out, v.Id)
+	out = esc(out, v.ID)
 	out = append(out, ',')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -950,19 +1392,19 @@ func encOAQuestionOperatorAnswerQuestionArguments(out []byte, v *OAQuestionOpera
 	return append(out, '}')
 }
 
-func encOAQuestionOperatorRetireQuestionArguments(out []byte, v *OAQuestionOperatorRetireQuestionArguments, depth int) []byte {
+func encOAQuestionOperatorRetireQuestionArguments(out []byte, v *oaQuestionOperatorRetireQuestionArguments, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
 	out = esc(out, "id")
 	out = append(out, ':', ' ')
-	out = esc(out, v.Id)
+	out = esc(out, v.ID)
 	out = append(out, '\n')
 	out = pad(out, depth)
 	return append(out, '}')
 }
 
-func encOAServiceFrame(out []byte, v *OAServiceFrame, depth int) []byte {
+func encOAServiceFrame(out []byte, v *oaServiceFrame, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -992,7 +1434,7 @@ func encOAServiceFrame(out []byte, v *OAServiceFrame, depth int) []byte {
 	return append(out, '}')
 }
 
-func encOAServiceReply(out []byte, v *OAServiceReply, depth int) []byte {
+func encOAServiceReply(out []byte, v *oaServiceReply, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -1032,7 +1474,7 @@ func encOAServiceReply(out []byte, v *OAServiceReply, depth int) []byte {
 	return append(out, '}')
 }
 
-func encOAServiceError(out []byte, v *OAServiceError, depth int) []byte {
+func encOAServiceError(out []byte, v *oaServiceError, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -1050,7 +1492,7 @@ func encOAServiceError(out []byte, v *OAServiceError, depth int) []byte {
 	return append(out, '}')
 }
 
-func encOAQuestionApplicationAskResult(out []byte, v *OAQuestionApplicationAskResult, depth int) []byte {
+func encOAQuestionApplicationAskResult(out []byte, v *oaQuestionApplicationAskResult, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -1062,7 +1504,7 @@ func encOAQuestionApplicationAskResult(out []byte, v *OAQuestionApplicationAskRe
 	return append(out, '}')
 }
 
-func encOAQuestionApplicationObserveResult(out []byte, v *OAQuestionApplicationObserveResult, depth int) []byte {
+func encOAQuestionApplicationObserveResult(out []byte, v *oaQuestionApplicationObserveResult, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -1074,7 +1516,7 @@ func encOAQuestionApplicationObserveResult(out []byte, v *OAQuestionApplicationO
 	return append(out, '}')
 }
 
-func encOAQuestionOperatorListQuestionsResult(out []byte, v *OAQuestionOperatorListQuestionsResult, depth int) []byte {
+func encOAQuestionOperatorListQuestionsResult(out []byte, v *oaQuestionOperatorListQuestionsResult, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -1086,7 +1528,7 @@ func encOAQuestionOperatorListQuestionsResult(out []byte, v *OAQuestionOperatorL
 	return append(out, '}')
 }
 
-func encOAQuestionOperatorAnswerQuestionResult(out []byte, v *OAQuestionOperatorAnswerQuestionResult, depth int) []byte {
+func encOAQuestionOperatorAnswerQuestionResult(out []byte, v *oaQuestionOperatorAnswerQuestionResult, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -1098,7 +1540,7 @@ func encOAQuestionOperatorAnswerQuestionResult(out []byte, v *OAQuestionOperator
 	return append(out, '}')
 }
 
-func encOAQuestionOperatorRetireQuestionResult(out []byte, v *OAQuestionOperatorRetireQuestionResult, depth int) []byte {
+func encOAQuestionOperatorRetireQuestionResult(out []byte, v *oaQuestionOperatorRetireQuestionResult, depth int) []byte {
 	out = append(out, '{')
 	out = append(out, '\n')
 	out = pad(out, depth+1)
@@ -1821,7 +2263,7 @@ func (r *reader) decodeRequest() (*Request, error) {
 				if err != nil {
 					return nil, err
 				}
-				v.Id = x
+				v.ID = x
 			case "option":
 				if seen&16 != 0 {
 					return nil, r.refuse("duplicate_field")
@@ -1900,7 +2342,7 @@ func (r *reader) decodeAnswer() (*Answer, error) {
 				if err != nil {
 					return nil, err
 				}
-				v.Id = x
+				v.ID = x
 			case "pending":
 				if seen&2 != 0 {
 					return nil, r.refuse("duplicate_field")
@@ -1999,7 +2441,7 @@ func (r *reader) decodeRecordMetadata() (*RecordMetadata, error) {
 				if err != nil {
 					return nil, err
 				}
-				v.Id = x
+				v.ID = x
 			case "asker":
 				if seen&2 != 0 {
 					return nil, r.refuse("duplicate_field")
@@ -2323,7 +2765,11 @@ func (r *reader) decodeQuestionObservation() (*QuestionObservation, error) {
 				if err != nil {
 					return nil, err
 				}
-				v.Outcome = x
+				word, ok := ParseObservationOutcome(x)
+				if !ok {
+					return nil, r.refuse("bad_enum")
+				}
+				v.Outcome = word
 			case "answer":
 				if seen&2 != 0 {
 					return nil, r.refuse("duplicate_field")
@@ -2352,7 +2798,7 @@ func (r *reader) decodeQuestionObservation() (*QuestionObservation, error) {
 	if seen&1 != 1 {
 		return nil, r.refuse("missing_field")
 	}
-	if v.Outcome != "pending" && v.Outcome != "answered" && v.Outcome != "unknown" && v.Outcome != "gone" && v.Outcome != "invalid" && v.Outcome != "conflict" && v.Outcome != "forbidden" && v.Outcome != "unavailable" {
+	if !(v.Outcome).Known() {
 		return nil, r.refuse("bad_enum")
 	}
 	return v, nil
@@ -2395,7 +2841,11 @@ func (r *reader) decodeOperatorPage() (*OperatorPage, error) {
 				if err != nil {
 					return nil, err
 				}
-				v.Outcome = x
+				word, ok := ParseOperatorPageOutcome(x)
+				if !ok {
+					return nil, r.refuse("bad_enum")
+				}
+				v.Outcome = word
 			case "records":
 				if seen&2 != 0 {
 					return nil, r.refuse("duplicate_field")
@@ -2444,7 +2894,7 @@ func (r *reader) decodeOperatorPage() (*OperatorPage, error) {
 	if seen&15 != 15 {
 		return nil, r.refuse("missing_field")
 	}
-	if v.Outcome != "page" && v.Outcome != "gap" && v.Outcome != "invalid" && v.Outcome != "forbidden" && v.Outcome != "unavailable" {
+	if !(v.Outcome).Known() {
 		return nil, r.refuse("bad_enum")
 	}
 	return v, nil
@@ -2487,7 +2937,11 @@ func (r *reader) decodeOperatorDecision() (*OperatorDecision, error) {
 				if err != nil {
 					return nil, err
 				}
-				v.Outcome = x
+				word, ok := ParseOperatorDecisionOutcome(x)
+				if !ok {
+					return nil, r.refuse("bad_enum")
+				}
+				v.Outcome = word
 			case "record":
 				if seen&2 != 0 {
 					return nil, r.refuse("duplicate_field")
@@ -2516,7 +2970,7 @@ func (r *reader) decodeOperatorDecision() (*OperatorDecision, error) {
 	if seen&1 != 1 {
 		return nil, r.refuse("missing_field")
 	}
-	if v.Outcome != "answered" && v.Outcome != "conflict" && v.Outcome != "unknown" && v.Outcome != "invalid" && v.Outcome != "forbidden" && v.Outcome != "unavailable" {
+	if !(v.Outcome).Known() {
 		return nil, r.refuse("bad_enum")
 	}
 	return v, nil
@@ -2559,7 +3013,11 @@ func (r *reader) decodeOperatorRetirement() (*OperatorRetirement, error) {
 				if err != nil {
 					return nil, err
 				}
-				v.Outcome = x
+				word, ok := ParseOperatorRetirementOutcome(x)
+				if !ok {
+					return nil, r.refuse("bad_enum")
+				}
+				v.Outcome = word
 			case "record":
 				if seen&2 != 0 {
 					return nil, r.refuse("duplicate_field")
@@ -2588,13 +3046,13 @@ func (r *reader) decodeOperatorRetirement() (*OperatorRetirement, error) {
 	if seen&1 != 1 {
 		return nil, r.refuse("missing_field")
 	}
-	if v.Outcome != "retired" && v.Outcome != "unknown" && v.Outcome != "invalid" && v.Outcome != "forbidden" && v.Outcome != "unavailable" {
+	if !(v.Outcome).Known() {
 		return nil, r.refuse("bad_enum")
 	}
 	return v, nil
 }
 
-func (r *reader) decodeOAQuestionApplicationAskArguments() (*OAQuestionApplicationAskArguments, error) {
+func (r *reader) decodeOAQuestionApplicationAskArguments() (*oaQuestionApplicationAskArguments, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -2602,7 +3060,7 @@ func (r *reader) decodeOAQuestionApplicationAskArguments() (*OAQuestionApplicati
 		return nil, err
 	}
 	r.pos++
-	v := &OAQuestionApplicationAskArguments{}
+	v := &oaQuestionApplicationAskArguments{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -2653,7 +3111,7 @@ func (r *reader) decodeOAQuestionApplicationAskArguments() (*OAQuestionApplicati
 	return v, nil
 }
 
-func (r *reader) decodeOAQuestionApplicationObserveArguments() (*OAQuestionApplicationObserveArguments, error) {
+func (r *reader) decodeOAQuestionApplicationObserveArguments() (*oaQuestionApplicationObserveArguments, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -2661,7 +3119,7 @@ func (r *reader) decodeOAQuestionApplicationObserveArguments() (*OAQuestionAppli
 		return nil, err
 	}
 	r.pos++
-	v := &OAQuestionApplicationObserveArguments{}
+	v := &oaQuestionApplicationObserveArguments{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -2722,7 +3180,7 @@ func (r *reader) decodeOAQuestionApplicationObserveArguments() (*OAQuestionAppli
 	return v, nil
 }
 
-func (r *reader) decodeOAQuestionOperatorListQuestionsArguments() (*OAQuestionOperatorListQuestionsArguments, error) {
+func (r *reader) decodeOAQuestionOperatorListQuestionsArguments() (*oaQuestionOperatorListQuestionsArguments, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -2730,7 +3188,7 @@ func (r *reader) decodeOAQuestionOperatorListQuestionsArguments() (*OAQuestionOp
 		return nil, err
 	}
 	r.pos++
-	v := &OAQuestionOperatorListQuestionsArguments{}
+	v := &oaQuestionOperatorListQuestionsArguments{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -2791,7 +3249,7 @@ func (r *reader) decodeOAQuestionOperatorListQuestionsArguments() (*OAQuestionOp
 	return v, nil
 }
 
-func (r *reader) decodeOAQuestionOperatorAnswerQuestionArguments() (*OAQuestionOperatorAnswerQuestionArguments, error) {
+func (r *reader) decodeOAQuestionOperatorAnswerQuestionArguments() (*oaQuestionOperatorAnswerQuestionArguments, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -2799,7 +3257,7 @@ func (r *reader) decodeOAQuestionOperatorAnswerQuestionArguments() (*OAQuestionO
 		return nil, err
 	}
 	r.pos++
-	v := &OAQuestionOperatorAnswerQuestionArguments{}
+	v := &oaQuestionOperatorAnswerQuestionArguments{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -2828,7 +3286,7 @@ func (r *reader) decodeOAQuestionOperatorAnswerQuestionArguments() (*OAQuestionO
 				if err != nil {
 					return nil, err
 				}
-				v.Id = x
+				v.ID = x
 			case "option":
 				if seen&2 != 0 {
 					return nil, r.refuse("duplicate_field")
@@ -2860,7 +3318,7 @@ func (r *reader) decodeOAQuestionOperatorAnswerQuestionArguments() (*OAQuestionO
 	return v, nil
 }
 
-func (r *reader) decodeOAQuestionOperatorRetireQuestionArguments() (*OAQuestionOperatorRetireQuestionArguments, error) {
+func (r *reader) decodeOAQuestionOperatorRetireQuestionArguments() (*oaQuestionOperatorRetireQuestionArguments, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -2868,7 +3326,7 @@ func (r *reader) decodeOAQuestionOperatorRetireQuestionArguments() (*OAQuestionO
 		return nil, err
 	}
 	r.pos++
-	v := &OAQuestionOperatorRetireQuestionArguments{}
+	v := &oaQuestionOperatorRetireQuestionArguments{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -2897,7 +3355,7 @@ func (r *reader) decodeOAQuestionOperatorRetireQuestionArguments() (*OAQuestionO
 				if err != nil {
 					return nil, err
 				}
-				v.Id = x
+				v.ID = x
 			default:
 				return nil, r.refuse("unknown_field")
 			}
@@ -2919,7 +3377,7 @@ func (r *reader) decodeOAQuestionOperatorRetireQuestionArguments() (*OAQuestionO
 	return v, nil
 }
 
-func (r *reader) decodeOAServiceFrame() (*OAServiceFrame, error) {
+func (r *reader) decodeOAServiceFrame() (*oaServiceFrame, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -2927,7 +3385,7 @@ func (r *reader) decodeOAServiceFrame() (*OAServiceFrame, error) {
 		return nil, err
 	}
 	r.pos++
-	v := &OAServiceFrame{}
+	v := &oaServiceFrame{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -3008,7 +3466,7 @@ func (r *reader) decodeOAServiceFrame() (*OAServiceFrame, error) {
 	return v, nil
 }
 
-func (r *reader) decodeOAServiceReply() (*OAServiceReply, error) {
+func (r *reader) decodeOAServiceReply() (*oaServiceReply, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -3016,7 +3474,7 @@ func (r *reader) decodeOAServiceReply() (*OAServiceReply, error) {
 		return nil, err
 	}
 	r.pos++
-	v := &OAServiceReply{}
+	v := &oaServiceReply{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -3107,7 +3565,7 @@ func (r *reader) decodeOAServiceReply() (*OAServiceReply, error) {
 	return v, nil
 }
 
-func (r *reader) decodeOAServiceError() (*OAServiceError, error) {
+func (r *reader) decodeOAServiceError() (*oaServiceError, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -3115,7 +3573,7 @@ func (r *reader) decodeOAServiceError() (*OAServiceError, error) {
 		return nil, err
 	}
 	r.pos++
-	v := &OAServiceError{}
+	v := &oaServiceError{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -3176,7 +3634,7 @@ func (r *reader) decodeOAServiceError() (*OAServiceError, error) {
 	return v, nil
 }
 
-func (r *reader) decodeOAQuestionApplicationAskResult() (*OAQuestionApplicationAskResult, error) {
+func (r *reader) decodeOAQuestionApplicationAskResult() (*oaQuestionApplicationAskResult, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -3184,7 +3642,7 @@ func (r *reader) decodeOAQuestionApplicationAskResult() (*OAQuestionApplicationA
 		return nil, err
 	}
 	r.pos++
-	v := &OAQuestionApplicationAskResult{}
+	v := &oaQuestionApplicationAskResult{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -3235,7 +3693,7 @@ func (r *reader) decodeOAQuestionApplicationAskResult() (*OAQuestionApplicationA
 	return v, nil
 }
 
-func (r *reader) decodeOAQuestionApplicationObserveResult() (*OAQuestionApplicationObserveResult, error) {
+func (r *reader) decodeOAQuestionApplicationObserveResult() (*oaQuestionApplicationObserveResult, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -3243,7 +3701,7 @@ func (r *reader) decodeOAQuestionApplicationObserveResult() (*OAQuestionApplicat
 		return nil, err
 	}
 	r.pos++
-	v := &OAQuestionApplicationObserveResult{}
+	v := &oaQuestionApplicationObserveResult{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -3294,7 +3752,7 @@ func (r *reader) decodeOAQuestionApplicationObserveResult() (*OAQuestionApplicat
 	return v, nil
 }
 
-func (r *reader) decodeOAQuestionOperatorListQuestionsResult() (*OAQuestionOperatorListQuestionsResult, error) {
+func (r *reader) decodeOAQuestionOperatorListQuestionsResult() (*oaQuestionOperatorListQuestionsResult, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -3302,7 +3760,7 @@ func (r *reader) decodeOAQuestionOperatorListQuestionsResult() (*OAQuestionOpera
 		return nil, err
 	}
 	r.pos++
-	v := &OAQuestionOperatorListQuestionsResult{}
+	v := &oaQuestionOperatorListQuestionsResult{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -3353,7 +3811,7 @@ func (r *reader) decodeOAQuestionOperatorListQuestionsResult() (*OAQuestionOpera
 	return v, nil
 }
 
-func (r *reader) decodeOAQuestionOperatorAnswerQuestionResult() (*OAQuestionOperatorAnswerQuestionResult, error) {
+func (r *reader) decodeOAQuestionOperatorAnswerQuestionResult() (*oaQuestionOperatorAnswerQuestionResult, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -3361,7 +3819,7 @@ func (r *reader) decodeOAQuestionOperatorAnswerQuestionResult() (*OAQuestionOper
 		return nil, err
 	}
 	r.pos++
-	v := &OAQuestionOperatorAnswerQuestionResult{}
+	v := &oaQuestionOperatorAnswerQuestionResult{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -3412,7 +3870,7 @@ func (r *reader) decodeOAQuestionOperatorAnswerQuestionResult() (*OAQuestionOper
 	return v, nil
 }
 
-func (r *reader) decodeOAQuestionOperatorRetireQuestionResult() (*OAQuestionOperatorRetireQuestionResult, error) {
+func (r *reader) decodeOAQuestionOperatorRetireQuestionResult() (*oaQuestionOperatorRetireQuestionResult, error) {
 	if r.at() != '{' {
 		return nil, r.refuse("wrong_type")
 	}
@@ -3420,7 +3878,7 @@ func (r *reader) decodeOAQuestionOperatorRetireQuestionResult() (*OAQuestionOper
 		return nil, err
 	}
 	r.pos++
-	v := &OAQuestionOperatorRetireQuestionResult{}
+	v := &oaQuestionOperatorRetireQuestionResult{}
 	var seen uint32
 	r.ws()
 	if r.at() != '}' {
@@ -3485,12 +3943,12 @@ func Decode(in []byte) (*Request, error) {
 	return v, nil
 }
 
-// Refusals is in the order two of them are chosen between.
+// refusals is in the order two of them are chosen between.
 
-var Refusals = []string{"malformed", "bad_string", "number_spelling", "wrong_type", "depth_exceeded", "duplicate_key", "duplicate_field", "unknown_field", "missing_field", "bad_enum", "trailing_bytes"}
+var refusals = []string{"malformed", "bad_string", "number_spelling", "wrong_type", "depth_exceeded", "duplicate_key", "duplicate_field", "unknown_field", "missing_field", "bad_enum", "trailing_bytes"}
 
-func RefusalRank(word string) int {
-	for i, w := range Refusals {
+func refusalRank(word string) int {
+	for i, w := range refusals {
 		if w == word {
 			return i
 		}
@@ -3499,11 +3957,11 @@ func RefusalRank(word string) int {
 }
 
 // A transport consumes or copies frames before returning. WriteFrame is one-way.
-type FrameWriter interface{ WriteFrame([]byte) error }
+type FrameWriter interface{ WriteFrame(frame []byte) error }
 type DispatchError string
 
 func (e DispatchError) Error() string { return string(e) }
-func servicePayload(frame []byte) (*OAServiceFrame, error) {
+func servicePayload(frame []byte) (*oaServiceFrame, error) {
 	r := &reader{buf: frame}
 	r.ws()
 	v, err := r.decodeOAServiceFrame()
@@ -3532,9 +3990,14 @@ func ServiceName(frame []byte) (string, error) {
 
 // ExchangeFrame returns the response associated with this call. Correlation,
 // serialization and deadlines belong to the transport, not this codec.
-type FrameExchanger interface{ ExchangeFrame([]byte) ([]byte, error) }
+type FrameExchanger interface {
+	ExchangeFrame(frame []byte) ([]byte, error)
+}
+
+// ServiceError is a reply on the error channel. Code is a ServiceErrorCode
+// constant or a word this package has never heard.
 type ServiceError struct {
-	Code    string
+	Code    ServiceErrorCode
 	Message string
 }
 
@@ -3542,7 +4005,7 @@ func (e *ServiceError) Error() string {
 	if e.Message != "" {
 		return e.Message
 	}
-	return e.Code
+	return string(e.Code)
 }
 func serviceResponse(frame []byte, service, method string) (Raw, error) {
 	r := &reader{buf: frame}
@@ -3575,11 +4038,11 @@ func serviceResponse(frame []byte, service, method string) (Raw, error) {
 		if e.Code == "" {
 			return "", DispatchError("invalid_error")
 		}
-		return "", &ServiceError{Code: e.Code, Message: e.Message}
+		return "", &ServiceError{Code: ServiceErrorCode(e.Code), Message: e.Message}
 	}
 	return v.Payload, nil
 }
-func serviceReply(v *OAServiceFrame, payload Raw, err error) (frame []byte, outErr error) {
+func serviceReply(v *oaServiceFrame, payload Raw, err error) (frame []byte, outErr error) {
 	defer func() {
 		if p := recover(); p != nil {
 			if e, ok := p.(*Refusal); ok {
@@ -3590,13 +4053,13 @@ func serviceReply(v *OAServiceFrame, payload Raw, err error) (frame []byte, outE
 			}
 		}
 	}()
-	reply := OAServiceReply{Version: 1, Service: v.Service, Method: v.Method, Ok: err == nil, Payload: payload}
+	reply := oaServiceReply{Version: 1, Service: v.Service, Method: v.Method, Ok: err == nil, Payload: payload}
 	if err != nil {
-		e := OAServiceError{Code: "handler_error", Message: "handler failed"}
+		e := oaServiceError{Code: string(ServiceErrorCodeHandlerError), Message: "handler failed"}
 		switch x := err.(type) {
 		case *ServiceError:
 			if x.Code != "" {
-				e.Code = x.Code
+				e.Code = string(x.Code)
 			}
 			e.Message = x.Message
 		case DispatchError:
@@ -3618,9 +4081,107 @@ func serviceReply(v *OAServiceFrame, payload Raw, err error) (frame []byte, outE
 	return frame, nil
 }
 
+// EndpointContract is abstraction.facade/endpoint@1, which every dispatcher
+// answers beside its own service.
+const EndpointContract = "abstraction.facade/endpoint@1"
+
+// DescribedService is a dispatcher of any generated package, as
+// abstraction.facade/endpoint@1 Describe lists it.
+type DescribedService interface {
+	DescribeService() (contract string, ready bool, why string)
+}
+
+// DescribeEndpoint answers an abstraction.facade/endpoint@1 Describe frame for
+// an endpoint hosting services, in that order. program and version are the
+// provider's own display name and version, never authority. A frame for another
+// service reads unknown_service.
+func DescribeEndpoint(frame []byte, program, version string, services ...DescribedService) ([]byte, error) {
+	v, err := servicePayload(frame)
+	if err != nil {
+		return nil, err
+	}
+	if v.Service != EndpointContract {
+		return serviceReply(v, "", DispatchError("unknown_service"))
+	}
+	if v.Method != "Describe" {
+		return serviceReply(v, "", DispatchError("unknown_method"))
+	}
+	r := &reader{buf: []byte(v.Arguments)}
+	r.ws()
+	empty := false
+	if r.pos < len(r.buf) && r.buf[r.pos] == '{' {
+		r.pos++
+		r.ws()
+		if r.pos < len(r.buf) && r.buf[r.pos] == '}' {
+			r.pos++
+			r.ws()
+			empty = r.pos == len(r.buf)
+		}
+	}
+	if !empty {
+		return serviceReply(v, "", &Refusal{Word: "unknown_field"})
+	}
+	out := append([]byte(nil), "{\"value\":{\"outcome\":\"described\",\"program\":"...)
+	out = esc(out, program)
+	out = append(out, ",\"version\":"...)
+	out = esc(out, version)
+	out = append(out, ",\"services\":["...)
+	for i, service := range services {
+		contract, ready, why := service.DescribeService()
+		readiness := "ready"
+		if !ready {
+			readiness = "not_ready"
+		}
+		if i > 0 {
+			out = append(out, ',')
+		}
+		out = append(out, "{\"contract\":"...)
+		out = esc(out, contract)
+		out = append(out, ",\"readiness\":\""+readiness+"\",\"why\":"...)
+		out = esc(out, why)
+		out = append(out, ",\"guarantees\":[],\"capabilities\":{}}"...)
+	}
+	return serviceReply(v, Raw(append(out, "]}}"...)), nil)
+}
+
+// ServedService is a dispatcher of any generated package that ServeEndpoint
+// routes frames to by its wire name.
+type ServedService interface {
+	DescribedService
+	ServiceContract() string
+}
+
+// ServeEndpoint answers one request-response frame for an endpoint hosting
+// services. A Describe frame lists all of them in the order given; any other
+// frame goes to the service it names. A service that takes only one-way frames
+// reads wrong_mode, and a frame naming none of them reads unknown_service.
+func ServeEndpoint(frame []byte, program, version string, services ...ServedService) ([]byte, error) {
+	v, err := servicePayload(frame)
+	if err != nil {
+		return nil, err
+	}
+	if v.Service == EndpointContract {
+		described := make([]DescribedService, len(services))
+		for i, service := range services {
+			described[i] = service
+		}
+		return DescribeEndpoint(frame, program, version, described...)
+	}
+	for _, service := range services {
+		if service.ServiceContract() != v.Service {
+			continue
+		}
+		if exchanger, ok := service.(interface{ ExchangeFrame([]byte) ([]byte, error) }); ok {
+			return exchanger.ExchangeFrame(frame)
+		}
+		return serviceReply(v, "", DispatchError("wrong_mode"))
+	}
+	return serviceReply(v, "", DispatchError("unknown_service"))
+}
+
 type QuestionApplication interface {
-	Ask(ApplicationQuestion) (QuestionObservation, error)
-	Observe(string, int64) (QuestionObservation, error)
+	Ask(question ApplicationQuestion) (QuestionObservation, error)
+	Observe(requestKey string, waitMs int64) (QuestionObservation, error)
 }
 type QuestionApplicationTransport interface {
 	FrameExchanger
@@ -3633,7 +4194,7 @@ func NewQuestionApplicationClient(t QuestionApplicationTransport) *QuestionAppli
 
 type QuestionApplicationDispatcher struct{ Handler QuestionApplication }
 
-func (c *QuestionApplicationClient) Ask(arg0 ApplicationQuestion) (result QuestionObservation, err error) {
+func (c *QuestionApplicationClient) Ask(question ApplicationQuestion) (result QuestionObservation, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			if e, ok := p.(*Refusal); ok {
@@ -3643,8 +4204,8 @@ func (c *QuestionApplicationClient) Ask(arg0 ApplicationQuestion) (result Questi
 			}
 		}
 	}()
-	args := OAQuestionApplicationAskArguments{Question: arg0}
-	v := OAServiceFrame{Version: 1, Service: "abstraction.asks/application@1", Method: "Ask", Arguments: Raw(encOAQuestionApplicationAskArguments(nil, &args, 1))}
+	args := oaQuestionApplicationAskArguments{Question: question}
+	v := oaServiceFrame{Version: 1, Service: "abstraction.asks/application@1", Method: "Ask", Arguments: Raw(encOAQuestionApplicationAskArguments(nil, &args, 1))}
 	frame := encOAServiceFrame(nil, &v, 0)
 	if _, err = servicePayload(frame); err != nil {
 		return
@@ -3661,7 +4222,7 @@ func (c *QuestionApplicationClient) Ask(arg0 ApplicationQuestion) (result Questi
 	}
 	r := &reader{buf: []byte(payload), depth: 1}
 	r.ws()
-	var decoded *OAQuestionApplicationAskResult
+	var decoded *oaQuestionApplicationAskResult
 	decoded, err = r.decodeOAQuestionApplicationAskResult()
 	if err != nil {
 		return
@@ -3675,7 +4236,7 @@ func (c *QuestionApplicationClient) Ask(arg0 ApplicationQuestion) (result Questi
 	result = decoded.Value
 	return
 }
-func (c *QuestionApplicationClient) Observe(arg0 string, arg1 int64) (result QuestionObservation, err error) {
+func (c *QuestionApplicationClient) Observe(requestKey string, waitMs int64) (result QuestionObservation, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			if e, ok := p.(*Refusal); ok {
@@ -3685,8 +4246,8 @@ func (c *QuestionApplicationClient) Observe(arg0 string, arg1 int64) (result Que
 			}
 		}
 	}()
-	args := OAQuestionApplicationObserveArguments{RequestKey: arg0, WaitMs: arg1}
-	v := OAServiceFrame{Version: 1, Service: "abstraction.asks/application@1", Method: "Observe", Arguments: Raw(encOAQuestionApplicationObserveArguments(nil, &args, 1))}
+	args := oaQuestionApplicationObserveArguments{RequestKey: requestKey, WaitMs: waitMs}
+	v := oaServiceFrame{Version: 1, Service: "abstraction.asks/application@1", Method: "Observe", Arguments: Raw(encOAQuestionApplicationObserveArguments(nil, &args, 1))}
 	frame := encOAServiceFrame(nil, &v, 0)
 	if _, err = servicePayload(frame); err != nil {
 		return
@@ -3703,7 +4264,7 @@ func (c *QuestionApplicationClient) Observe(arg0 string, arg1 int64) (result Que
 	}
 	r := &reader{buf: []byte(payload), depth: 1}
 	r.ws()
-	var decoded *OAQuestionApplicationObserveResult
+	var decoded *oaQuestionApplicationObserveResult
 	decoded, err = r.decodeOAQuestionApplicationObserveResult()
 	if err != nil {
 		return
@@ -3716,6 +4277,23 @@ func (c *QuestionApplicationClient) Observe(arg0 string, arg1 int64) (result Que
 	}
 	result = decoded.Value
 	return
+}
+
+// DescribeService is this dispatcher's service as abstraction.facade/endpoint@1 Describe lists it:
+// ready unless its handler implements Ready() (bool, string) and reports otherwise.
+func (d *QuestionApplicationDispatcher) DescribeService() (contract string, ready bool, why string) {
+	if h, ok := d.Handler.(interface{ Ready() (bool, string) }); ok {
+		if ready, why = h.Ready(); ready {
+			why = ""
+		}
+		return "abstraction.asks/application@1", ready, why
+	}
+	return "abstraction.asks/application@1", true, ""
+}
+
+// ServiceContract is the wire name ServeEndpoint routes this dispatcher's frames by.
+func (d *QuestionApplicationDispatcher) ServiceContract() string {
+	return "abstraction.asks/application@1"
 }
 func (d *QuestionApplicationDispatcher) WriteFrame(frame []byte) error {
 	v, err := servicePayload(frame)
@@ -3738,6 +4316,9 @@ func (d *QuestionApplicationDispatcher) ExchangeFrame(frame []byte) ([]byte, err
 	v, err := servicePayload(frame)
 	if err != nil {
 		return nil, err
+	}
+	if v.Service == EndpointContract {
+		return DescribeEndpoint(frame, "", "", d)
 	}
 	if v.Service != "abstraction.asks/application@1" {
 		return serviceReply(v, "", DispatchError("unknown_service"))
@@ -3773,14 +4354,14 @@ func (d *QuestionApplicationDispatcher) ExchangeFrame(frame []byte) ([]byte, err
 		return serviceReply(v, "", DispatchError("unknown_method"))
 	}
 }
-func (d *QuestionApplicationDispatcher) invokeAsk(args *OAQuestionApplicationAskArguments) (payload Raw, err error) {
+func (d *QuestionApplicationDispatcher) invokeAsk(args *oaQuestionApplicationAskArguments) (payload Raw, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			payload = ""
 			if _, ok := p.(*Refusal); ok {
-				err = &ServiceError{Code: "invalid_result"}
+				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
-				err = &ServiceError{Code: "handler_error", Message: "handler failed"}
+				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
 	}()
@@ -3789,30 +4370,30 @@ func (d *QuestionApplicationDispatcher) invokeAsk(args *OAQuestionApplicationAsk
 	if err != nil {
 		return
 	}
-	value := OAQuestionApplicationAskResult{Value: result}
+	value := oaQuestionApplicationAskResult{Value: result}
 	payload = Raw(encOAQuestionApplicationAskResult(nil, &value, 1))
 	r := &reader{buf: []byte(payload), depth: 1}
 	r.ws()
 	if _, e := r.decodeOAQuestionApplicationAskResult(); e != nil {
 		payload = ""
-		err = &ServiceError{Code: "invalid_result"}
+		err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 		return
 	}
 	r.ws()
 	if r.pos != len(r.buf) {
 		payload = ""
-		err = &ServiceError{Code: "invalid_result"}
+		err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 	}
 	return
 }
-func (d *QuestionApplicationDispatcher) invokeObserve(args *OAQuestionApplicationObserveArguments) (payload Raw, err error) {
+func (d *QuestionApplicationDispatcher) invokeObserve(args *oaQuestionApplicationObserveArguments) (payload Raw, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			payload = ""
 			if _, ok := p.(*Refusal); ok {
-				err = &ServiceError{Code: "invalid_result"}
+				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
-				err = &ServiceError{Code: "handler_error", Message: "handler failed"}
+				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
 	}()
@@ -3821,27 +4402,27 @@ func (d *QuestionApplicationDispatcher) invokeObserve(args *OAQuestionApplicatio
 	if err != nil {
 		return
 	}
-	value := OAQuestionApplicationObserveResult{Value: result}
+	value := oaQuestionApplicationObserveResult{Value: result}
 	payload = Raw(encOAQuestionApplicationObserveResult(nil, &value, 1))
 	r := &reader{buf: []byte(payload), depth: 1}
 	r.ws()
 	if _, e := r.decodeOAQuestionApplicationObserveResult(); e != nil {
 		payload = ""
-		err = &ServiceError{Code: "invalid_result"}
+		err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 		return
 	}
 	r.ws()
 	if r.pos != len(r.buf) {
 		payload = ""
-		err = &ServiceError{Code: "invalid_result"}
+		err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 	}
 	return
 }
 
 type QuestionOperator interface {
-	ListQuestions(string, int64) (OperatorPage, error)
-	AnswerQuestion(string, string) (OperatorDecision, error)
-	RetireQuestion(string) (OperatorRetirement, error)
+	ListQuestions(cursor string, limit int64) (OperatorPage, error)
+	AnswerQuestion(id, option string) (OperatorDecision, error)
+	RetireQuestion(id string) (OperatorRetirement, error)
 }
 type QuestionOperatorTransport interface {
 	FrameExchanger
@@ -3854,7 +4435,7 @@ func NewQuestionOperatorClient(t QuestionOperatorTransport) *QuestionOperatorCli
 
 type QuestionOperatorDispatcher struct{ Handler QuestionOperator }
 
-func (c *QuestionOperatorClient) ListQuestions(arg0 string, arg1 int64) (result OperatorPage, err error) {
+func (c *QuestionOperatorClient) ListQuestions(cursor string, limit int64) (result OperatorPage, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			if e, ok := p.(*Refusal); ok {
@@ -3864,8 +4445,8 @@ func (c *QuestionOperatorClient) ListQuestions(arg0 string, arg1 int64) (result 
 			}
 		}
 	}()
-	args := OAQuestionOperatorListQuestionsArguments{Cursor: arg0, Limit: arg1}
-	v := OAServiceFrame{Version: 1, Service: "abstraction.asks/operator@1", Method: "ListQuestions", Arguments: Raw(encOAQuestionOperatorListQuestionsArguments(nil, &args, 1))}
+	args := oaQuestionOperatorListQuestionsArguments{Cursor: cursor, Limit: limit}
+	v := oaServiceFrame{Version: 1, Service: "abstraction.asks/operator@1", Method: "ListQuestions", Arguments: Raw(encOAQuestionOperatorListQuestionsArguments(nil, &args, 1))}
 	frame := encOAServiceFrame(nil, &v, 0)
 	if _, err = servicePayload(frame); err != nil {
 		return
@@ -3882,7 +4463,7 @@ func (c *QuestionOperatorClient) ListQuestions(arg0 string, arg1 int64) (result 
 	}
 	r := &reader{buf: []byte(payload), depth: 1}
 	r.ws()
-	var decoded *OAQuestionOperatorListQuestionsResult
+	var decoded *oaQuestionOperatorListQuestionsResult
 	decoded, err = r.decodeOAQuestionOperatorListQuestionsResult()
 	if err != nil {
 		return
@@ -3896,7 +4477,7 @@ func (c *QuestionOperatorClient) ListQuestions(arg0 string, arg1 int64) (result 
 	result = decoded.Value
 	return
 }
-func (c *QuestionOperatorClient) AnswerQuestion(arg0 string, arg1 string) (result OperatorDecision, err error) {
+func (c *QuestionOperatorClient) AnswerQuestion(id, option string) (result OperatorDecision, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			if e, ok := p.(*Refusal); ok {
@@ -3906,8 +4487,8 @@ func (c *QuestionOperatorClient) AnswerQuestion(arg0 string, arg1 string) (resul
 			}
 		}
 	}()
-	args := OAQuestionOperatorAnswerQuestionArguments{Id: arg0, Option: arg1}
-	v := OAServiceFrame{Version: 1, Service: "abstraction.asks/operator@1", Method: "AnswerQuestion", Arguments: Raw(encOAQuestionOperatorAnswerQuestionArguments(nil, &args, 1))}
+	args := oaQuestionOperatorAnswerQuestionArguments{ID: id, Option: option}
+	v := oaServiceFrame{Version: 1, Service: "abstraction.asks/operator@1", Method: "AnswerQuestion", Arguments: Raw(encOAQuestionOperatorAnswerQuestionArguments(nil, &args, 1))}
 	frame := encOAServiceFrame(nil, &v, 0)
 	if _, err = servicePayload(frame); err != nil {
 		return
@@ -3924,7 +4505,7 @@ func (c *QuestionOperatorClient) AnswerQuestion(arg0 string, arg1 string) (resul
 	}
 	r := &reader{buf: []byte(payload), depth: 1}
 	r.ws()
-	var decoded *OAQuestionOperatorAnswerQuestionResult
+	var decoded *oaQuestionOperatorAnswerQuestionResult
 	decoded, err = r.decodeOAQuestionOperatorAnswerQuestionResult()
 	if err != nil {
 		return
@@ -3938,7 +4519,7 @@ func (c *QuestionOperatorClient) AnswerQuestion(arg0 string, arg1 string) (resul
 	result = decoded.Value
 	return
 }
-func (c *QuestionOperatorClient) RetireQuestion(arg0 string) (result OperatorRetirement, err error) {
+func (c *QuestionOperatorClient) RetireQuestion(id string) (result OperatorRetirement, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			if e, ok := p.(*Refusal); ok {
@@ -3948,8 +4529,8 @@ func (c *QuestionOperatorClient) RetireQuestion(arg0 string) (result OperatorRet
 			}
 		}
 	}()
-	args := OAQuestionOperatorRetireQuestionArguments{Id: arg0}
-	v := OAServiceFrame{Version: 1, Service: "abstraction.asks/operator@1", Method: "RetireQuestion", Arguments: Raw(encOAQuestionOperatorRetireQuestionArguments(nil, &args, 1))}
+	args := oaQuestionOperatorRetireQuestionArguments{ID: id}
+	v := oaServiceFrame{Version: 1, Service: "abstraction.asks/operator@1", Method: "RetireQuestion", Arguments: Raw(encOAQuestionOperatorRetireQuestionArguments(nil, &args, 1))}
 	frame := encOAServiceFrame(nil, &v, 0)
 	if _, err = servicePayload(frame); err != nil {
 		return
@@ -3966,7 +4547,7 @@ func (c *QuestionOperatorClient) RetireQuestion(arg0 string) (result OperatorRet
 	}
 	r := &reader{buf: []byte(payload), depth: 1}
 	r.ws()
-	var decoded *OAQuestionOperatorRetireQuestionResult
+	var decoded *oaQuestionOperatorRetireQuestionResult
 	decoded, err = r.decodeOAQuestionOperatorRetireQuestionResult()
 	if err != nil {
 		return
@@ -3980,6 +4561,21 @@ func (c *QuestionOperatorClient) RetireQuestion(arg0 string) (result OperatorRet
 	result = decoded.Value
 	return
 }
+
+// DescribeService is this dispatcher's service as abstraction.facade/endpoint@1 Describe lists it:
+// ready unless its handler implements Ready() (bool, string) and reports otherwise.
+func (d *QuestionOperatorDispatcher) DescribeService() (contract string, ready bool, why string) {
+	if h, ok := d.Handler.(interface{ Ready() (bool, string) }); ok {
+		if ready, why = h.Ready(); ready {
+			why = ""
+		}
+		return "abstraction.asks/operator@1", ready, why
+	}
+	return "abstraction.asks/operator@1", true, ""
+}
+
+// ServiceContract is the wire name ServeEndpoint routes this dispatcher's frames by.
+func (d *QuestionOperatorDispatcher) ServiceContract() string { return "abstraction.asks/operator@1" }
 func (d *QuestionOperatorDispatcher) WriteFrame(frame []byte) error {
 	v, err := servicePayload(frame)
 	if err != nil {
@@ -4003,6 +4599,9 @@ func (d *QuestionOperatorDispatcher) ExchangeFrame(frame []byte) ([]byte, error)
 	v, err := servicePayload(frame)
 	if err != nil {
 		return nil, err
+	}
+	if v.Service == EndpointContract {
+		return DescribeEndpoint(frame, "", "", d)
 	}
 	if v.Service != "abstraction.asks/operator@1" {
 		return serviceReply(v, "", DispatchError("unknown_service"))
@@ -4051,14 +4650,14 @@ func (d *QuestionOperatorDispatcher) ExchangeFrame(frame []byte) ([]byte, error)
 		return serviceReply(v, "", DispatchError("unknown_method"))
 	}
 }
-func (d *QuestionOperatorDispatcher) invokeListQuestions(args *OAQuestionOperatorListQuestionsArguments) (payload Raw, err error) {
+func (d *QuestionOperatorDispatcher) invokeListQuestions(args *oaQuestionOperatorListQuestionsArguments) (payload Raw, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			payload = ""
 			if _, ok := p.(*Refusal); ok {
-				err = &ServiceError{Code: "invalid_result"}
+				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
-				err = &ServiceError{Code: "handler_error", Message: "handler failed"}
+				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
 	}()
@@ -4067,83 +4666,83 @@ func (d *QuestionOperatorDispatcher) invokeListQuestions(args *OAQuestionOperato
 	if err != nil {
 		return
 	}
-	value := OAQuestionOperatorListQuestionsResult{Value: result}
+	value := oaQuestionOperatorListQuestionsResult{Value: result}
 	payload = Raw(encOAQuestionOperatorListQuestionsResult(nil, &value, 1))
 	r := &reader{buf: []byte(payload), depth: 1}
 	r.ws()
 	if _, e := r.decodeOAQuestionOperatorListQuestionsResult(); e != nil {
 		payload = ""
-		err = &ServiceError{Code: "invalid_result"}
+		err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 		return
 	}
 	r.ws()
 	if r.pos != len(r.buf) {
 		payload = ""
-		err = &ServiceError{Code: "invalid_result"}
+		err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 	}
 	return
 }
-func (d *QuestionOperatorDispatcher) invokeAnswerQuestion(args *OAQuestionOperatorAnswerQuestionArguments) (payload Raw, err error) {
+func (d *QuestionOperatorDispatcher) invokeAnswerQuestion(args *oaQuestionOperatorAnswerQuestionArguments) (payload Raw, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			payload = ""
 			if _, ok := p.(*Refusal); ok {
-				err = &ServiceError{Code: "invalid_result"}
+				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
-				err = &ServiceError{Code: "handler_error", Message: "handler failed"}
+				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
 	}()
 	var result OperatorDecision
-	result, err = d.Handler.AnswerQuestion(args.Id, args.Option)
+	result, err = d.Handler.AnswerQuestion(args.ID, args.Option)
 	if err != nil {
 		return
 	}
-	value := OAQuestionOperatorAnswerQuestionResult{Value: result}
+	value := oaQuestionOperatorAnswerQuestionResult{Value: result}
 	payload = Raw(encOAQuestionOperatorAnswerQuestionResult(nil, &value, 1))
 	r := &reader{buf: []byte(payload), depth: 1}
 	r.ws()
 	if _, e := r.decodeOAQuestionOperatorAnswerQuestionResult(); e != nil {
 		payload = ""
-		err = &ServiceError{Code: "invalid_result"}
+		err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 		return
 	}
 	r.ws()
 	if r.pos != len(r.buf) {
 		payload = ""
-		err = &ServiceError{Code: "invalid_result"}
+		err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 	}
 	return
 }
-func (d *QuestionOperatorDispatcher) invokeRetireQuestion(args *OAQuestionOperatorRetireQuestionArguments) (payload Raw, err error) {
+func (d *QuestionOperatorDispatcher) invokeRetireQuestion(args *oaQuestionOperatorRetireQuestionArguments) (payload Raw, err error) {
 	defer func() {
 		if p := recover(); p != nil {
 			payload = ""
 			if _, ok := p.(*Refusal); ok {
-				err = &ServiceError{Code: "invalid_result"}
+				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
-				err = &ServiceError{Code: "handler_error", Message: "handler failed"}
+				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
 	}()
 	var result OperatorRetirement
-	result, err = d.Handler.RetireQuestion(args.Id)
+	result, err = d.Handler.RetireQuestion(args.ID)
 	if err != nil {
 		return
 	}
-	value := OAQuestionOperatorRetireQuestionResult{Value: result}
+	value := oaQuestionOperatorRetireQuestionResult{Value: result}
 	payload = Raw(encOAQuestionOperatorRetireQuestionResult(nil, &value, 1))
 	r := &reader{buf: []byte(payload), depth: 1}
 	r.ws()
 	if _, e := r.decodeOAQuestionOperatorRetireQuestionResult(); e != nil {
 		payload = ""
-		err = &ServiceError{Code: "invalid_result"}
+		err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 		return
 	}
 	r.ws()
 	if r.pos != len(r.buf) {
 		payload = ""
-		err = &ServiceError{Code: "invalid_result"}
+		err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 	}
 	return
 }

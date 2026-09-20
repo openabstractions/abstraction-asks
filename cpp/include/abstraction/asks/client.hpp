@@ -15,14 +15,14 @@ class Client {
 public:
  explicit Client(std::string endpoint):transport_(std::move(endpoint),5000,1u<<20){}
  Client(std::string endpoint,ipc::Deadline deadline):transport_(std::move(endpoint),deadline,1u<<20){}
- Client WithServerExpectation(std::optional<ipc::ServerExpectation> server) const {auto copy=*this;copy.transport_=transport_.WithServerExpectation(std::move(server));return copy;}
- Client WithCancellation(ipc::CancellationToken token)const{auto copy=*this;copy.transport_=transport_.WithCancellation(std::move(token));return copy;}
- api::QuestionObservation Ask(const api::ApplicationQuestion& question)const{
-  auto transport=transport_;api::QuestionApplicationClient<ipc::FrameTransport> client(transport);auto result=client.Ask(question);validate(result);return result;
+ Client with_server_expectation(std::optional<ipc::ServerExpectation> server) const {auto copy=*this;copy.transport_=transport_.with_server_expectation(std::move(server));return copy;}
+ Client with_cancellation(ipc::CancellationToken token)const{auto copy=*this;copy.transport_=transport_.with_cancellation(std::move(token));return copy;}
+ api::QuestionObservation ask(const api::ApplicationQuestion& question)const{
+  auto transport=transport_;api::QuestionApplicationClient<ipc::FrameTransport> client(transport);auto result=client.ask(question);validate(result);return result;
  }
- api::QuestionObservation Observe(const std::string& request_key,std::int64_t wait_ms=0)const{
+ api::QuestionObservation observe(const std::string& request_key,std::int64_t wait_ms=0)const{
   if(wait_ms<0||wait_ms>30000)throw api::ServiceError("invalid_request","wait_ms must be 0..30000");
-  auto transport=transport_;api::QuestionApplicationClient<ipc::FrameTransport> client(transport);auto result=client.Observe(request_key,wait_ms);validate(result);return result;
+  auto transport=transport_;api::QuestionApplicationClient<ipc::FrameTransport> client(transport);auto result=client.observe(request_key,wait_ms);validate(result);return result;
  }
 private: ipc::FrameTransport transport_;
 };

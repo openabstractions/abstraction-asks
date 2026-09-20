@@ -33,7 +33,7 @@ func (c *Operator) ListQuestionsContext(ctx context.Context, cursor string, limi
 	if err != nil {
 		return wire.OperatorPage{}, err
 	}
-	if page.Outcome != "page" {
+	if page.Outcome != wire.OperatorPageOutcomePage {
 		if len(page.Records) != 0 || page.Next != "" || page.Complete {
 			return wire.OperatorPage{}, errors.New("asks: malformed history refusal")
 		}
@@ -46,7 +46,7 @@ func (c *Operator) ListQuestionsContext(ctx context.Context, cursor string, limi
 	// Reserve envelope/cursor and pretty-encoding overhead in addition to compact records.
 	used := 2048
 	for _, record := range page.Records {
-		if !validOperatorRecord(record) || ids[record.Id] {
+		if !validOperatorRecord(record) || ids[record.ID] {
 			return wire.OperatorPage{}, errors.New("asks: malformed history record")
 		}
 		data, e := json.Marshal(record)
@@ -57,7 +57,7 @@ func (c *Operator) ListQuestionsContext(ctx context.Context, cursor string, limi
 		if used > 256<<10 {
 			return wire.OperatorPage{}, errors.New("asks: oversized history page")
 		}
-		ids[record.Id] = true
+		ids[record.ID] = true
 	}
 	return page, nil
 }
@@ -75,10 +75,10 @@ func (c *Operator) AnswerQuestionContext(ctx context.Context, id, option string)
 	if err != nil {
 		return wire.OperatorDecision{}, err
 	}
-	if (result.Outcome == "answered") != (result.Record != nil) {
+	if (result.Outcome == wire.OperatorDecisionOutcomeAnswered) != (result.Record != nil) {
 		return wire.OperatorDecision{}, errors.New("asks: malformed operator result")
 	}
-	if r := result.Record; r != nil && (!validOperatorRecord(*r) || r.Id != id || r.Option != option) {
+	if r := result.Record; r != nil && (!validOperatorRecord(*r) || r.ID != id || r.Option != option) {
 		return wire.OperatorDecision{}, errors.New("asks: mismatched operator answer")
 	}
 	return result, nil
@@ -97,7 +97,7 @@ func (c *Operator) RetireQuestionContext(ctx context.Context, id string) (wire.O
 	if err != nil {
 		return wire.OperatorRetirement{}, err
 	}
-	if r := result.Record; r != nil && (result.Outcome != "retired" || !validOperatorRecord(*r) || r.Id != id) {
+	if r := result.Record; r != nil && (result.Outcome != wire.OperatorRetirementOutcomeRetired || !validOperatorRecord(*r) || r.ID != id) {
 		return wire.OperatorRetirement{}, errors.New("asks: malformed operator retirement")
 	}
 	return result, nil
@@ -106,7 +106,7 @@ func operatorWord(s string) bool {
 	return len(s) > 0 && len(s) <= 128 && utf8.ValidString(s) && strings.IndexFunc(s, unicode.IsControl) < 0
 }
 func validOperatorRecord(r wire.RecordMetadata) bool {
-	if !operatorWord(r.Id) || r.Asker == "" || r.Key == "" || r.Text == "" || len(r.Options) == 0 {
+	if !operatorWord(r.ID) || r.Asker == "" || r.Key == "" || r.Text == "" || len(r.Options) == 0 {
 		return false
 	}
 	if _, err := time.Parse(time.RFC3339Nano, r.Asked); err != nil {

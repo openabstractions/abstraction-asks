@@ -39,6 +39,37 @@ var Questions = []Question{
 		Text:    "{asker} wants to fetch from {host}",
 		About:   "host",
 		Options: []Option{{Name: "allow", Yes: true, Kept: true}, {Name: "once", Yes: true}, {Name: "refuse"}}},
+	// The runtime admits this question as itself when a spending action it
+	// gates decides not_granted (research/rights-defaults/DECISION.md §2). The
+	// About slot is the program's exact path; the text is "<program> wants to
+	// <action> on <resource>", and an action carries no space. The answer is a
+	// person's choice: an operator writes the rule, and the question grants
+	// nothing. Applications cannot admit it (FirstUseKey).
+	{Key: FirstUseKey,
+		Text:    "{program} wants to {action} on {resource}",
+		About:   "program",
+		Options: []Option{{Name: "allow", Yes: true}, {Name: "refuse"}}},
+}
+
+// FirstUseKey is the question a runtime admits for a first-use refusal.
+const FirstUseKey = "rights.first_use"
+
+// FirstUse reads the program, action and resource of a first-use question from
+// its About slot and text. ok is false for any other question or a text that
+// does not read as the question's own sentence.
+func FirstUse(key, about, text string) (program, action, resource string, ok bool) {
+	if key != FirstUseKey || about == "" {
+		return "", "", "", false
+	}
+	rest, found := strings.CutPrefix(text, about+" wants to ")
+	if !found {
+		return "", "", "", false
+	}
+	action, resource, found = strings.Cut(rest, " on ")
+	if !found || action == "" || resource == "" || strings.ContainsAny(action, " \t") {
+		return "", "", "", false
+	}
+	return about, action, resource, true
 }
 
 var slotRE = regexp.MustCompile(`\{([a-z]+)\}`)

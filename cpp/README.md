@@ -5,9 +5,9 @@ package. It uses generated QuestionApplication codecs and shared identity IPC.
 
 `asks::Client(endpoint)` has a fresh five-second budget for each call. The
 `Client(endpoint, ipc::Deadline)` constructor retains one absolute budget;
-`WithCancellation(token)` preserves shared cancellation. `Ask(question)` never
+`with_cancellation(token)` preserves shared cancellation. `ask(question)` never
 retries. After an uncertain reply, retain the request key and identical content.
-`Observe(key, wait_ms)` accepts 0..30000 milliseconds; the transport budget still
+`observe(key, wait_ms)` accepts 0..30000 milliseconds; the transport budget still
 bounds the call. Cancellation ends waiting without answering the question.
 
 Pending/answered results carry validated answers; other outcomes carry none.

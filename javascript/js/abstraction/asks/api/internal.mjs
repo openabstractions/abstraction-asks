@@ -4,7 +4,7 @@ const HEX = "0123456789abcdef";
 const ENC = new TextEncoder();
 const SHORT = { 0x22: '\\"', 0x5c: "\\\\", 0x08: "\\b", 0x0c: "\\f", 0x0a: "\\n", 0x0d: "\\r", 0x09: "\\t" };
 
-export class Out {
+class Out {
   constructor() { this.b = []; }
   byte(c) { this.b.push(c); }
   ascii(s) { for (let i = 0; i < s.length; i++) this.b.push(s.charCodeAt(i)); }
@@ -20,11 +20,11 @@ function escByte(out, c) {
 
 // Every integer the definition calls i64 is a BigInt here, because Number
 // rounds above 2^53 and two values in the conformance record are i64 extremes.
-export function num(out, n) { out.ascii(BigInt(n).toString()); }
+function num(out, n) { out.ascii(BigInt(n).toString()); }
 
-export function pad(out, depth) { for (let i = 0; i < depth * 2; i++) out.byte(0x20); }
+function pad(out, depth) { for (let i = 0; i < depth * 2; i++) out.byte(0x20); }
 
-export function strs(out, v, depth) {
+function strs(out, v, depth) {
   if (v.length === 0) { out.ascii("[]"); return; }
   out.ascii("[\n");
   for (let i = 0; i < v.length; i++) {
@@ -39,7 +39,7 @@ export function strs(out, v, depth) {
 
 const isWs = (c) => c === 0x20 || c === 0x09 || c === 0x0a || c === 0x0d;
 
-export function raw(out, s, depth) {
+function raw(out, s, depth) {
   const b = typeof s === "string" ? ENC.encode(s) : s;
   let i = 0;
   while (i < b.length) {
@@ -91,7 +91,7 @@ function byteLess(a, b) {
   return x.length - y.length;
 }
 
-export function rawmap(out, m, depth) {
+function rawmap(out, m, depth) {
   const keys = Object.keys(m).sort(byteLess);
   if (keys.length === 0) { out.ascii("{}"); return; }
   out.ascii("{\n");
@@ -107,13 +107,13 @@ export function rawmap(out, m, depth) {
   out.byte(0x7d);
 }
 
-export function esc(out, s) {
+function esc(out, s) {
   out.byte(0x22);
   for (const c of ENC.encode(s)) escByte(out, c);
   out.byte(0x22);
 }
 
-export function strmap(out, m, depth) {
+function strmap(out, m, depth) {
   const keys = Object.keys(m).sort(byteLess);
   if (keys.length === 0) { out.ascii("{}"); return; }
   out.ascii("{\n");
@@ -129,7 +129,7 @@ export function strmap(out, m, depth) {
   out.byte(0x7d);
 }
 
-export function encList(out, v, depth, enc) {
+function writeList(out, v, depth, enc) {
   if (v.length === 0) { out.ascii("[]"); return; }
   out.ascii("[\n");
   for (let i = 0; i < v.length; i++) {
@@ -142,23 +142,58 @@ export function encList(out, v, depth, enc) {
   out.byte(0x5d);
 }
 
-export const ObservationOutcomeNames = ["pending", "answered", "unknown", "gone", "invalid", "conflict", "forbidden", "unavailable"];
-export const ObservationOutcomeUnknown = "refuse";
+export const ObservationOutcome = Object.freeze({
+  Pending: "pending",
+  Answered: "answered",
+  Unknown: "unknown",
+  Gone: "gone",
+  Invalid: "invalid",
+  Conflict: "conflict",
+  Forbidden: "forbidden",
+  Unavailable: "unavailable",
+});
 
-export const OperatorPageOutcomeNames = ["page", "gap", "invalid", "forbidden", "unavailable"];
-export const OperatorPageOutcomeUnknown = "refuse";
+export const OperatorPageOutcome = Object.freeze({
+  Page: "page",
+  Gap: "gap",
+  Invalid: "invalid",
+  Forbidden: "forbidden",
+  Unavailable: "unavailable",
+});
 
-export const OperatorDecisionOutcomeNames = ["answered", "conflict", "unknown", "invalid", "forbidden", "unavailable"];
-export const OperatorDecisionOutcomeUnknown = "refuse";
+export const OperatorDecisionOutcome = Object.freeze({
+  Answered: "answered",
+  Conflict: "conflict",
+  Unknown: "unknown",
+  Invalid: "invalid",
+  Forbidden: "forbidden",
+  Unavailable: "unavailable",
+});
 
-export const OperatorRetirementOutcomeNames = ["retired", "unknown", "invalid", "forbidden", "unavailable"];
-export const OperatorRetirementOutcomeUnknown = "refuse";
+export const OperatorRetirementOutcome = Object.freeze({
+  Retired: "retired",
+  Unknown: "unknown",
+  Invalid: "invalid",
+  Forbidden: "forbidden",
+  Unavailable: "unavailable",
+});
+
+export const ServiceErrorCode = Object.freeze({
+  HandlerError: "handler_error",
+  InvalidResult: "invalid_result",
+  UnknownVersion: "unknown_version",
+  UnknownService: "unknown_service",
+  UnknownMethod: "unknown_method",
+  WrongMode: "wrong_mode",
+});
 
 export const operations = ["ask", "pending", "answered", "answer", "forget"];
 
 export const refusalCodes = ["internal", "invalid_request", "caller_refused", "unknown_operation", "not_administrator", "withdrawn", "unknown_question", "unknown_option", "bad_slot", "nothing_pending", "no_record"];
 
-export function enc_question(out, v, depth) {
+export const resourceActions = ["abstraction.asks/question.ask"];
+
+function writeQuestion(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
@@ -184,7 +219,7 @@ export function enc_question(out, v, depth) {
   out.byte(0x7d);
 }
 
-export function enc_request(out, v, depth) {
+function writeRequest(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
@@ -197,7 +232,7 @@ export function enc_request(out, v, depth) {
     pad(out, depth + 1);
     esc(out, "ask");
     out.ascii(": ");
-    enc_question(out, v.ask, depth + 1);
+    writeQuestion(out, v.ask, depth + 1);
   }
   if (v.wait) {
     out.byte(0x2c);
@@ -236,7 +271,7 @@ export function enc_request(out, v, depth) {
   out.byte(0x7d);
 }
 
-export function enc_answer(out, v, depth) {
+function writeAnswer(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
@@ -280,7 +315,7 @@ export function enc_answer(out, v, depth) {
   out.byte(0x7d);
 }
 
-export function enc_recordmetadata(out, v, depth) {
+function writeRecordMetadata(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
@@ -362,7 +397,7 @@ export function enc_recordmetadata(out, v, depth) {
   out.byte(0x7d);
 }
 
-export function enc_responsemetadata(out, v, depth) {
+function writeResponseMetadata(out, v, depth) {
   out.byte(0x7b);
   let first = true;
   if (v.code !== "") {
@@ -389,7 +424,7 @@ export function enc_responsemetadata(out, v, depth) {
     pad(out, depth + 1);
     esc(out, "answer");
     out.ascii(": ");
-    enc_answer(out, v.answer, depth + 1);
+    writeAnswer(out, v.answer, depth + 1);
   }
   if (v.records.length !== 0) {
     if (!first) out.byte(0x2c);
@@ -398,19 +433,19 @@ export function enc_responsemetadata(out, v, depth) {
     pad(out, depth + 1);
     esc(out, "records");
     out.ascii(": ");
-    encList(out, v.records, depth + 1, enc_recordmetadata);
+    writeList(out, v.records, depth + 1, writeRecordMetadata);
   }
   if (!first) { out.byte(0x0a); pad(out, depth); }
   out.byte(0x7d);
 }
 
-export function enc_applicationquestion(out, v, depth) {
+function writeApplicationQuestion(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
   esc(out, "request_key");
   out.ascii(": ");
-  esc(out, v.request_key);
+  esc(out, v.requestKey);
   out.byte(0x2c);
   out.byte(0x0a);
   pad(out, depth + 1);
@@ -428,7 +463,7 @@ export function enc_applicationquestion(out, v, depth) {
   out.byte(0x7d);
 }
 
-export function enc_questionobservation(out, v, depth) {
+function writeQuestionObservation(out, v, depth) {
     if (typeof v.outcome !== "string") throw new Refusal("wrong_type",0);
     if (v.outcome !== "pending" && v.outcome !== "answered" && v.outcome !== "unknown" && v.outcome !== "gone" && v.outcome !== "invalid" && v.outcome !== "conflict" && v.outcome !== "forbidden" && v.outcome !== "unavailable") { throw new Refusal("bad_enum",0); }
   out.byte(0x7b);
@@ -443,14 +478,14 @@ export function enc_questionobservation(out, v, depth) {
     pad(out, depth + 1);
     esc(out, "answer");
     out.ascii(": ");
-    enc_answer(out, v.answer, depth + 1);
+    writeAnswer(out, v.answer, depth + 1);
   }
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
 }
 
-export function enc_operatorpage(out, v, depth) {
+function writeOperatorPage(out, v, depth) {
     if (typeof v.outcome !== "string") throw new Refusal("wrong_type",0);
     if (v.outcome !== "page" && v.outcome !== "gap" && v.outcome !== "invalid" && v.outcome !== "forbidden" && v.outcome !== "unavailable") { throw new Refusal("bad_enum",0); }
   out.byte(0x7b);
@@ -464,7 +499,7 @@ export function enc_operatorpage(out, v, depth) {
   pad(out, depth + 1);
   esc(out, "records");
   out.ascii(": ");
-  encList(out, v.records, depth + 1, enc_recordmetadata);
+  writeList(out, v.records, depth + 1, writeRecordMetadata);
   out.byte(0x2c);
   out.byte(0x0a);
   pad(out, depth + 1);
@@ -482,7 +517,7 @@ export function enc_operatorpage(out, v, depth) {
   out.byte(0x7d);
 }
 
-export function enc_operatordecision(out, v, depth) {
+function writeOperatorDecision(out, v, depth) {
     if (typeof v.outcome !== "string") throw new Refusal("wrong_type",0);
     if (v.outcome !== "answered" && v.outcome !== "conflict" && v.outcome !== "unknown" && v.outcome !== "invalid" && v.outcome !== "forbidden" && v.outcome !== "unavailable") { throw new Refusal("bad_enum",0); }
   out.byte(0x7b);
@@ -497,14 +532,14 @@ export function enc_operatordecision(out, v, depth) {
     pad(out, depth + 1);
     esc(out, "record");
     out.ascii(": ");
-    enc_recordmetadata(out, v.record, depth + 1);
+    writeRecordMetadata(out, v.record, depth + 1);
   }
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
 }
 
-export function enc_operatorretirement(out, v, depth) {
+function writeOperatorRetirement(out, v, depth) {
     if (typeof v.outcome !== "string") throw new Refusal("wrong_type",0);
     if (v.outcome !== "retired" && v.outcome !== "unknown" && v.outcome !== "invalid" && v.outcome !== "forbidden" && v.outcome !== "unavailable") { throw new Refusal("bad_enum",0); }
   out.byte(0x7b);
@@ -519,44 +554,44 @@ export function enc_operatorretirement(out, v, depth) {
     pad(out, depth + 1);
     esc(out, "record");
     out.ascii(": ");
-    enc_recordmetadata(out, v.record, depth + 1);
+    writeRecordMetadata(out, v.record, depth + 1);
   }
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
 }
 
-export function enc_oaquestionapplicationaskarguments(out, v, depth) {
+function writeOAQuestionApplicationAskArguments(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
   esc(out, "question");
   out.ascii(": ");
-  enc_applicationquestion(out, v.question, depth + 1);
+  writeApplicationQuestion(out, v.question, depth + 1);
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
 }
 
-export function enc_oaquestionapplicationobservearguments(out, v, depth) {
+function writeOAQuestionApplicationObserveArguments(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
   esc(out, "request_key");
   out.ascii(": ");
-  esc(out, v.request_key);
+  esc(out, v.requestKey);
   out.byte(0x2c);
   out.byte(0x0a);
   pad(out, depth + 1);
   esc(out, "wait_ms");
   out.ascii(": ");
-  num(out, v.wait_ms);
+  num(out, v.waitMs);
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
 }
 
-export function enc_oaquestionoperatorlistquestionsarguments(out, v, depth) {
+function writeOAQuestionOperatorListQuestionsArguments(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
@@ -574,7 +609,7 @@ export function enc_oaquestionoperatorlistquestionsarguments(out, v, depth) {
   out.byte(0x7d);
 }
 
-export function enc_oaquestionoperatoranswerquestionarguments(out, v, depth) {
+function writeOAQuestionOperatorAnswerQuestionArguments(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
@@ -592,7 +627,7 @@ export function enc_oaquestionoperatoranswerquestionarguments(out, v, depth) {
   out.byte(0x7d);
 }
 
-export function enc_oaquestionoperatorretirequestionarguments(out, v, depth) {
+function writeOAQuestionOperatorRetireQuestionArguments(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
@@ -604,7 +639,7 @@ export function enc_oaquestionoperatorretirequestionarguments(out, v, depth) {
   out.byte(0x7d);
 }
 
-export function enc_oaserviceframe(out, v, depth) {
+function writeOAServiceFrame(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
@@ -634,7 +669,7 @@ export function enc_oaserviceframe(out, v, depth) {
   out.byte(0x7d);
 }
 
-export function enc_oaservicereply(out, v, depth) {
+function writeOAServiceReply(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
@@ -670,7 +705,7 @@ export function enc_oaservicereply(out, v, depth) {
   out.byte(0x7d);
 }
 
-export function enc_oaserviceerror(out, v, depth) {
+function writeOAServiceError(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
@@ -688,61 +723,61 @@ export function enc_oaserviceerror(out, v, depth) {
   out.byte(0x7d);
 }
 
-export function enc_oaquestionapplicationaskresult(out, v, depth) {
+function writeOAQuestionApplicationAskResult(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
   esc(out, "value");
   out.ascii(": ");
-  enc_questionobservation(out, v.value, depth + 1);
+  writeQuestionObservation(out, v.value, depth + 1);
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
 }
 
-export function enc_oaquestionapplicationobserveresult(out, v, depth) {
+function writeOAQuestionApplicationObserveResult(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
   esc(out, "value");
   out.ascii(": ");
-  enc_questionobservation(out, v.value, depth + 1);
+  writeQuestionObservation(out, v.value, depth + 1);
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
 }
 
-export function enc_oaquestionoperatorlistquestionsresult(out, v, depth) {
+function writeOAQuestionOperatorListQuestionsResult(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
   esc(out, "value");
   out.ascii(": ");
-  enc_operatorpage(out, v.value, depth + 1);
+  writeOperatorPage(out, v.value, depth + 1);
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
 }
 
-export function enc_oaquestionoperatoranswerquestionresult(out, v, depth) {
+function writeOAQuestionOperatorAnswerQuestionResult(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
   esc(out, "value");
   out.ascii(": ");
-  enc_operatordecision(out, v.value, depth + 1);
+  writeOperatorDecision(out, v.value, depth + 1);
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
 }
 
-export function enc_oaquestionoperatorretirequestionresult(out, v, depth) {
+function writeOAQuestionOperatorRetireQuestionResult(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
   pad(out, depth + 1);
   esc(out, "value");
   out.ascii(": ");
-  enc_operatorretirement(out, v.value, depth + 1);
+  writeOperatorRetirement(out, v.value, depth + 1);
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
@@ -750,7 +785,7 @@ export function enc_oaquestionoperatorretirequestionresult(out, v, depth) {
 
 export function encode(v) {
   const out = new Out();
-  enc_request(out, v, 0);
+  writeRequest(out, v, 0);
   out.byte(0x0a);
   return out.bytes();
 }
@@ -1059,7 +1094,7 @@ function strMap(r) {
   return out;
 }
 
-function decodeList(r, elem) {
+function readList(r, elem) {
   if (r.at() !== 0x5b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1119,7 +1154,7 @@ export function newResponseMetadata() {
 // uncertain submission with this same key and unchanged content; a fresh key
 // requests a new admission.
 export function newApplicationQuestion() {
-  return { request_key: "", key: "", slots: {} };
+  return { requestKey: "", key: "", slots: {} };
 }
 
 // Answer is present exactly for pending/answered. Pending has no
@@ -1168,59 +1203,59 @@ export function newOperatorRetirement() {
   return { outcome: "", record: null };
 }
 
-export function newOAQuestionApplicationAskArguments() {
+function newOAQuestionApplicationAskArguments() {
   return { question: newApplicationQuestion() };
 }
 
-export function newOAQuestionApplicationObserveArguments() {
-  return { request_key: "", wait_ms: 0n };
+function newOAQuestionApplicationObserveArguments() {
+  return { requestKey: "", waitMs: 0n };
 }
 
-export function newOAQuestionOperatorListQuestionsArguments() {
+function newOAQuestionOperatorListQuestionsArguments() {
   return { cursor: "", limit: 0n };
 }
 
-export function newOAQuestionOperatorAnswerQuestionArguments() {
+function newOAQuestionOperatorAnswerQuestionArguments() {
   return { id: "", option: "" };
 }
 
-export function newOAQuestionOperatorRetireQuestionArguments() {
+function newOAQuestionOperatorRetireQuestionArguments() {
   return { id: "" };
 }
 
-export function newOAServiceFrame() {
+function newOAServiceFrame() {
   return { version: 0, service: "", method: "", arguments: "" };
 }
 
-export function newOAServiceReply() {
+function newOAServiceReply() {
   return { version: 0, service: "", method: "", ok: false, payload: "" };
 }
 
-export function newOAServiceError() {
+function newOAServiceError() {
   return { code: "", message: "" };
 }
 
-export function newOAQuestionApplicationAskResult() {
+function newOAQuestionApplicationAskResult() {
   return { value: newQuestionObservation() };
 }
 
-export function newOAQuestionApplicationObserveResult() {
+function newOAQuestionApplicationObserveResult() {
   return { value: newQuestionObservation() };
 }
 
-export function newOAQuestionOperatorListQuestionsResult() {
+function newOAQuestionOperatorListQuestionsResult() {
   return { value: newOperatorPage() };
 }
 
-export function newOAQuestionOperatorAnswerQuestionResult() {
+function newOAQuestionOperatorAnswerQuestionResult() {
   return { value: newOperatorDecision() };
 }
 
-export function newOAQuestionOperatorRetireQuestionResult() {
+function newOAQuestionOperatorRetireQuestionResult() {
   return { value: newOperatorRetirement() };
 }
 
-function decode_question(r) {
+function readQuestion(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1263,7 +1298,7 @@ function decode_question(r) {
   return v;
 }
 
-function decode_request(r) {
+function readRequest(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1286,7 +1321,7 @@ function decode_request(r) {
       } else if (key === "ask") {
         if (seen & 2) throw r.refuse("duplicate_field");
         seen |= 2;
-        v.ask = decode_question(r);
+        v.ask = readQuestion(r);
       } else if (key === "wait") {
         if (seen & 4) throw r.refuse("duplicate_field");
         seen |= 4;
@@ -1318,7 +1353,7 @@ function decode_request(r) {
   return v;
 }
 
-function decode_answer(r) {
+function readAnswer(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1369,7 +1404,7 @@ function decode_answer(r) {
   return v;
 }
 
-function decode_recordmetadata(r) {
+function readRecordMetadata(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1444,7 +1479,7 @@ function decode_recordmetadata(r) {
   return v;
 }
 
-function decode_responsemetadata(r) {
+function readResponseMetadata(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1471,11 +1506,11 @@ function decode_responsemetadata(r) {
       } else if (key === "answer") {
         if (seen & 4) throw r.refuse("duplicate_field");
         seen |= 4;
-        v.answer = decode_answer(r);
+        v.answer = readAnswer(r);
       } else if (key === "records") {
         if (seen & 8) throw r.refuse("duplicate_field");
         seen |= 8;
-        v.records = decodeList(r, decode_recordmetadata);
+        v.records = readList(r, readRecordMetadata);
       } else {
         throw r.refuse("unknown_field");
       }
@@ -1490,7 +1525,7 @@ function decode_responsemetadata(r) {
   return v;
 }
 
-function decode_applicationquestion(r) {
+function readApplicationQuestion(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1509,7 +1544,7 @@ function decode_applicationquestion(r) {
       if (key === "request_key") {
         if (seen & 1) throw r.refuse("duplicate_field");
         seen |= 1;
-        v.request_key = r.string();
+        v.requestKey = r.string();
       } else if (key === "key") {
         if (seen & 2) throw r.refuse("duplicate_field");
         seen |= 2;
@@ -1533,7 +1568,7 @@ function decode_applicationquestion(r) {
   return v;
 }
 
-function decode_questionobservation(r) {
+function readQuestionObservation(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1556,7 +1591,7 @@ function decode_questionobservation(r) {
       } else if (key === "answer") {
         if (seen & 2) throw r.refuse("duplicate_field");
         seen |= 2;
-        v.answer = decode_answer(r);
+        v.answer = readAnswer(r);
       } else {
         throw r.refuse("unknown_field");
       }
@@ -1573,7 +1608,7 @@ function decode_questionobservation(r) {
   return v;
 }
 
-function decode_operatorpage(r) {
+function readOperatorPage(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1596,7 +1631,7 @@ function decode_operatorpage(r) {
       } else if (key === "records") {
         if (seen & 2) throw r.refuse("duplicate_field");
         seen |= 2;
-        v.records = decodeList(r, decode_recordmetadata);
+        v.records = readList(r, readRecordMetadata);
       } else if (key === "next") {
         if (seen & 4) throw r.refuse("duplicate_field");
         seen |= 4;
@@ -1621,7 +1656,7 @@ function decode_operatorpage(r) {
   return v;
 }
 
-function decode_operatordecision(r) {
+function readOperatorDecision(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1644,7 +1679,7 @@ function decode_operatordecision(r) {
       } else if (key === "record") {
         if (seen & 2) throw r.refuse("duplicate_field");
         seen |= 2;
-        v.record = decode_recordmetadata(r);
+        v.record = readRecordMetadata(r);
       } else {
         throw r.refuse("unknown_field");
       }
@@ -1661,7 +1696,7 @@ function decode_operatordecision(r) {
   return v;
 }
 
-function decode_operatorretirement(r) {
+function readOperatorRetirement(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1684,7 +1719,7 @@ function decode_operatorretirement(r) {
       } else if (key === "record") {
         if (seen & 2) throw r.refuse("duplicate_field");
         seen |= 2;
-        v.record = decode_recordmetadata(r);
+        v.record = readRecordMetadata(r);
       } else {
         throw r.refuse("unknown_field");
       }
@@ -1701,7 +1736,7 @@ function decode_operatorretirement(r) {
   return v;
 }
 
-function decode_oaquestionapplicationaskarguments(r) {
+function readOAQuestionApplicationAskArguments(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1720,7 +1755,7 @@ function decode_oaquestionapplicationaskarguments(r) {
       if (key === "question") {
         if (seen & 1) throw r.refuse("duplicate_field");
         seen |= 1;
-        v.question = decode_applicationquestion(r);
+        v.question = readApplicationQuestion(r);
       } else {
         throw r.refuse("unknown_field");
       }
@@ -1736,7 +1771,7 @@ function decode_oaquestionapplicationaskarguments(r) {
   return v;
 }
 
-function decode_oaquestionapplicationobservearguments(r) {
+function readOAQuestionApplicationObserveArguments(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1755,11 +1790,11 @@ function decode_oaquestionapplicationobservearguments(r) {
       if (key === "request_key") {
         if (seen & 1) throw r.refuse("duplicate_field");
         seen |= 1;
-        v.request_key = r.string();
+        v.requestKey = r.string();
       } else if (key === "wait_ms") {
         if (seen & 2) throw r.refuse("duplicate_field");
         seen |= 2;
-        v.wait_ms = r.integer(-9223372036854775808n, 9223372036854775807n);
+        v.waitMs = r.integer(-9223372036854775808n, 9223372036854775807n);
       } else {
         throw r.refuse("unknown_field");
       }
@@ -1775,7 +1810,7 @@ function decode_oaquestionapplicationobservearguments(r) {
   return v;
 }
 
-function decode_oaquestionoperatorlistquestionsarguments(r) {
+function readOAQuestionOperatorListQuestionsArguments(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1814,7 +1849,7 @@ function decode_oaquestionoperatorlistquestionsarguments(r) {
   return v;
 }
 
-function decode_oaquestionoperatoranswerquestionarguments(r) {
+function readOAQuestionOperatorAnswerQuestionArguments(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1853,7 +1888,7 @@ function decode_oaquestionoperatoranswerquestionarguments(r) {
   return v;
 }
 
-function decode_oaquestionoperatorretirequestionarguments(r) {
+function readOAQuestionOperatorRetireQuestionArguments(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1888,7 +1923,7 @@ function decode_oaquestionoperatorretirequestionarguments(r) {
   return v;
 }
 
-function decode_oaserviceframe(r) {
+function readOAServiceFrame(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1935,7 +1970,7 @@ function decode_oaserviceframe(r) {
   return v;
 }
 
-function decode_oaservicereply(r) {
+function readOAServiceReply(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -1986,7 +2021,7 @@ function decode_oaservicereply(r) {
   return v;
 }
 
-function decode_oaserviceerror(r) {
+function readOAServiceError(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -2025,7 +2060,7 @@ function decode_oaserviceerror(r) {
   return v;
 }
 
-function decode_oaquestionapplicationaskresult(r) {
+function readOAQuestionApplicationAskResult(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -2044,7 +2079,7 @@ function decode_oaquestionapplicationaskresult(r) {
       if (key === "value") {
         if (seen & 1) throw r.refuse("duplicate_field");
         seen |= 1;
-        v.value = decode_questionobservation(r);
+        v.value = readQuestionObservation(r);
       } else {
         throw r.refuse("unknown_field");
       }
@@ -2060,7 +2095,7 @@ function decode_oaquestionapplicationaskresult(r) {
   return v;
 }
 
-function decode_oaquestionapplicationobserveresult(r) {
+function readOAQuestionApplicationObserveResult(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -2079,7 +2114,7 @@ function decode_oaquestionapplicationobserveresult(r) {
       if (key === "value") {
         if (seen & 1) throw r.refuse("duplicate_field");
         seen |= 1;
-        v.value = decode_questionobservation(r);
+        v.value = readQuestionObservation(r);
       } else {
         throw r.refuse("unknown_field");
       }
@@ -2095,7 +2130,7 @@ function decode_oaquestionapplicationobserveresult(r) {
   return v;
 }
 
-function decode_oaquestionoperatorlistquestionsresult(r) {
+function readOAQuestionOperatorListQuestionsResult(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -2114,7 +2149,7 @@ function decode_oaquestionoperatorlistquestionsresult(r) {
       if (key === "value") {
         if (seen & 1) throw r.refuse("duplicate_field");
         seen |= 1;
-        v.value = decode_operatorpage(r);
+        v.value = readOperatorPage(r);
       } else {
         throw r.refuse("unknown_field");
       }
@@ -2130,7 +2165,7 @@ function decode_oaquestionoperatorlistquestionsresult(r) {
   return v;
 }
 
-function decode_oaquestionoperatoranswerquestionresult(r) {
+function readOAQuestionOperatorAnswerQuestionResult(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -2149,7 +2184,7 @@ function decode_oaquestionoperatoranswerquestionresult(r) {
       if (key === "value") {
         if (seen & 1) throw r.refuse("duplicate_field");
         seen |= 1;
-        v.value = decode_operatordecision(r);
+        v.value = readOperatorDecision(r);
       } else {
         throw r.refuse("unknown_field");
       }
@@ -2165,7 +2200,7 @@ function decode_oaquestionoperatoranswerquestionresult(r) {
   return v;
 }
 
-function decode_oaquestionoperatorretirequestionresult(r) {
+function readOAQuestionOperatorRetireQuestionResult(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
   r.pos++;
@@ -2184,7 +2219,7 @@ function decode_oaquestionoperatorretirequestionresult(r) {
       if (key === "value") {
         if (seen & 1) throw r.refuse("duplicate_field");
         seen |= 1;
-        v.value = decode_operatorretirement(r);
+        v.value = readOperatorRetirement(r);
       } else {
         throw r.refuse("unknown_field");
       }
@@ -2203,16 +2238,16 @@ function decode_oaquestionoperatorretirequestionresult(r) {
 export function decode(data) {
   const r = new Reader(data);
   r.ws();
-  const v = decode_request(r);
+  const v = readRequest(r);
   r.ws();
   if (r.pos < r.buf.length) throw r.refuse("trailing_bytes");
   return v;
 }
 
 // refusals is in the order two of them are chosen between.
-export const refusals = ["malformed", "bad_string", "number_spelling", "wrong_type", "depth_exceeded", "duplicate_key", "duplicate_field", "unknown_field", "missing_field", "bad_enum", "trailing_bytes"];
+const refusals = ["malformed", "bad_string", "number_spelling", "wrong_type", "depth_exceeded", "duplicate_key", "duplicate_field", "unknown_field", "missing_field", "bad_enum", "trailing_bytes"];
 
-export function refusalRank(word) {
+function refusalRank(word) {
   return refusals.indexOf(word);
 }
 
@@ -2274,13 +2309,13 @@ _serviceRecords["Request"] = [["op","string","never"],["ask","Question","absent"
 _serviceRecords["Answer"] = [["id","string","never"],["pending","bool","zero"],["option","string","absent"],["yes","bool","zero"],["kept","bool","zero"],];
 _serviceRecords["RecordMetadata"] = [["id","string","never"],["asker","string","never"],["key","string","never"],["about","string","absent"],["text","string","never"],["options","list<string>","never"],["asked","string","never"],["option","string","absent"],["answered","string","absent"],["kept","bool","zero"],["yes","bool","zero"],];
 _serviceRecords["ResponseMetadata"] = [["code","string","absent"],["error","string","absent"],["answer","Answer","absent"],["records","list<RecordMetadata>","zero"],];
-_serviceRecords["ApplicationQuestion"] = [["request_key","string","never"],["key","string","never"],["slots","map<string,string>","never"],];
+_serviceRecords["ApplicationQuestion"] = [["requestKey","string","never"],["key","string","never"],["slots","map<string,string>","never"],];
 _serviceRecords["QuestionObservation"] = [["outcome","string","never"],["answer","Answer","absent"],];
 _serviceRecords["OperatorPage"] = [["outcome","string","never"],["records","list<RecordMetadata>","never"],["next","string","never"],["complete","bool","never"],];
 _serviceRecords["OperatorDecision"] = [["outcome","string","never"],["record","RecordMetadata","absent"],];
 _serviceRecords["OperatorRetirement"] = [["outcome","string","never"],["record","RecordMetadata","absent"],];
 _serviceRecords["OAQuestionApplicationAskArguments"] = [["question","ApplicationQuestion","never"],];
-_serviceRecords["OAQuestionApplicationObserveArguments"] = [["request_key","string","never"],["wait_ms","i64","never"],];
+_serviceRecords["OAQuestionApplicationObserveArguments"] = [["requestKey","string","never"],["waitMs","i64","never"],];
 _serviceRecords["OAQuestionOperatorListQuestionsArguments"] = [["cursor","string","never"],["limit","i64","never"],];
 _serviceRecords["OAQuestionOperatorAnswerQuestionArguments"] = [["id","string","never"],["option","string","never"],];
 _serviceRecords["OAQuestionOperatorRetireQuestionArguments"] = [["id","string","never"],];
@@ -2294,18 +2329,18 @@ _serviceRecords["OAQuestionOperatorAnswerQuestionResult"] = [["value","OperatorD
 _serviceRecords["OAQuestionOperatorRetireQuestionResult"] = [["value","OperatorRetirement","never"],];
 
 function _serviceRequest(service, method, argumentsBytes) {
-  return _serviceEncode(enc_oaserviceframe, {
+  return _serviceEncode(writeOAServiceFrame, {
     version:1, service, method, arguments:new TextDecoder("utf-8",{fatal:true}).decode(argumentsBytes)
   },0);
 }
 
 function _serviceResponse(frame, service, method) {
   if (!(frame instanceof Uint8Array)) throw new TypeError("transport frame must be Uint8Array");
-  const reply = _serviceDecode(decode_oaservicereply, frame, 0);
+  const reply = _serviceDecode(readOAServiceReply, frame, 0);
   if (reply.version !== 1) throw new DispatchError("unknown_version");
   if (reply.service !== service || reply.method !== method) throw new DispatchError("mismatched_response");
   if (!reply.ok) {
-    const error = _serviceDecode(decode_oaserviceerror, reply.payload, 1);
+    const error = _serviceDecode(readOAServiceError, reply.payload, 1);
     if (!error.code) throw new DispatchError("invalid_error");
     throw new ServiceError(error.code, error.message);
   }
@@ -2314,68 +2349,73 @@ function _serviceResponse(frame, service, method) {
 
 export class QuestionApplicationClient {
   constructor(transport) { this._transport = transport; }
-  async Ask(arg0) {
-    const args = newOAQuestionApplicationAskArguments();
-    args["question"] = arg0;
-    _serviceCheck("OAQuestionApplicationAskArguments", args);
-    const payload = _serviceEncode(enc_oaquestionapplicationaskarguments, args, 1);
-    _serviceDecode(decode_oaquestionapplicationaskarguments, payload, 1);
-    const request = _serviceRequest("abstraction.asks/application@1", "Ask", payload);
-    const reply = _serviceResponse(await this._transport.exchangeFrame(request), "abstraction.asks/application@1", "Ask");
-    const result = _serviceDecode(decode_oaquestionapplicationaskresult, reply, 1);
-    return result.value;
+
+  async ask(question) {
+    const _args = newOAQuestionApplicationAskArguments();
+    _args.question = question;
+    _serviceCheck("OAQuestionApplicationAskArguments", _args);
+    const _payload = _serviceEncode(writeOAQuestionApplicationAskArguments, _args, 1);
+    _serviceDecode(readOAQuestionApplicationAskArguments, _payload, 1);
+    const _request = _serviceRequest("abstraction.asks/application@1", "Ask", _payload);
+    const _reply = _serviceResponse(await this._transport.exchangeFrame(_request), "abstraction.asks/application@1", "Ask");
+    const _result = _serviceDecode(readOAQuestionApplicationAskResult, _reply, 1);
+    return _result.value;
   }
-  async Observe(arg0,arg1) {
-    const args = newOAQuestionApplicationObserveArguments();
-    args["request_key"] = arg0;
-    args["wait_ms"] = arg1;
-    _serviceCheck("OAQuestionApplicationObserveArguments", args);
-    const payload = _serviceEncode(enc_oaquestionapplicationobservearguments, args, 1);
-    _serviceDecode(decode_oaquestionapplicationobservearguments, payload, 1);
-    const request = _serviceRequest("abstraction.asks/application@1", "Observe", payload);
-    const reply = _serviceResponse(await this._transport.exchangeFrame(request), "abstraction.asks/application@1", "Observe");
-    const result = _serviceDecode(decode_oaquestionapplicationobserveresult, reply, 1);
-    return result.value;
+
+  async observe(requestKey, waitMs) {
+    const _args = newOAQuestionApplicationObserveArguments();
+    _args.requestKey = requestKey;
+    _args.waitMs = waitMs;
+    _serviceCheck("OAQuestionApplicationObserveArguments", _args);
+    const _payload = _serviceEncode(writeOAQuestionApplicationObserveArguments, _args, 1);
+    _serviceDecode(readOAQuestionApplicationObserveArguments, _payload, 1);
+    const _request = _serviceRequest("abstraction.asks/application@1", "Observe", _payload);
+    const _reply = _serviceResponse(await this._transport.exchangeFrame(_request), "abstraction.asks/application@1", "Observe");
+    const _result = _serviceDecode(readOAQuestionApplicationObserveResult, _reply, 1);
+    return _result.value;
   }
 }
 export const QuestionApplicationService = Object.freeze({wireName:"abstraction.asks/application@1",Client:QuestionApplicationClient});
 
 export class QuestionOperatorClient {
   constructor(transport) { this._transport = transport; }
-  async ListQuestions(arg0,arg1) {
-    const args = newOAQuestionOperatorListQuestionsArguments();
-    args["cursor"] = arg0;
-    args["limit"] = arg1;
-    _serviceCheck("OAQuestionOperatorListQuestionsArguments", args);
-    const payload = _serviceEncode(enc_oaquestionoperatorlistquestionsarguments, args, 1);
-    _serviceDecode(decode_oaquestionoperatorlistquestionsarguments, payload, 1);
-    const request = _serviceRequest("abstraction.asks/operator@1", "ListQuestions", payload);
-    const reply = _serviceResponse(await this._transport.exchangeFrame(request), "abstraction.asks/operator@1", "ListQuestions");
-    const result = _serviceDecode(decode_oaquestionoperatorlistquestionsresult, reply, 1);
-    return result.value;
+
+  async listQuestions(cursor, limit) {
+    const _args = newOAQuestionOperatorListQuestionsArguments();
+    _args.cursor = cursor;
+    _args.limit = limit;
+    _serviceCheck("OAQuestionOperatorListQuestionsArguments", _args);
+    const _payload = _serviceEncode(writeOAQuestionOperatorListQuestionsArguments, _args, 1);
+    _serviceDecode(readOAQuestionOperatorListQuestionsArguments, _payload, 1);
+    const _request = _serviceRequest("abstraction.asks/operator@1", "ListQuestions", _payload);
+    const _reply = _serviceResponse(await this._transport.exchangeFrame(_request), "abstraction.asks/operator@1", "ListQuestions");
+    const _result = _serviceDecode(readOAQuestionOperatorListQuestionsResult, _reply, 1);
+    return _result.value;
   }
-  async AnswerQuestion(arg0,arg1) {
-    const args = newOAQuestionOperatorAnswerQuestionArguments();
-    args["id"] = arg0;
-    args["option"] = arg1;
-    _serviceCheck("OAQuestionOperatorAnswerQuestionArguments", args);
-    const payload = _serviceEncode(enc_oaquestionoperatoranswerquestionarguments, args, 1);
-    _serviceDecode(decode_oaquestionoperatoranswerquestionarguments, payload, 1);
-    const request = _serviceRequest("abstraction.asks/operator@1", "AnswerQuestion", payload);
-    const reply = _serviceResponse(await this._transport.exchangeFrame(request), "abstraction.asks/operator@1", "AnswerQuestion");
-    const result = _serviceDecode(decode_oaquestionoperatoranswerquestionresult, reply, 1);
-    return result.value;
+
+  async answerQuestion(id, option) {
+    const _args = newOAQuestionOperatorAnswerQuestionArguments();
+    _args.id = id;
+    _args.option = option;
+    _serviceCheck("OAQuestionOperatorAnswerQuestionArguments", _args);
+    const _payload = _serviceEncode(writeOAQuestionOperatorAnswerQuestionArguments, _args, 1);
+    _serviceDecode(readOAQuestionOperatorAnswerQuestionArguments, _payload, 1);
+    const _request = _serviceRequest("abstraction.asks/operator@1", "AnswerQuestion", _payload);
+    const _reply = _serviceResponse(await this._transport.exchangeFrame(_request), "abstraction.asks/operator@1", "AnswerQuestion");
+    const _result = _serviceDecode(readOAQuestionOperatorAnswerQuestionResult, _reply, 1);
+    return _result.value;
   }
-  async RetireQuestion(arg0) {
-    const args = newOAQuestionOperatorRetireQuestionArguments();
-    args["id"] = arg0;
-    _serviceCheck("OAQuestionOperatorRetireQuestionArguments", args);
-    const payload = _serviceEncode(enc_oaquestionoperatorretirequestionarguments, args, 1);
-    _serviceDecode(decode_oaquestionoperatorretirequestionarguments, payload, 1);
-    const request = _serviceRequest("abstraction.asks/operator@1", "RetireQuestion", payload);
-    const reply = _serviceResponse(await this._transport.exchangeFrame(request), "abstraction.asks/operator@1", "RetireQuestion");
-    const result = _serviceDecode(decode_oaquestionoperatorretirequestionresult, reply, 1);
-    return result.value;
+
+  async retireQuestion(id) {
+    const _args = newOAQuestionOperatorRetireQuestionArguments();
+    _args.id = id;
+    _serviceCheck("OAQuestionOperatorRetireQuestionArguments", _args);
+    const _payload = _serviceEncode(writeOAQuestionOperatorRetireQuestionArguments, _args, 1);
+    _serviceDecode(readOAQuestionOperatorRetireQuestionArguments, _payload, 1);
+    const _request = _serviceRequest("abstraction.asks/operator@1", "RetireQuestion", _payload);
+    const _reply = _serviceResponse(await this._transport.exchangeFrame(_request), "abstraction.asks/operator@1", "RetireQuestion");
+    const _result = _serviceDecode(readOAQuestionOperatorRetireQuestionResult, _reply, 1);
+    return _result.value;
   }
 }
 export const QuestionOperatorService = Object.freeze({wireName:"abstraction.asks/operator@1",Client:QuestionOperatorClient});

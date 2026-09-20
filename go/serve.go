@@ -25,7 +25,10 @@ func Serve(args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	slog.SetDefault(slog.New(logging.Default("asks")))
+	// asksd can start with no logging runtime running. Its own diagnostics go
+	// to the explicitly selected environment chain, heard on stderr when nothing
+	// is configured [LOG-S8].
+	slog.SetDefault(slog.New(logging.LegacyDefault("asks")))
 
 	s, err := Start(*endpoint, *state)
 	if err != nil {

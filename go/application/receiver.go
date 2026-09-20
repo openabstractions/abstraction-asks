@@ -56,9 +56,13 @@ func observation(record asks.Record, outcome string, e error) wire.QuestionObser
 	if e != nil {
 		return wire.QuestionObservation{Outcome: wire.ObservationOutcomeUnavailable}
 	}
-	result := wire.QuestionObservation{Outcome: outcome}
-	if outcome == wire.ObservationOutcomePending || outcome == wire.ObservationOutcomeAnswered {
-		result.Answer = &wire.Answer{Id: record.ID, Pending: record.Pending(), Option: record.Option, Yes: record.Yes, Kept: record.Kept}
+	parsed, ok := wire.ParseObservationOutcome(outcome)
+	if !ok {
+		parsed = wire.ObservationOutcomeUnavailable
+	}
+	result := wire.QuestionObservation{Outcome: parsed}
+	if parsed == wire.ObservationOutcomePending || parsed == wire.ObservationOutcomeAnswered {
+		result.Answer = &wire.Answer{ID: record.ID, Pending: record.Pending(), Option: record.Option, Yes: record.Yes, Kept: record.Kept}
 	}
 	return result
 }
@@ -66,6 +70,23 @@ func (r *receiver) Ask(q wire.ApplicationQuestion) (wire.QuestionObservation, er
 	scope, display, e := r.scope()
 	if e != nil {
 		return wire.QuestionObservation{Outcome: wire.ObservationOutcomeForbidden}, nil
+	}
+	r.host.lifecycle.Lock()
+	policy := r.host.askPolicy
+	r.host.lifecycle.Unlock()
+	if policy != nil {
+		peer, err := r.call.Peer()
+		if err != nil {
+			return wire.QuestionObservation{Outcome: wire.ObservationOutcomeForbidden}, nil
+		}
+		ctx := r.call.WaitContext()
+		err = policy(ctx, peer, q.Key)
+		if errors.Is(err, ErrAskPolicyUnavailable) || (err == nil && ctx.Err() != nil) {
+			return wire.QuestionObservation{Outcome: wire.ObservationOutcomeUnavailable}, nil
+		}
+		if err != nil || r.call.Recheck() != nil {
+			return wire.QuestionObservation{Outcome: wire.ObservationOutcomeForbidden}, nil
+		}
 	}
 	record, outcome, e := r.host.book.AskApplication(scope, display, q.RequestKey, q.Key, q.Slots, r.call.Caller)
 	return observation(record, outcome, e), nil
@@ -79,7 +100,7 @@ func (r *receiver) Observe(key string, waitMS int64) (wire.QuestionObservation, 
 		return wire.QuestionObservation{Outcome: wire.ObservationOutcomeInvalid}, nil
 	}
 	record, outcome, e := r.host.book.ObserveApplication(scope, key)
-	if e != nil || outcome != wire.ObservationOutcomePending || waitMS == 0 {
+	if e != nil || outcome != wire.ObservationOutcomePending.String() || waitMS == 0 {
 		return observation(record, outcome, e), nil
 	}
 	waitCtx := r.call.WaitContext()

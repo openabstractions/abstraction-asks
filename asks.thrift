@@ -132,3 +132,7 @@ service QuestionOperator {
  OperatorDecision AnswerQuestion(1:string id,2:string option)(doc="Record an explicitly authorized operator's choice using the catalog's existing options. ID and option are 1..128 UTF-8 bytes without control characters. Atomic same-option replay preserves the original decision. No automatic retry and no implicit resource authorization. A missing operator policy refuses; account identity alone is insufficient.")
  OperatorRetirement RetireQuestion(1:string id)(doc="Retire one question for an explicitly authorized operator. ID is 1..128 UTF-8 bytes without control characters. Authorization and context are rechecked inside the atomic edit before removal. Retiring an already retired ID replays retired without a record. No automatic retry; retirement grants and revokes no resource authority.")
 }(wire_name="abstraction.asks/operator@1",doc="Operator history, answering and retirement on the configured application Book. Host must explicitly authorize the receiving operator; requests contain no credentials, authority claims or provider paths. Authorization callbacks are trusted service configuration and may use the rights service. Retirement and native Forget both retain admission tombstones.")
+
+// The rights action an asks service enforces (ASK-R1): an application admitting
+// a question, on the resource account. Absent means no.
+const list<string> resource_actions = ["abstraction.asks/question.ask"](catalogue="closed",closed_by="ASK-R1")

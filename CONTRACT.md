@@ -54,6 +54,23 @@ configured with this new file. Its parent directory must be service-owned and
 private; replacing that namespace concurrently is outside this profile.
 Deleting/restoring the state externally does not preserve retry guarantees.
 
+## Asking is decided by a rule
+
+**ASK-R1.** `resource_actions` is closed: `abstraction.asks/question.ask` on the
+resource `account`. A host that decides application Ask configures
+`EnableAskPolicy`; the policy receives the rechecked typed peer and the question
+key before admission. An evaluated refusal is `forbidden` and a decision that
+cannot be obtained is `unavailable`; neither admits, replays or records
+anything. Observe of a caller's own admissions stays scoped by ownership. With
+no rule an application may never ask (DREAM §14).
+
+`rights.first_use` is the question a runtime admits as itself when a spending
+action it gates decides `not_granted`. Its About slot is the program's exact
+path and its text reads `<program> wants to <action> on <resource>`; `FirstUse`
+reads the three back. A runtime's ask policy refuses this key to applications.
+The answer grants nothing: an operator program writes the permit rule on
+`allow` and an exact deny on `never`, and `refuse` writes nothing.
+
 ## Authorized operator service
 
 `abstraction.asks/operator@1` uses the same application-profile Book and endpoint.

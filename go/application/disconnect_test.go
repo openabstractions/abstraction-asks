@@ -82,7 +82,7 @@ func TestApplicationDisconnectReleasesSlotPreservesAdmission(t *testing.T) {
 	}()
 	c := client.New(endpoint)
 	admitted, e := c.AskContext(context.Background(), question())
-	if e != nil || admitted.Outcome != "pending" {
+	if e != nil || admitted.Outcome != client.ObservationOutcomePending {
 		t.Fatal(admitted, e)
 	}
 	// Ask's successful reply has its own EOF drain; consume that event first.
@@ -129,14 +129,14 @@ func TestApplicationDisconnectReleasesSlotPreservesAdmission(t *testing.T) {
 	}
 	waitEmpty()
 	replay, e := c.AskContext(context.Background(), question())
-	if e != nil || replay.Outcome != "pending" || replay.Answer.Id != admitted.Answer.Id {
+	if e != nil || replay.Outcome != client.ObservationOutcomePending || replay.Answer.ID != admitted.Answer.ID {
 		t.Fatal("admission lost", replay, e)
 	}
-	if _, e = b.Answer(admitted.Answer.Id, "once"); e != nil {
+	if _, e = b.Answer(admitted.Answer.ID, "once"); e != nil {
 		t.Fatal(e)
 	}
 	observed, e := c.ObserveContext(context.Background(), question().RequestKey, 0)
-	if e != nil || observed.Outcome != "answered" || observed.Answer.Id != admitted.Answer.Id {
+	if e != nil || observed.Outcome != client.ObservationOutcomeAnswered || observed.Answer.ID != admitted.Answer.ID {
 		t.Fatal("decision lost", observed, e)
 	}
 }

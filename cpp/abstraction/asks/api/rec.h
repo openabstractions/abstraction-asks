@@ -15,123 +15,6 @@ namespace abstraction::asks::api {
 
 using Raw = std::string;
 
-inline void esc(std::string& out, const std::string& s);
-
-inline void esc_byte(std::string& out, unsigned char c) {
-    static const char* kHex = "0123456789abcdef";
-    switch (c) {
-        case '"': out += "\\\""; return;
-        case '\\': out += "\\\\"; return;
-        case 0x08: out += "\\b"; return;
-        case 0x0c: out += "\\f"; return;
-        case '\n': out += "\\n"; return;
-        case '\r': out += "\\r"; return;
-        case '\t': out += "\\t"; return;
-        default: break;
-    }
-    if (c < 0x20) {
-        out += "\\u00";
-        out += kHex[c >> 4];
-        out += kHex[c & 0x0F];
-    } else {
-        out += static_cast<char>(c);
-    }
-}
-
-inline void num(std::string& out, std::int64_t n) { out += std::to_string(n); }
-
-inline void pad(std::string& out, int depth) {
-    out.append(static_cast<std::size_t>(depth) * 2, ' ');
-}
-
-inline void strs(std::string& out, const std::vector<std::string>& v, int depth) {
-    if (v.empty()) { out += "[]"; return; }
-    out += "[\n";
-    for (std::size_t i = 0; i < v.size(); ++i) {
-        pad(out, depth + 1);
-        esc(out, v[i]);
-        if (i + 1 < v.size()) out += ',';
-        out += '\n';
-    }
-    pad(out, depth);
-    out += ']';
-}
-
-inline bool ws(unsigned char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
-
-inline void raw(std::string& out, const std::string& s, int depth) {
-    const std::size_t n = s.size();
-    for (std::size_t i = 0; i < n;) {
-        const unsigned char c = static_cast<unsigned char>(s[i]);
-        if (ws(c)) {
-            ++i;
-        } else if (c == '"') {
-            std::size_t j = i + 1;
-            while (j < n) {
-                if (s[j] == '\\') { j += 2; continue; }
-                if (s[j] == '"') { ++j; break; }
-                ++j;
-            }
-            out.append(s, i, j - i);
-            i = j;
-        } else if (c == '{' || c == '[') {
-            out += static_cast<char>(c);
-            ++i;
-            std::size_t j = i;
-            while (j < n && ws(static_cast<unsigned char>(s[j]))) ++j;
-            if (j < n && (s[j] == '}' || s[j] == ']')) {
-                out += s[j];
-                i = j + 1;
-            } else {
-                ++depth;
-                out += '\n';
-                pad(out, depth);
-            }
-        } else if (c == '}' || c == ']') {
-            --depth;
-            out += '\n';
-            pad(out, depth);
-            out += static_cast<char>(c);
-            ++i;
-        } else if (c == ',') {
-            out += ",\n";
-            pad(out, depth);
-            ++i;
-        } else if (c == ':') {
-            out += ": ";
-            ++i;
-        } else {
-            out += static_cast<char>(c);
-            ++i;
-        }
-    }
-}
-
-// std::char_traits<char>::compare is specified to order by unsigned char, so a
-// std::map<std::string, ...> already walks its keys in UTF-8 byte order — which
-// is what the definition declares. Nothing sorts here because nothing needs to.
-inline void rawmap(std::string& out, const std::map<std::string, Raw>& m, int depth) {
-    if (m.empty()) { out += "{}"; return; }
-    out += "{\n";
-    std::size_t i = 0;
-    for (const auto& kv : m) {
-        pad(out, depth + 1);
-        esc(out, kv.first);
-        out += ": ";
-        raw(out, kv.second, depth + 1);
-        if (++i < m.size()) out += ',';
-        out += '\n';
-    }
-    pad(out, depth);
-    out += '}';
-}
-
-inline void esc(std::string& out, const std::string& s) {
-    out += '"';
-    for (unsigned char c : s) esc_byte(out, c);
-    out += '"';
-}
-
 class Refusal : public std::runtime_error {
 public:
     Refusal(const char* word, std::size_t offset)
@@ -142,52 +25,183 @@ public:
     std::size_t offset;
 };
 
-inline void strmap(std::string& out, const std::map<std::string, std::string>& m, int depth) {
-    if (m.empty()) { out += "{}"; return; }
-    out += "{\n";
-    std::size_t i = 0;
-    for (const auto& kv : m) {
-        pad(out, depth + 1);
-        esc(out, kv.first);
-        out += ": ";
-        esc(out, kv.second);
-        if (++i < m.size()) out += ',';
-        out += '\n';
+enum class ObservationOutcome : std::int32_t {
+    Pending = 1,
+    Answered = 2,
+    Unknown = 3,
+    Gone = 4,
+    Invalid = 5,
+    Conflict = 6,
+    Forbidden = 7,
+    Unavailable = 8,
+};
+
+// The member's name on the wire; empty for a value that names no member.
+inline constexpr std::string_view wire_name(ObservationOutcome value) {
+    switch (value) {
+        case ObservationOutcome::Pending: return "pending";
+        case ObservationOutcome::Answered: return "answered";
+        case ObservationOutcome::Unknown: return "unknown";
+        case ObservationOutcome::Gone: return "gone";
+        case ObservationOutcome::Invalid: return "invalid";
+        case ObservationOutcome::Conflict: return "conflict";
+        case ObservationOutcome::Forbidden: return "forbidden";
+        case ObservationOutcome::Unavailable: return "unavailable";
     }
-    pad(out, depth);
-    out += '}';
+    return {};
 }
 
-template <typename T>
-inline void enc_list(std::string& out, const std::vector<T>& v, int depth,
-                     void (*enc)(std::string&, const T&, int)) {
-    if (v.empty()) { out += "[]"; return; }
-    out += "[\n";
-    for (std::size_t i = 0; i < v.size(); ++i) {
-        pad(out, depth + 1);
-        enc(out, v[i], depth + 1);
-        if (i + 1 < v.size()) out += ',';
-        out += '\n';
-    }
-    pad(out, depth);
-    out += ']';
+// The member a wire name spells; empty for a name this vocabulary refuses.
+inline std::optional<ObservationOutcome> parse_observation_outcome(std::string_view name) {
+    if (name == "pending") return ObservationOutcome::Pending;
+    if (name == "answered") return ObservationOutcome::Answered;
+    if (name == "unknown") return ObservationOutcome::Unknown;
+    if (name == "gone") return ObservationOutcome::Gone;
+    if (name == "invalid") return ObservationOutcome::Invalid;
+    if (name == "conflict") return ObservationOutcome::Conflict;
+    if (name == "forbidden") return ObservationOutcome::Forbidden;
+    if (name == "unavailable") return ObservationOutcome::Unavailable;
+    return std::nullopt;
 }
+
+// A member equals its wire name, so code holding the contract's word compares directly.
+inline constexpr bool operator==(ObservationOutcome value, std::string_view name) { return wire_name(value) == name; }
+inline constexpr bool operator!=(ObservationOutcome value, std::string_view name) { return wire_name(value) != name; }
+inline constexpr bool operator==(std::string_view name, ObservationOutcome value) { return wire_name(value) == name; }
+inline constexpr bool operator!=(std::string_view name, ObservationOutcome value) { return wire_name(value) != name; }
 
 inline const std::vector<std::string> kObservationOutcomeNames = {"pending", "answered", "unknown", "gone", "invalid", "conflict", "forbidden", "unavailable"};
-inline const std::string kObservationOutcomeUnknown = "refuse";
+
+enum class OperatorPageOutcome : std::int32_t {
+    Page = 1,
+    Gap = 2,
+    Invalid = 3,
+    Forbidden = 4,
+    Unavailable = 5,
+};
+
+// The member's name on the wire; empty for a value that names no member.
+inline constexpr std::string_view wire_name(OperatorPageOutcome value) {
+    switch (value) {
+        case OperatorPageOutcome::Page: return "page";
+        case OperatorPageOutcome::Gap: return "gap";
+        case OperatorPageOutcome::Invalid: return "invalid";
+        case OperatorPageOutcome::Forbidden: return "forbidden";
+        case OperatorPageOutcome::Unavailable: return "unavailable";
+    }
+    return {};
+}
+
+// The member a wire name spells; empty for a name this vocabulary refuses.
+inline std::optional<OperatorPageOutcome> parse_operator_page_outcome(std::string_view name) {
+    if (name == "page") return OperatorPageOutcome::Page;
+    if (name == "gap") return OperatorPageOutcome::Gap;
+    if (name == "invalid") return OperatorPageOutcome::Invalid;
+    if (name == "forbidden") return OperatorPageOutcome::Forbidden;
+    if (name == "unavailable") return OperatorPageOutcome::Unavailable;
+    return std::nullopt;
+}
+
+// A member equals its wire name, so code holding the contract's word compares directly.
+inline constexpr bool operator==(OperatorPageOutcome value, std::string_view name) { return wire_name(value) == name; }
+inline constexpr bool operator!=(OperatorPageOutcome value, std::string_view name) { return wire_name(value) != name; }
+inline constexpr bool operator==(std::string_view name, OperatorPageOutcome value) { return wire_name(value) == name; }
+inline constexpr bool operator!=(std::string_view name, OperatorPageOutcome value) { return wire_name(value) != name; }
 
 inline const std::vector<std::string> kOperatorPageOutcomeNames = {"page", "gap", "invalid", "forbidden", "unavailable"};
-inline const std::string kOperatorPageOutcomeUnknown = "refuse";
+
+enum class OperatorDecisionOutcome : std::int32_t {
+    Answered = 1,
+    Conflict = 2,
+    Unknown = 3,
+    Invalid = 4,
+    Forbidden = 5,
+    Unavailable = 6,
+};
+
+// The member's name on the wire; empty for a value that names no member.
+inline constexpr std::string_view wire_name(OperatorDecisionOutcome value) {
+    switch (value) {
+        case OperatorDecisionOutcome::Answered: return "answered";
+        case OperatorDecisionOutcome::Conflict: return "conflict";
+        case OperatorDecisionOutcome::Unknown: return "unknown";
+        case OperatorDecisionOutcome::Invalid: return "invalid";
+        case OperatorDecisionOutcome::Forbidden: return "forbidden";
+        case OperatorDecisionOutcome::Unavailable: return "unavailable";
+    }
+    return {};
+}
+
+// The member a wire name spells; empty for a name this vocabulary refuses.
+inline std::optional<OperatorDecisionOutcome> parse_operator_decision_outcome(std::string_view name) {
+    if (name == "answered") return OperatorDecisionOutcome::Answered;
+    if (name == "conflict") return OperatorDecisionOutcome::Conflict;
+    if (name == "unknown") return OperatorDecisionOutcome::Unknown;
+    if (name == "invalid") return OperatorDecisionOutcome::Invalid;
+    if (name == "forbidden") return OperatorDecisionOutcome::Forbidden;
+    if (name == "unavailable") return OperatorDecisionOutcome::Unavailable;
+    return std::nullopt;
+}
+
+// A member equals its wire name, so code holding the contract's word compares directly.
+inline constexpr bool operator==(OperatorDecisionOutcome value, std::string_view name) { return wire_name(value) == name; }
+inline constexpr bool operator!=(OperatorDecisionOutcome value, std::string_view name) { return wire_name(value) != name; }
+inline constexpr bool operator==(std::string_view name, OperatorDecisionOutcome value) { return wire_name(value) == name; }
+inline constexpr bool operator!=(std::string_view name, OperatorDecisionOutcome value) { return wire_name(value) != name; }
 
 inline const std::vector<std::string> kOperatorDecisionOutcomeNames = {"answered", "conflict", "unknown", "invalid", "forbidden", "unavailable"};
-inline const std::string kOperatorDecisionOutcomeUnknown = "refuse";
+
+enum class OperatorRetirementOutcome : std::int32_t {
+    Retired = 1,
+    Unknown = 2,
+    Invalid = 3,
+    Forbidden = 4,
+    Unavailable = 5,
+};
+
+// The member's name on the wire; empty for a value that names no member.
+inline constexpr std::string_view wire_name(OperatorRetirementOutcome value) {
+    switch (value) {
+        case OperatorRetirementOutcome::Retired: return "retired";
+        case OperatorRetirementOutcome::Unknown: return "unknown";
+        case OperatorRetirementOutcome::Invalid: return "invalid";
+        case OperatorRetirementOutcome::Forbidden: return "forbidden";
+        case OperatorRetirementOutcome::Unavailable: return "unavailable";
+    }
+    return {};
+}
+
+// The member a wire name spells; empty for a name this vocabulary refuses.
+inline std::optional<OperatorRetirementOutcome> parse_operator_retirement_outcome(std::string_view name) {
+    if (name == "retired") return OperatorRetirementOutcome::Retired;
+    if (name == "unknown") return OperatorRetirementOutcome::Unknown;
+    if (name == "invalid") return OperatorRetirementOutcome::Invalid;
+    if (name == "forbidden") return OperatorRetirementOutcome::Forbidden;
+    if (name == "unavailable") return OperatorRetirementOutcome::Unavailable;
+    return std::nullopt;
+}
+
+// A member equals its wire name, so code holding the contract's word compares directly.
+inline constexpr bool operator==(OperatorRetirementOutcome value, std::string_view name) { return wire_name(value) == name; }
+inline constexpr bool operator!=(OperatorRetirementOutcome value, std::string_view name) { return wire_name(value) != name; }
+inline constexpr bool operator==(std::string_view name, OperatorRetirementOutcome value) { return wire_name(value) == name; }
+inline constexpr bool operator!=(std::string_view name, OperatorRetirementOutcome value) { return wire_name(value) != name; }
 
 inline const std::vector<std::string> kOperatorRetirementOutcomeNames = {"retired", "unknown", "invalid", "forbidden", "unavailable"};
-inline const std::string kOperatorRetirementOutcomeUnknown = "refuse";
+
+inline const std::vector<std::string> kServiceErrorCodeNames = {"handler_error", "invalid_result", "unknown_version", "unknown_service", "unknown_method", "wrong_mode"};
+inline constexpr std::string_view kServiceErrorCodeHandlerError = "handler_error";
+inline constexpr std::string_view kServiceErrorCodeInvalidResult = "invalid_result";
+inline constexpr std::string_view kServiceErrorCodeUnknownVersion = "unknown_version";
+inline constexpr std::string_view kServiceErrorCodeUnknownService = "unknown_service";
+inline constexpr std::string_view kServiceErrorCodeUnknownMethod = "unknown_method";
+inline constexpr std::string_view kServiceErrorCodeWrongMode = "wrong_mode";
 
 inline const std::vector<std::string> kOperations = {"ask", "pending", "answered", "answer", "forget"};
 
 inline const std::vector<std::string> kRefusalCodes = {"internal", "invalid_request", "caller_refused", "unknown_operation", "not_administrator", "withdrawn", "unknown_question", "unknown_option", "bad_slot", "nothing_pending", "no_record"};
+
+inline const std::vector<std::string> kResourceActions = {"abstraction.asks/question.ask"};
 
 // Own Ask fields. The service owns question text/options; callers supply a
 // known key and slots. Native Ask.For carries optional peer observation
@@ -265,7 +279,7 @@ struct ApplicationQuestion {
 // decision. Answered reports the recorded human choice; it grants no resource
 // authority by itself.
 struct QuestionObservation {
-    std::string outcome;
+    ObservationOutcome outcome{};
     std::optional<Answer> answer;
 };
 
@@ -280,7 +294,7 @@ struct QuestionObservation {
 // edits is promised. Native Via/For evidence stays server-side; display fields
 // confer no authority.
 struct OperatorPage {
-    std::string outcome;
+    OperatorPageOutcome outcome{};
     std::vector<RecordMetadata> records;
     std::string next;
     bool complete = false;
@@ -293,7 +307,7 @@ struct OperatorPage {
 // noncommit claim: retry the same ID/option or inspect fresh history. Answering
 // records a human choice, never a resource grant.
 struct OperatorDecision {
-    std::string outcome;
+    OperatorDecisionOutcome outcome{};
     std::optional<RecordMetadata> record;
 };
 
@@ -305,9 +319,162 @@ struct OperatorDecision {
 // retained or retired question. Invalid means a malformed ID. Unavailable
 // establishes no retirement claim: retry the same ID or inspect fresh history.
 struct OperatorRetirement {
-    std::string outcome;
+    OperatorRetirementOutcome outcome{};
     std::optional<RecordMetadata> record;
 };
+
+// Codec machinery. Nothing here is API; it may change in any release.
+namespace detail {
+
+inline void esc(std::string& out, const std::string& s);
+
+inline void esc_byte(std::string& out, unsigned char c) {
+    static const char* kHex = "0123456789abcdef";
+    switch (c) {
+        case '"': out += "\\\""; return;
+        case '\\': out += "\\\\"; return;
+        case 0x08: out += "\\b"; return;
+        case 0x0c: out += "\\f"; return;
+        case '\n': out += "\\n"; return;
+        case '\r': out += "\\r"; return;
+        case '\t': out += "\\t"; return;
+        default: break;
+    }
+    if (c < 0x20) {
+        out += "\\u00";
+        out += kHex[c >> 4];
+        out += kHex[c & 0x0F];
+    } else {
+        out += static_cast<char>(c);
+    }
+}
+
+inline void num(std::string& out, std::int64_t n) { out += std::to_string(n); }
+
+inline void pad(std::string& out, int depth) {
+    out.append(static_cast<std::size_t>(depth) * 2, ' ');
+}
+
+inline void strs(std::string& out, const std::vector<std::string>& v, int depth) {
+    if (v.empty()) { out += "[]"; return; }
+    out += "[\n";
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        pad(out, depth + 1);
+        esc(out, v[i]);
+        if (i + 1 < v.size()) out += ',';
+        out += '\n';
+    }
+    pad(out, depth);
+    out += ']';
+}
+
+
+
+inline bool ws(unsigned char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
+
+inline void raw(std::string& out, const std::string& s, int depth) {
+    const std::size_t n = s.size();
+    for (std::size_t i = 0; i < n;) {
+        const unsigned char c = static_cast<unsigned char>(s[i]);
+        if (ws(c)) {
+            ++i;
+        } else if (c == '"') {
+            std::size_t j = i + 1;
+            while (j < n) {
+                if (s[j] == '\\') { j += 2; continue; }
+                if (s[j] == '"') { ++j; break; }
+                ++j;
+            }
+            out.append(s, i, j - i);
+            i = j;
+        } else if (c == '{' || c == '[') {
+            out += static_cast<char>(c);
+            ++i;
+            std::size_t j = i;
+            while (j < n && ws(static_cast<unsigned char>(s[j]))) ++j;
+            if (j < n && (s[j] == '}' || s[j] == ']')) {
+                out += s[j];
+                i = j + 1;
+            } else {
+                ++depth;
+                out += '\n';
+                pad(out, depth);
+            }
+        } else if (c == '}' || c == ']') {
+            --depth;
+            out += '\n';
+            pad(out, depth);
+            out += static_cast<char>(c);
+            ++i;
+        } else if (c == ',') {
+            out += ",\n";
+            pad(out, depth);
+            ++i;
+        } else if (c == ':') {
+            out += ": ";
+            ++i;
+        } else {
+            out += static_cast<char>(c);
+            ++i;
+        }
+    }
+}
+
+// std::char_traits<char>::compare is specified to order by unsigned char, so a
+// std::map<std::string, ...> already walks its keys in UTF-8 byte order — which
+// is what the definition declares. Nothing sorts here because nothing needs to.
+inline void rawmap(std::string& out, const std::map<std::string, Raw>& m, int depth) {
+    if (m.empty()) { out += "{}"; return; }
+    out += "{\n";
+    std::size_t i = 0;
+    for (const auto& kv : m) {
+        pad(out, depth + 1);
+        esc(out, kv.first);
+        out += ": ";
+        raw(out, kv.second, depth + 1);
+        if (++i < m.size()) out += ',';
+        out += '\n';
+    }
+    pad(out, depth);
+    out += '}';
+}
+
+inline void esc(std::string& out, const std::string& s) {
+    out += '"';
+    for (unsigned char c : s) esc_byte(out, c);
+    out += '"';
+}
+
+inline void strmap(std::string& out, const std::map<std::string, std::string>& m, int depth) {
+    if (m.empty()) { out += "{}"; return; }
+    out += "{\n";
+    std::size_t i = 0;
+    for (const auto& kv : m) {
+        pad(out, depth + 1);
+        esc(out, kv.first);
+        out += ": ";
+        esc(out, kv.second);
+        if (++i < m.size()) out += ',';
+        out += '\n';
+    }
+    pad(out, depth);
+    out += '}';
+}
+
+template <typename T>
+inline void enc_list(std::string& out, const std::vector<T>& v, int depth,
+                     void (*enc)(std::string&, const T&, int)) {
+    if (v.empty()) { out += "[]"; return; }
+    out += "[\n";
+    for (std::size_t i = 0; i < v.size(); ++i) {
+        pad(out, depth + 1);
+        enc(out, v[i], depth + 1);
+        if (i + 1 < v.size()) out += ',';
+        out += '\n';
+    }
+    pad(out, depth);
+    out += ']';
+}
 
 struct OAQuestionApplicationAskArguments {
     ApplicationQuestion question;
@@ -371,6 +538,29 @@ struct OAQuestionOperatorAnswerQuestionResult {
 struct OAQuestionOperatorRetireQuestionResult {
     OperatorRetirement value;
 };
+inline void enc_question(std::string&, const Question&, int);
+inline void enc_request(std::string&, const Request&, int);
+inline void enc_answer(std::string&, const Answer&, int);
+inline void enc_record_metadata(std::string&, const RecordMetadata&, int);
+inline void enc_response_metadata(std::string&, const ResponseMetadata&, int);
+inline void enc_application_question(std::string&, const ApplicationQuestion&, int);
+inline void enc_question_observation(std::string&, const QuestionObservation&, int);
+inline void enc_operator_page(std::string&, const OperatorPage&, int);
+inline void enc_operator_decision(std::string&, const OperatorDecision&, int);
+inline void enc_operator_retirement(std::string&, const OperatorRetirement&, int);
+inline void enc_oa_question_application_ask_arguments(std::string&, const OAQuestionApplicationAskArguments&, int);
+inline void enc_oa_question_application_observe_arguments(std::string&, const OAQuestionApplicationObserveArguments&, int);
+inline void enc_oa_question_operator_list_questions_arguments(std::string&, const OAQuestionOperatorListQuestionsArguments&, int);
+inline void enc_oa_question_operator_answer_question_arguments(std::string&, const OAQuestionOperatorAnswerQuestionArguments&, int);
+inline void enc_oa_question_operator_retire_question_arguments(std::string&, const OAQuestionOperatorRetireQuestionArguments&, int);
+inline void enc_oa_service_frame(std::string&, const OAServiceFrame&, int);
+inline void enc_oa_service_reply(std::string&, const OAServiceReply&, int);
+inline void enc_oa_service_error(std::string&, const OAServiceError&, int);
+inline void enc_oa_question_application_ask_result(std::string&, const OAQuestionApplicationAskResult&, int);
+inline void enc_oa_question_application_observe_result(std::string&, const OAQuestionApplicationObserveResult&, int);
+inline void enc_oa_question_operator_list_questions_result(std::string&, const OAQuestionOperatorListQuestionsResult&, int);
+inline void enc_oa_question_operator_answer_question_result(std::string&, const OAQuestionOperatorAnswerQuestionResult&, int);
+inline void enc_oa_question_operator_retire_question_result(std::string&, const OAQuestionOperatorRetireQuestionResult&, int);
 
 inline void enc_question(std::string& out, const Question& v, int depth) {
     out += '{';
@@ -494,7 +684,7 @@ inline void enc_answer(std::string& out, const Answer& v, int depth) {
     out += '}';
 }
 
-inline void enc_recordmetadata(std::string& out, const RecordMetadata& v, int depth) {
+inline void enc_record_metadata(std::string& out, const RecordMetadata& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
@@ -576,7 +766,7 @@ inline void enc_recordmetadata(std::string& out, const RecordMetadata& v, int de
     out += '}';
 }
 
-inline void enc_responsemetadata(std::string& out, const ResponseMetadata& v, int depth) {
+inline void enc_response_metadata(std::string& out, const ResponseMetadata& v, int depth) {
     out += '{';
     bool first = true;
     if (!v.code.empty()) {
@@ -612,13 +802,13 @@ inline void enc_responsemetadata(std::string& out, const ResponseMetadata& v, in
         pad(out, depth + 1);
         esc(out, "records");
         out += ": ";
-        enc_list<RecordMetadata>(out, v.records, depth + 1, enc_recordmetadata);
+        enc_list<RecordMetadata>(out, v.records, depth + 1, enc_record_metadata);
     }
     if (!first) { out += '\n'; pad(out, depth); }
     out += '}';
 }
 
-inline void enc_applicationquestion(std::string& out, const ApplicationQuestion& v, int depth) {
+inline void enc_application_question(std::string& out, const ApplicationQuestion& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
@@ -642,14 +832,14 @@ inline void enc_applicationquestion(std::string& out, const ApplicationQuestion&
     out += '}';
 }
 
-inline void enc_questionobservation(std::string& out, const QuestionObservation& v, int depth) {
-    if (v.outcome != "pending" && v.outcome != "answered" && v.outcome != "unknown" && v.outcome != "gone" && v.outcome != "invalid" && v.outcome != "conflict" && v.outcome != "forbidden" && v.outcome != "unavailable") { throw Refusal("bad_enum",0); }
+inline void enc_question_observation(std::string& out, const QuestionObservation& v, int depth) {
+    if (wire_name(v.outcome).empty()) throw Refusal("bad_enum", 0);
     out += '{';
     out += '\n';
     pad(out, depth + 1);
     esc(out, "outcome");
     out += ": ";
-    esc(out, v.outcome);
+    esc(out, std::string(wire_name(v.outcome)));
     if (v.answer.has_value()) {
         out += ',';
         out += '\n';
@@ -663,20 +853,20 @@ inline void enc_questionobservation(std::string& out, const QuestionObservation&
     out += '}';
 }
 
-inline void enc_operatorpage(std::string& out, const OperatorPage& v, int depth) {
-    if (v.outcome != "page" && v.outcome != "gap" && v.outcome != "invalid" && v.outcome != "forbidden" && v.outcome != "unavailable") { throw Refusal("bad_enum",0); }
+inline void enc_operator_page(std::string& out, const OperatorPage& v, int depth) {
+    if (wire_name(v.outcome).empty()) throw Refusal("bad_enum", 0);
     out += '{';
     out += '\n';
     pad(out, depth + 1);
     esc(out, "outcome");
     out += ": ";
-    esc(out, v.outcome);
+    esc(out, std::string(wire_name(v.outcome)));
     out += ',';
     out += '\n';
     pad(out, depth + 1);
     esc(out, "records");
     out += ": ";
-    enc_list<RecordMetadata>(out, v.records, depth + 1, enc_recordmetadata);
+    enc_list<RecordMetadata>(out, v.records, depth + 1, enc_record_metadata);
     out += ',';
     out += '\n';
     pad(out, depth + 1);
@@ -694,61 +884,61 @@ inline void enc_operatorpage(std::string& out, const OperatorPage& v, int depth)
     out += '}';
 }
 
-inline void enc_operatordecision(std::string& out, const OperatorDecision& v, int depth) {
-    if (v.outcome != "answered" && v.outcome != "conflict" && v.outcome != "unknown" && v.outcome != "invalid" && v.outcome != "forbidden" && v.outcome != "unavailable") { throw Refusal("bad_enum",0); }
+inline void enc_operator_decision(std::string& out, const OperatorDecision& v, int depth) {
+    if (wire_name(v.outcome).empty()) throw Refusal("bad_enum", 0);
     out += '{';
     out += '\n';
     pad(out, depth + 1);
     esc(out, "outcome");
     out += ": ";
-    esc(out, v.outcome);
+    esc(out, std::string(wire_name(v.outcome)));
     if (v.record.has_value()) {
         out += ',';
         out += '\n';
         pad(out, depth + 1);
         esc(out, "record");
         out += ": ";
-        enc_recordmetadata(out, *v.record, depth + 1);
+        enc_record_metadata(out, *v.record, depth + 1);
     }
     out += '\n';
     pad(out, depth);
     out += '}';
 }
 
-inline void enc_operatorretirement(std::string& out, const OperatorRetirement& v, int depth) {
-    if (v.outcome != "retired" && v.outcome != "unknown" && v.outcome != "invalid" && v.outcome != "forbidden" && v.outcome != "unavailable") { throw Refusal("bad_enum",0); }
+inline void enc_operator_retirement(std::string& out, const OperatorRetirement& v, int depth) {
+    if (wire_name(v.outcome).empty()) throw Refusal("bad_enum", 0);
     out += '{';
     out += '\n';
     pad(out, depth + 1);
     esc(out, "outcome");
     out += ": ";
-    esc(out, v.outcome);
+    esc(out, std::string(wire_name(v.outcome)));
     if (v.record.has_value()) {
         out += ',';
         out += '\n';
         pad(out, depth + 1);
         esc(out, "record");
         out += ": ";
-        enc_recordmetadata(out, *v.record, depth + 1);
+        enc_record_metadata(out, *v.record, depth + 1);
     }
     out += '\n';
     pad(out, depth);
     out += '}';
 }
 
-inline void enc_oaquestionapplicationaskarguments(std::string& out, const OAQuestionApplicationAskArguments& v, int depth) {
+inline void enc_oa_question_application_ask_arguments(std::string& out, const OAQuestionApplicationAskArguments& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
     esc(out, "question");
     out += ": ";
-    enc_applicationquestion(out, v.question, depth + 1);
+    enc_application_question(out, v.question, depth + 1);
     out += '\n';
     pad(out, depth);
     out += '}';
 }
 
-inline void enc_oaquestionapplicationobservearguments(std::string& out, const OAQuestionApplicationObserveArguments& v, int depth) {
+inline void enc_oa_question_application_observe_arguments(std::string& out, const OAQuestionApplicationObserveArguments& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
@@ -766,7 +956,7 @@ inline void enc_oaquestionapplicationobservearguments(std::string& out, const OA
     out += '}';
 }
 
-inline void enc_oaquestionoperatorlistquestionsarguments(std::string& out, const OAQuestionOperatorListQuestionsArguments& v, int depth) {
+inline void enc_oa_question_operator_list_questions_arguments(std::string& out, const OAQuestionOperatorListQuestionsArguments& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
@@ -784,7 +974,7 @@ inline void enc_oaquestionoperatorlistquestionsarguments(std::string& out, const
     out += '}';
 }
 
-inline void enc_oaquestionoperatoranswerquestionarguments(std::string& out, const OAQuestionOperatorAnswerQuestionArguments& v, int depth) {
+inline void enc_oa_question_operator_answer_question_arguments(std::string& out, const OAQuestionOperatorAnswerQuestionArguments& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
@@ -802,7 +992,7 @@ inline void enc_oaquestionoperatoranswerquestionarguments(std::string& out, cons
     out += '}';
 }
 
-inline void enc_oaquestionoperatorretirequestionarguments(std::string& out, const OAQuestionOperatorRetireQuestionArguments& v, int depth) {
+inline void enc_oa_question_operator_retire_question_arguments(std::string& out, const OAQuestionOperatorRetireQuestionArguments& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
@@ -814,7 +1004,7 @@ inline void enc_oaquestionoperatorretirequestionarguments(std::string& out, cons
     out += '}';
 }
 
-inline void enc_oaserviceframe(std::string& out, const OAServiceFrame& v, int depth) {
+inline void enc_oa_service_frame(std::string& out, const OAServiceFrame& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
@@ -844,7 +1034,7 @@ inline void enc_oaserviceframe(std::string& out, const OAServiceFrame& v, int de
     out += '}';
 }
 
-inline void enc_oaservicereply(std::string& out, const OAServiceReply& v, int depth) {
+inline void enc_oa_service_reply(std::string& out, const OAServiceReply& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
@@ -880,7 +1070,7 @@ inline void enc_oaservicereply(std::string& out, const OAServiceReply& v, int de
     out += '}';
 }
 
-inline void enc_oaserviceerror(std::string& out, const OAServiceError& v, int depth) {
+inline void enc_oa_service_error(std::string& out, const OAServiceError& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
@@ -898,77 +1088,68 @@ inline void enc_oaserviceerror(std::string& out, const OAServiceError& v, int de
     out += '}';
 }
 
-inline void enc_oaquestionapplicationaskresult(std::string& out, const OAQuestionApplicationAskResult& v, int depth) {
+inline void enc_oa_question_application_ask_result(std::string& out, const OAQuestionApplicationAskResult& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
     esc(out, "value");
     out += ": ";
-    enc_questionobservation(out, v.value, depth + 1);
+    enc_question_observation(out, v.value, depth + 1);
     out += '\n';
     pad(out, depth);
     out += '}';
 }
 
-inline void enc_oaquestionapplicationobserveresult(std::string& out, const OAQuestionApplicationObserveResult& v, int depth) {
+inline void enc_oa_question_application_observe_result(std::string& out, const OAQuestionApplicationObserveResult& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
     esc(out, "value");
     out += ": ";
-    enc_questionobservation(out, v.value, depth + 1);
+    enc_question_observation(out, v.value, depth + 1);
     out += '\n';
     pad(out, depth);
     out += '}';
 }
 
-inline void enc_oaquestionoperatorlistquestionsresult(std::string& out, const OAQuestionOperatorListQuestionsResult& v, int depth) {
+inline void enc_oa_question_operator_list_questions_result(std::string& out, const OAQuestionOperatorListQuestionsResult& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
     esc(out, "value");
     out += ": ";
-    enc_operatorpage(out, v.value, depth + 1);
+    enc_operator_page(out, v.value, depth + 1);
     out += '\n';
     pad(out, depth);
     out += '}';
 }
 
-inline void enc_oaquestionoperatoranswerquestionresult(std::string& out, const OAQuestionOperatorAnswerQuestionResult& v, int depth) {
+inline void enc_oa_question_operator_answer_question_result(std::string& out, const OAQuestionOperatorAnswerQuestionResult& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
     esc(out, "value");
     out += ": ";
-    enc_operatordecision(out, v.value, depth + 1);
+    enc_operator_decision(out, v.value, depth + 1);
     out += '\n';
     pad(out, depth);
     out += '}';
 }
 
-inline void enc_oaquestionoperatorretirequestionresult(std::string& out, const OAQuestionOperatorRetireQuestionResult& v, int depth) {
+inline void enc_oa_question_operator_retire_question_result(std::string& out, const OAQuestionOperatorRetireQuestionResult& v, int depth) {
     out += '{';
     out += '\n';
     pad(out, depth + 1);
     esc(out, "value");
     out += ": ";
-    enc_operatorretirement(out, v.value, depth + 1);
+    enc_operator_retirement(out, v.value, depth + 1);
     out += '\n';
     pad(out, depth);
     out += '}';
-}
-
-inline std::string encode(const Request& v) {
-    std::string out;
-    enc_request(out, v, 0);
-    out += '\n';
-    return out;
 }
 
 inline constexpr int kDepthLimit = 64;
 inline constexpr std::size_t kI64Digits = 19;
-
-
 
 inline void append_rune(std::string& out, std::uint32_t cp) {
     if (cp < 0x80) {
@@ -1315,26 +1496,26 @@ inline std::vector<T> decode_list(Reader& r, T (*elem)(Reader&)) {
 inline Question decode_question(Reader& r);
 inline Request decode_request(Reader& r);
 inline Answer decode_answer(Reader& r);
-inline RecordMetadata decode_recordmetadata(Reader& r);
-inline ResponseMetadata decode_responsemetadata(Reader& r);
-inline ApplicationQuestion decode_applicationquestion(Reader& r);
-inline QuestionObservation decode_questionobservation(Reader& r);
-inline OperatorPage decode_operatorpage(Reader& r);
-inline OperatorDecision decode_operatordecision(Reader& r);
-inline OperatorRetirement decode_operatorretirement(Reader& r);
-inline OAQuestionApplicationAskArguments decode_oaquestionapplicationaskarguments(Reader& r);
-inline OAQuestionApplicationObserveArguments decode_oaquestionapplicationobservearguments(Reader& r);
-inline OAQuestionOperatorListQuestionsArguments decode_oaquestionoperatorlistquestionsarguments(Reader& r);
-inline OAQuestionOperatorAnswerQuestionArguments decode_oaquestionoperatoranswerquestionarguments(Reader& r);
-inline OAQuestionOperatorRetireQuestionArguments decode_oaquestionoperatorretirequestionarguments(Reader& r);
-inline OAServiceFrame decode_oaserviceframe(Reader& r);
-inline OAServiceReply decode_oaservicereply(Reader& r);
-inline OAServiceError decode_oaserviceerror(Reader& r);
-inline OAQuestionApplicationAskResult decode_oaquestionapplicationaskresult(Reader& r);
-inline OAQuestionApplicationObserveResult decode_oaquestionapplicationobserveresult(Reader& r);
-inline OAQuestionOperatorListQuestionsResult decode_oaquestionoperatorlistquestionsresult(Reader& r);
-inline OAQuestionOperatorAnswerQuestionResult decode_oaquestionoperatoranswerquestionresult(Reader& r);
-inline OAQuestionOperatorRetireQuestionResult decode_oaquestionoperatorretirequestionresult(Reader& r);
+inline RecordMetadata decode_record_metadata(Reader& r);
+inline ResponseMetadata decode_response_metadata(Reader& r);
+inline ApplicationQuestion decode_application_question(Reader& r);
+inline QuestionObservation decode_question_observation(Reader& r);
+inline OperatorPage decode_operator_page(Reader& r);
+inline OperatorDecision decode_operator_decision(Reader& r);
+inline OperatorRetirement decode_operator_retirement(Reader& r);
+inline OAQuestionApplicationAskArguments decode_oa_question_application_ask_arguments(Reader& r);
+inline OAQuestionApplicationObserveArguments decode_oa_question_application_observe_arguments(Reader& r);
+inline OAQuestionOperatorListQuestionsArguments decode_oa_question_operator_list_questions_arguments(Reader& r);
+inline OAQuestionOperatorAnswerQuestionArguments decode_oa_question_operator_answer_question_arguments(Reader& r);
+inline OAQuestionOperatorRetireQuestionArguments decode_oa_question_operator_retire_question_arguments(Reader& r);
+inline OAServiceFrame decode_oa_service_frame(Reader& r);
+inline OAServiceReply decode_oa_service_reply(Reader& r);
+inline OAServiceError decode_oa_service_error(Reader& r);
+inline OAQuestionApplicationAskResult decode_oa_question_application_ask_result(Reader& r);
+inline OAQuestionApplicationObserveResult decode_oa_question_application_observe_result(Reader& r);
+inline OAQuestionOperatorListQuestionsResult decode_oa_question_operator_list_questions_result(Reader& r);
+inline OAQuestionOperatorAnswerQuestionResult decode_oa_question_operator_answer_question_result(Reader& r);
+inline OAQuestionOperatorRetireQuestionResult decode_oa_question_operator_retire_question_result(Reader& r);
 
 inline Question decode_question(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
@@ -1485,7 +1666,7 @@ inline Answer decode_answer(Reader& r) {
     return v;
 }
 
-inline RecordMetadata decode_recordmetadata(Reader& r) {
+inline RecordMetadata decode_record_metadata(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -1560,7 +1741,7 @@ inline RecordMetadata decode_recordmetadata(Reader& r) {
     return v;
 }
 
-inline ResponseMetadata decode_responsemetadata(Reader& r) {
+inline ResponseMetadata decode_response_metadata(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -1591,7 +1772,7 @@ inline ResponseMetadata decode_responsemetadata(Reader& r) {
             } else if (key == "records") {
                 if (seen & 8u) r.refuse("duplicate_field");
                 seen |= 8u;
-                v.records = decode_list<RecordMetadata>(r, decode_recordmetadata);
+                v.records = decode_list<RecordMetadata>(r, decode_record_metadata);
             } else {
                 r.refuse("unknown_field");
             }
@@ -1606,7 +1787,7 @@ inline ResponseMetadata decode_responsemetadata(Reader& r) {
     return v;
 }
 
-inline ApplicationQuestion decode_applicationquestion(Reader& r) {
+inline ApplicationQuestion decode_application_question(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -1649,11 +1830,12 @@ inline ApplicationQuestion decode_applicationquestion(Reader& r) {
     return v;
 }
 
-inline QuestionObservation decode_questionobservation(Reader& r) {
+inline QuestionObservation decode_question_observation(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
     QuestionObservation v;
+    std::optional<std::string> wire_outcome;
     std::uint32_t seen = 0;
     r.skip_ws();
     if (r.at() != '}') {
@@ -1668,7 +1850,7 @@ inline QuestionObservation decode_questionobservation(Reader& r) {
             if (key == "outcome") {
                 if (seen & 1u) r.refuse("duplicate_field");
                 seen |= 1u;
-                v.outcome = r.str();
+                wire_outcome = r.str();
             } else if (key == "answer") {
                 if (seen & 2u) r.refuse("duplicate_field");
                 seen |= 2u;
@@ -1685,15 +1867,20 @@ inline QuestionObservation decode_questionobservation(Reader& r) {
     ++r.pos;
     --r.depth;
     if ((seen & 1u) != 1u) r.refuse("missing_field");
-    if (v.outcome != "pending" && v.outcome != "answered" && v.outcome != "unknown" && v.outcome != "gone" && v.outcome != "invalid" && v.outcome != "conflict" && v.outcome != "forbidden" && v.outcome != "unavailable") { r.refuse("bad_enum"); }
+    if (wire_outcome) {
+        const auto parsed = parse_observation_outcome(*wire_outcome);
+        if (!parsed) r.refuse("bad_enum");
+        v.outcome = *parsed;
+    }
     return v;
 }
 
-inline OperatorPage decode_operatorpage(Reader& r) {
+inline OperatorPage decode_operator_page(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
     OperatorPage v;
+    std::optional<std::string> wire_outcome;
     std::uint32_t seen = 0;
     r.skip_ws();
     if (r.at() != '}') {
@@ -1708,11 +1895,11 @@ inline OperatorPage decode_operatorpage(Reader& r) {
             if (key == "outcome") {
                 if (seen & 1u) r.refuse("duplicate_field");
                 seen |= 1u;
-                v.outcome = r.str();
+                wire_outcome = r.str();
             } else if (key == "records") {
                 if (seen & 2u) r.refuse("duplicate_field");
                 seen |= 2u;
-                v.records = decode_list<RecordMetadata>(r, decode_recordmetadata);
+                v.records = decode_list<RecordMetadata>(r, decode_record_metadata);
             } else if (key == "next") {
                 if (seen & 4u) r.refuse("duplicate_field");
                 seen |= 4u;
@@ -1733,15 +1920,20 @@ inline OperatorPage decode_operatorpage(Reader& r) {
     ++r.pos;
     --r.depth;
     if ((seen & 15u) != 15u) r.refuse("missing_field");
-    if (v.outcome != "page" && v.outcome != "gap" && v.outcome != "invalid" && v.outcome != "forbidden" && v.outcome != "unavailable") { r.refuse("bad_enum"); }
+    if (wire_outcome) {
+        const auto parsed = parse_operator_page_outcome(*wire_outcome);
+        if (!parsed) r.refuse("bad_enum");
+        v.outcome = *parsed;
+    }
     return v;
 }
 
-inline OperatorDecision decode_operatordecision(Reader& r) {
+inline OperatorDecision decode_operator_decision(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
     OperatorDecision v;
+    std::optional<std::string> wire_outcome;
     std::uint32_t seen = 0;
     r.skip_ws();
     if (r.at() != '}') {
@@ -1756,11 +1948,11 @@ inline OperatorDecision decode_operatordecision(Reader& r) {
             if (key == "outcome") {
                 if (seen & 1u) r.refuse("duplicate_field");
                 seen |= 1u;
-                v.outcome = r.str();
+                wire_outcome = r.str();
             } else if (key == "record") {
                 if (seen & 2u) r.refuse("duplicate_field");
                 seen |= 2u;
-                v.record = decode_recordmetadata(r);
+                v.record = decode_record_metadata(r);
             } else {
                 r.refuse("unknown_field");
             }
@@ -1773,15 +1965,20 @@ inline OperatorDecision decode_operatordecision(Reader& r) {
     ++r.pos;
     --r.depth;
     if ((seen & 1u) != 1u) r.refuse("missing_field");
-    if (v.outcome != "answered" && v.outcome != "conflict" && v.outcome != "unknown" && v.outcome != "invalid" && v.outcome != "forbidden" && v.outcome != "unavailable") { r.refuse("bad_enum"); }
+    if (wire_outcome) {
+        const auto parsed = parse_operator_decision_outcome(*wire_outcome);
+        if (!parsed) r.refuse("bad_enum");
+        v.outcome = *parsed;
+    }
     return v;
 }
 
-inline OperatorRetirement decode_operatorretirement(Reader& r) {
+inline OperatorRetirement decode_operator_retirement(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
     OperatorRetirement v;
+    std::optional<std::string> wire_outcome;
     std::uint32_t seen = 0;
     r.skip_ws();
     if (r.at() != '}') {
@@ -1796,11 +1993,11 @@ inline OperatorRetirement decode_operatorretirement(Reader& r) {
             if (key == "outcome") {
                 if (seen & 1u) r.refuse("duplicate_field");
                 seen |= 1u;
-                v.outcome = r.str();
+                wire_outcome = r.str();
             } else if (key == "record") {
                 if (seen & 2u) r.refuse("duplicate_field");
                 seen |= 2u;
-                v.record = decode_recordmetadata(r);
+                v.record = decode_record_metadata(r);
             } else {
                 r.refuse("unknown_field");
             }
@@ -1813,11 +2010,15 @@ inline OperatorRetirement decode_operatorretirement(Reader& r) {
     ++r.pos;
     --r.depth;
     if ((seen & 1u) != 1u) r.refuse("missing_field");
-    if (v.outcome != "retired" && v.outcome != "unknown" && v.outcome != "invalid" && v.outcome != "forbidden" && v.outcome != "unavailable") { r.refuse("bad_enum"); }
+    if (wire_outcome) {
+        const auto parsed = parse_operator_retirement_outcome(*wire_outcome);
+        if (!parsed) r.refuse("bad_enum");
+        v.outcome = *parsed;
+    }
     return v;
 }
 
-inline OAQuestionApplicationAskArguments decode_oaquestionapplicationaskarguments(Reader& r) {
+inline OAQuestionApplicationAskArguments decode_oa_question_application_ask_arguments(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -1836,7 +2037,7 @@ inline OAQuestionApplicationAskArguments decode_oaquestionapplicationaskargument
             if (key == "question") {
                 if (seen & 1u) r.refuse("duplicate_field");
                 seen |= 1u;
-                v.question = decode_applicationquestion(r);
+                v.question = decode_application_question(r);
             } else {
                 r.refuse("unknown_field");
             }
@@ -1852,7 +2053,7 @@ inline OAQuestionApplicationAskArguments decode_oaquestionapplicationaskargument
     return v;
 }
 
-inline OAQuestionApplicationObserveArguments decode_oaquestionapplicationobservearguments(Reader& r) {
+inline OAQuestionApplicationObserveArguments decode_oa_question_application_observe_arguments(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -1891,7 +2092,7 @@ inline OAQuestionApplicationObserveArguments decode_oaquestionapplicationobserve
     return v;
 }
 
-inline OAQuestionOperatorListQuestionsArguments decode_oaquestionoperatorlistquestionsarguments(Reader& r) {
+inline OAQuestionOperatorListQuestionsArguments decode_oa_question_operator_list_questions_arguments(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -1930,7 +2131,7 @@ inline OAQuestionOperatorListQuestionsArguments decode_oaquestionoperatorlistque
     return v;
 }
 
-inline OAQuestionOperatorAnswerQuestionArguments decode_oaquestionoperatoranswerquestionarguments(Reader& r) {
+inline OAQuestionOperatorAnswerQuestionArguments decode_oa_question_operator_answer_question_arguments(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -1969,7 +2170,7 @@ inline OAQuestionOperatorAnswerQuestionArguments decode_oaquestionoperatoranswer
     return v;
 }
 
-inline OAQuestionOperatorRetireQuestionArguments decode_oaquestionoperatorretirequestionarguments(Reader& r) {
+inline OAQuestionOperatorRetireQuestionArguments decode_oa_question_operator_retire_question_arguments(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -2004,7 +2205,7 @@ inline OAQuestionOperatorRetireQuestionArguments decode_oaquestionoperatorretire
     return v;
 }
 
-inline OAServiceFrame decode_oaserviceframe(Reader& r) {
+inline OAServiceFrame decode_oa_service_frame(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -2051,7 +2252,7 @@ inline OAServiceFrame decode_oaserviceframe(Reader& r) {
     return v;
 }
 
-inline OAServiceReply decode_oaservicereply(Reader& r) {
+inline OAServiceReply decode_oa_service_reply(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -2102,7 +2303,7 @@ inline OAServiceReply decode_oaservicereply(Reader& r) {
     return v;
 }
 
-inline OAServiceError decode_oaserviceerror(Reader& r) {
+inline OAServiceError decode_oa_service_error(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -2141,7 +2342,7 @@ inline OAServiceError decode_oaserviceerror(Reader& r) {
     return v;
 }
 
-inline OAQuestionApplicationAskResult decode_oaquestionapplicationaskresult(Reader& r) {
+inline OAQuestionApplicationAskResult decode_oa_question_application_ask_result(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -2160,7 +2361,7 @@ inline OAQuestionApplicationAskResult decode_oaquestionapplicationaskresult(Read
             if (key == "value") {
                 if (seen & 1u) r.refuse("duplicate_field");
                 seen |= 1u;
-                v.value = decode_questionobservation(r);
+                v.value = decode_question_observation(r);
             } else {
                 r.refuse("unknown_field");
             }
@@ -2176,7 +2377,7 @@ inline OAQuestionApplicationAskResult decode_oaquestionapplicationaskresult(Read
     return v;
 }
 
-inline OAQuestionApplicationObserveResult decode_oaquestionapplicationobserveresult(Reader& r) {
+inline OAQuestionApplicationObserveResult decode_oa_question_application_observe_result(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -2195,7 +2396,7 @@ inline OAQuestionApplicationObserveResult decode_oaquestionapplicationobserveres
             if (key == "value") {
                 if (seen & 1u) r.refuse("duplicate_field");
                 seen |= 1u;
-                v.value = decode_questionobservation(r);
+                v.value = decode_question_observation(r);
             } else {
                 r.refuse("unknown_field");
             }
@@ -2211,7 +2412,7 @@ inline OAQuestionApplicationObserveResult decode_oaquestionapplicationobserveres
     return v;
 }
 
-inline OAQuestionOperatorListQuestionsResult decode_oaquestionoperatorlistquestionsresult(Reader& r) {
+inline OAQuestionOperatorListQuestionsResult decode_oa_question_operator_list_questions_result(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -2230,7 +2431,7 @@ inline OAQuestionOperatorListQuestionsResult decode_oaquestionoperatorlistquesti
             if (key == "value") {
                 if (seen & 1u) r.refuse("duplicate_field");
                 seen |= 1u;
-                v.value = decode_operatorpage(r);
+                v.value = decode_operator_page(r);
             } else {
                 r.refuse("unknown_field");
             }
@@ -2246,7 +2447,7 @@ inline OAQuestionOperatorListQuestionsResult decode_oaquestionoperatorlistquesti
     return v;
 }
 
-inline OAQuestionOperatorAnswerQuestionResult decode_oaquestionoperatoranswerquestionresult(Reader& r) {
+inline OAQuestionOperatorAnswerQuestionResult decode_oa_question_operator_answer_question_result(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -2265,7 +2466,7 @@ inline OAQuestionOperatorAnswerQuestionResult decode_oaquestionoperatoranswerque
             if (key == "value") {
                 if (seen & 1u) r.refuse("duplicate_field");
                 seen |= 1u;
-                v.value = decode_operatordecision(r);
+                v.value = decode_operator_decision(r);
             } else {
                 r.refuse("unknown_field");
             }
@@ -2281,7 +2482,7 @@ inline OAQuestionOperatorAnswerQuestionResult decode_oaquestionoperatoranswerque
     return v;
 }
 
-inline OAQuestionOperatorRetireQuestionResult decode_oaquestionoperatorretirequestionresult(Reader& r) {
+inline OAQuestionOperatorRetireQuestionResult decode_oa_question_operator_retire_question_result(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
     ++r.pos;
@@ -2300,7 +2501,7 @@ inline OAQuestionOperatorRetireQuestionResult decode_oaquestionoperatorretireque
             if (key == "value") {
                 if (seen & 1u) r.refuse("duplicate_field");
                 seen |= 1u;
-                v.value = decode_operatorretirement(r);
+                v.value = decode_operator_retirement(r);
             } else {
                 r.refuse("unknown_field");
             }
@@ -2316,15 +2517,25 @@ inline OAQuestionOperatorRetireQuestionResult decode_oaquestionoperatorretireque
     return v;
 }
 
+}  // namespace detail
+
+inline std::string encode(const Request& v) {
+    std::string out;
+    detail::enc_request(out, v, 0);
+    out += '\n';
+    return out;
+}
+
 inline Request decode(std::string_view data) {
-    Reader r{data};
+    detail::Reader r{data};
     r.skip_ws();
-    Request v = decode_request(r);
+    Request v = detail::decode_request(r);
     r.skip_ws();
     if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
     return v;
 }
 
+namespace detail {
 // kRefusals is in the order two of them are chosen between.
 inline const std::vector<std::string> kRefusals = {"malformed", "bad_string", "number_spelling", "wrong_type", "depth_exceeded", "duplicate_key", "duplicate_field", "unknown_field", "missing_field", "bad_enum", "trailing_bytes"};
 
@@ -2333,112 +2544,160 @@ inline int refusal_rank(std::string_view word) {
         if (kRefusals[i] == word) return static_cast<int>(i);
     return -1;
 }
+}  // namespace detail
 
-struct FrameWriter{virtual ~FrameWriter()=default;virtual void WriteFrame(std::string_view)=0;};
+struct FrameWriter{virtual ~FrameWriter()=default;virtual void write_frame(std::string_view frame)=0;};
 struct DispatchError:std::runtime_error{using std::runtime_error::runtime_error;};
-inline OAServiceFrame service_payload(std::string_view frame){Reader r{frame};r.skip_ws();auto v=decode_oaserviceframe(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");if(v.version!=1)throw DispatchError("unknown_version");return v;}
+namespace detail {
+inline OAServiceFrame service_payload(std::string_view frame){Reader r{frame};r.skip_ws();auto v=decode_oa_service_frame(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");if(v.version!=1)throw DispatchError("unknown_version");return v;}
+}  // namespace detail
 // Validates the request envelope and version; dispatchers validate typed arguments.
-inline std::string service_name(std::string_view frame){return service_payload(frame).service;}
+inline std::string service_name(std::string_view frame){return detail::service_payload(frame).service;}
 
-struct FrameExchanger{virtual ~FrameExchanger()=default;virtual std::string ExchangeFrame(std::string_view)=0;};
+struct FrameExchanger{virtual ~FrameExchanger()=default;virtual std::string exchange_frame(std::string_view frame)=0;};
 struct ServiceError:std::runtime_error{std::string code,message;ServiceError(std::string c,std::string m):std::runtime_error(m.empty()?c:m),code(c),message(m){}};
+namespace detail {
 inline Raw service_response(std::string_view frame,std::string_view service,std::string_view method){
- Reader r{frame};r.skip_ws();auto v=decode_oaservicereply(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");if(v.version!=1)throw DispatchError("unknown_version");if(v.service!=service||v.method!=method)throw DispatchError("mismatched_response");
- if(!v.ok){Reader e{v.payload};e.depth=1;e.skip_ws();auto error=decode_oaserviceerror(e);e.skip_ws();if(e.pos!=e.buf.size())e.refuse("trailing_bytes");if(error.code.empty())throw DispatchError("invalid_error");throw ServiceError(error.code,error.message);}return v.payload;
+ Reader r{frame};r.skip_ws();auto v=decode_oa_service_reply(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");if(v.version!=1)throw DispatchError("unknown_version");if(v.service!=service||v.method!=method)throw DispatchError("mismatched_response");
+ if(!v.ok){Reader e{v.payload};e.depth=1;e.skip_ws();auto error=decode_oa_service_error(e);e.skip_ws();if(e.pos!=e.buf.size())e.refuse("trailing_bytes");if(error.code.empty())throw DispatchError("invalid_error");throw ServiceError(error.code,error.message);}return v.payload;
 }
 inline std::string service_reply(const OAServiceFrame& request,const Raw& payload,const ServiceError* error=nullptr){
  OAServiceReply reply;reply.version=1;reply.service=request.service;reply.method=request.method;reply.ok=error==nullptr;reply.payload=payload;
- if(error){OAServiceError e;e.code=error->code.empty()?"handler_error":error->code;e.message=error->message;reply.payload.clear();enc_oaserviceerror(reply.payload,e,1);}
- std::string frame;enc_oaservicereply(frame,reply,0);Reader r{frame};r.skip_ws();decode_oaservicereply(r);return frame;
+ if(error){OAServiceError e;e.code=error->code.empty()?"handler_error":error->code;e.message=error->message;reply.payload.clear();enc_oa_service_error(reply.payload,e,1);}
+ std::string frame;enc_oa_service_reply(frame,reply,0);Reader r{frame};r.skip_ws();decode_oa_service_reply(r);return frame;
+}
+}  // namespace detail
+
+// The base-protocol service every dispatcher answers beside its own.
+inline constexpr std::string_view kEndpointContract="abstraction.facade/endpoint@1";
+// One service an endpoint hosts, as a dispatcher of any generated namespace
+// reports it to describe_endpoint.
+struct DescribedService{std::string contract;bool ready;std::string why;};
+namespace detail {
+template<class H>auto ready_hook(int)->decltype((void)static_cast<H*>(nullptr)->ready(),static_cast<bool(*)(void*,std::string&)>(nullptr)){return [](void* h,std::string& why)->bool{auto r=static_cast<H*>(h)->ready();why=r.second;return r.first;};}
+template<class H>bool(*ready_hook(long))(void*,std::string&){return nullptr;}
+}  // namespace detail
+// Answers an abstraction.facade/endpoint@1 Describe frame for an endpoint
+// hosting services, in that order: each is a dispatcher of any generated
+// namespace. program and version are the provider's own display name and
+// version, never authority. A frame for another service reads unknown_service.
+template<class... Services>std::string describe_endpoint(std::string_view frame,const std::string& program,const std::string& version,const Services&... services){
+ auto v=detail::service_payload(frame);
+ if(v.service!=kEndpointContract){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
+ if(v.method!="Describe"){ServiceError e("unknown_method","");return detail::service_reply(v,"",&e);}
+ detail::Reader r{v.arguments};r.skip_ws();bool empty=false;
+ if(r.pos<r.buf.size()&&r.buf[r.pos]=='{'){r.pos++;r.skip_ws();if(r.pos<r.buf.size()&&r.buf[r.pos]=='}'){r.pos++;r.skip_ws();empty=r.pos==r.buf.size();}}
+ if(!empty){ServiceError e("unknown_field","");return detail::service_reply(v,"",&e);}
+ try{
+  Raw out="{\"value\":{\"outcome\":\"described\",\"program\":";detail::esc(out,program);out+=",\"version\":";detail::esc(out,version);out+=",\"services\":[";
+  bool first=true;
+  auto add=[&](const auto& s){if(!first)out+=',';first=false;out+="{\"contract\":";detail::esc(out,s.contract);out+=",\"readiness\":\"";out+=s.ready?"ready":"not_ready";out+="\",\"why\":";detail::esc(out,s.why);out+=",\"guarantees\":[],\"capabilities\":{}}";};
+  (void)add;
+  (add(services.describe_service()),...);
+  out+="]}}";
+  return detail::service_reply(v,out);
+ }catch(const Refusal&e){ServiceError error(e.word,"");return detail::service_reply(v,"",&error);}
 }
 struct QuestionApplication{virtual ~QuestionApplication()=default;
-virtual QuestionObservation Ask(const ApplicationQuestion& arg0)=0;
-virtual QuestionObservation Observe(const std::string& arg0,const std::int64_t& arg1)=0;
+virtual QuestionObservation ask(const ApplicationQuestion& question)=0;
+virtual QuestionObservation observe(const std::string& request_key,const std::int64_t& wait_ms)=0;
 };
 template<class Transport>struct QuestionApplicationClient:QuestionApplication{Transport& transport_;explicit QuestionApplicationClient(Transport&t):transport_(t){}
-QuestionObservation Ask(const ApplicationQuestion& arg0)override{OAQuestionApplicationAskArguments args;
-args.question=arg0;
-OAServiceFrame v;v.version=1;v.service="abstraction.asks/application@1";v.method="Ask";enc_oaquestionapplicationaskarguments(v.arguments,args,1);std::string frame;enc_oaserviceframe(frame,v,0);service_payload(frame);
-auto response=transport_.ExchangeFrame(frame);auto payload=service_response(response,v.service,v.method);Reader r{payload};r.depth=1;r.skip_ws();auto result=decode_oaquestionapplicationaskresult(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
+QuestionObservation ask(const ApplicationQuestion& question)override{detail::OAQuestionApplicationAskArguments args;
+args.question=question;
+detail::OAServiceFrame v;v.version=1;v.service="abstraction.asks/application@1";v.method="Ask";detail::enc_oa_question_application_ask_arguments(v.arguments,args,1);std::string frame;detail::enc_oa_service_frame(frame,v,0);detail::service_payload(frame);
+auto response=transport_.exchange_frame(frame);auto payload=detail::service_response(response,v.service,v.method);detail::Reader r{payload};r.depth=1;r.skip_ws();auto result=detail::decode_oa_question_application_ask_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
 return result.value;
 }
-QuestionObservation Observe(const std::string& arg0,const std::int64_t& arg1)override{OAQuestionApplicationObserveArguments args;
-args.request_key=arg0;
-args.wait_ms=arg1;
-OAServiceFrame v;v.version=1;v.service="abstraction.asks/application@1";v.method="Observe";enc_oaquestionapplicationobservearguments(v.arguments,args,1);std::string frame;enc_oaserviceframe(frame,v,0);service_payload(frame);
-auto response=transport_.ExchangeFrame(frame);auto payload=service_response(response,v.service,v.method);Reader r{payload};r.depth=1;r.skip_ws();auto result=decode_oaquestionapplicationobserveresult(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
+QuestionObservation observe(const std::string& request_key,const std::int64_t& wait_ms)override{detail::OAQuestionApplicationObserveArguments args;
+args.request_key=request_key;
+args.wait_ms=wait_ms;
+detail::OAServiceFrame v;v.version=1;v.service="abstraction.asks/application@1";v.method="Observe";detail::enc_oa_question_application_observe_arguments(v.arguments,args,1);std::string frame;detail::enc_oa_service_frame(frame,v,0);detail::service_payload(frame);
+auto response=transport_.exchange_frame(frame);auto payload=detail::service_response(response,v.service,v.method);detail::Reader r{payload};r.depth=1;r.skip_ws();auto result=detail::decode_oa_question_application_observe_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
 return result.value;
 }
 };
-struct QuestionApplicationService{inline static constexpr std::string_view wire_name="abstraction.asks/application@1";inline static constexpr std::string_view capability="abstraction.asks";template<class Transport>using Client=QuestionApplicationClient<Transport>;};
+struct QuestionApplicationService{inline static constexpr std::string_view kWireName="abstraction.asks/application@1";inline static constexpr std::string_view kCapability="abstraction.asks";template<class Transport>using Client=QuestionApplicationClient<Transport>;};
 struct QuestionApplicationDispatcher:FrameWriter,FrameExchanger{QuestionApplication&handler;explicit QuestionApplicationDispatcher(QuestionApplication&h):handler(h){}
-void WriteFrame(std::string_view frame)override{auto v=service_payload(frame);if(v.service!="abstraction.asks/application@1")throw DispatchError("unknown_service");
+// A handler whose own type has ready(), returning a pair of bool and std::string, reports its readiness through describe_service.
+template<class H,class=decltype(static_cast<QuestionApplication&>(*static_cast<H*>(nullptr)))>explicit QuestionApplicationDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)){}
+// This dispatcher's service as abstraction.facade/endpoint@1 Describe lists it.
+DescribedService describe_service()const{DescribedService s{"abstraction.asks/application@1",true,std::string()};if(ready_hook_){s.ready=ready_hook_(ready_self_,s.why);if(s.ready)s.why.clear();}return s;}
+void write_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service!="abstraction.asks/application@1")throw DispatchError("unknown_service");
 if(v.method=="Ask"){
 throw DispatchError("wrong_mode");}
 if(v.method=="Observe"){
 throw DispatchError("wrong_mode");}
 throw DispatchError("unknown_method");}
-std::string ExchangeFrame(std::string_view frame)override{auto v=service_payload(frame);if(v.service!="abstraction.asks/application@1"){ServiceError e("unknown_service","");return service_reply(v,"",&e);}
+std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/application@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
 try{
 if(v.method=="Ask"){
-Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=decode_oaquestionapplicationaskarguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_Ask(args);return service_reply(v,payload);}
+detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_question_application_ask_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_ask(args);return detail::service_reply(v,payload);}
 if(v.method=="Observe"){
-Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=decode_oaquestionapplicationobservearguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_Observe(args);return service_reply(v,payload);}
-throw ServiceError("unknown_method","");}catch(const ServiceError&e){return service_reply(v,"",&e);}catch(const Refusal&e){ServiceError error(e.word,"");return service_reply(v,"",&error);}
+detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_question_application_observe_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_observe(args);return detail::service_reply(v,payload);}
+throw ServiceError("unknown_method","");}catch(const ServiceError&e){return detail::service_reply(v,"",&e);}catch(const Refusal&e){ServiceError error(e.word,"");return detail::service_reply(v,"",&error);}
 }
-Raw invoke_Ask(const OAQuestionApplicationAskArguments&args){
+private:
+Raw invoke_ask(const detail::OAQuestionApplicationAskArguments&args){
 QuestionObservation result{};
 try{
-result=handler.Ask(args.question);
+result=handler.ask(args.question);
 }catch(const ServiceError&){throw;}catch(...){throw ServiceError("handler_error","handler failed");}
 try{
-OAQuestionApplicationAskResult value;
+detail::OAQuestionApplicationAskResult value;
 value.value=result;
-Raw payload;enc_oaquestionapplicationaskresult(payload,value,1);Reader r{payload};r.depth=1;r.skip_ws();decode_oaquestionapplicationaskresult(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
+Raw payload;detail::enc_oa_question_application_ask_result(payload,value,1);detail::Reader r{payload};r.depth=1;r.skip_ws();detail::decode_oa_question_application_ask_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
 }catch(...){throw ServiceError("invalid_result","");}
 }
-Raw invoke_Observe(const OAQuestionApplicationObserveArguments&args){
+Raw invoke_observe(const detail::OAQuestionApplicationObserveArguments&args){
 QuestionObservation result{};
 try{
-result=handler.Observe(args.request_key,args.wait_ms);
+result=handler.observe(args.request_key,args.wait_ms);
 }catch(const ServiceError&){throw;}catch(...){throw ServiceError("handler_error","handler failed");}
 try{
-OAQuestionApplicationObserveResult value;
+detail::OAQuestionApplicationObserveResult value;
 value.value=result;
-Raw payload;enc_oaquestionapplicationobserveresult(payload,value,1);Reader r{payload};r.depth=1;r.skip_ws();decode_oaquestionapplicationobserveresult(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
+Raw payload;detail::enc_oa_question_application_observe_result(payload,value,1);detail::Reader r{payload};r.depth=1;r.skip_ws();detail::decode_oa_question_application_observe_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
 }catch(...){throw ServiceError("invalid_result","");}
 }
+private:
+void* ready_self_=nullptr;
+bool(*ready_hook_)(void*,std::string&)=nullptr;
 };
 struct QuestionOperator{virtual ~QuestionOperator()=default;
-virtual OperatorPage ListQuestions(const std::string& arg0,const std::int64_t& arg1)=0;
-virtual OperatorDecision AnswerQuestion(const std::string& arg0,const std::string& arg1)=0;
-virtual OperatorRetirement RetireQuestion(const std::string& arg0)=0;
+virtual OperatorPage list_questions(const std::string& cursor,const std::int64_t& limit)=0;
+virtual OperatorDecision answer_question(const std::string& id,const std::string& option)=0;
+virtual OperatorRetirement retire_question(const std::string& id)=0;
 };
 template<class Transport>struct QuestionOperatorClient:QuestionOperator{Transport& transport_;explicit QuestionOperatorClient(Transport&t):transport_(t){}
-OperatorPage ListQuestions(const std::string& arg0,const std::int64_t& arg1)override{OAQuestionOperatorListQuestionsArguments args;
-args.cursor=arg0;
-args.limit=arg1;
-OAServiceFrame v;v.version=1;v.service="abstraction.asks/operator@1";v.method="ListQuestions";enc_oaquestionoperatorlistquestionsarguments(v.arguments,args,1);std::string frame;enc_oaserviceframe(frame,v,0);service_payload(frame);
-auto response=transport_.ExchangeFrame(frame);auto payload=service_response(response,v.service,v.method);Reader r{payload};r.depth=1;r.skip_ws();auto result=decode_oaquestionoperatorlistquestionsresult(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
+OperatorPage list_questions(const std::string& cursor,const std::int64_t& limit)override{detail::OAQuestionOperatorListQuestionsArguments args;
+args.cursor=cursor;
+args.limit=limit;
+detail::OAServiceFrame v;v.version=1;v.service="abstraction.asks/operator@1";v.method="ListQuestions";detail::enc_oa_question_operator_list_questions_arguments(v.arguments,args,1);std::string frame;detail::enc_oa_service_frame(frame,v,0);detail::service_payload(frame);
+auto response=transport_.exchange_frame(frame);auto payload=detail::service_response(response,v.service,v.method);detail::Reader r{payload};r.depth=1;r.skip_ws();auto result=detail::decode_oa_question_operator_list_questions_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
 return result.value;
 }
-OperatorDecision AnswerQuestion(const std::string& arg0,const std::string& arg1)override{OAQuestionOperatorAnswerQuestionArguments args;
-args.id=arg0;
-args.option=arg1;
-OAServiceFrame v;v.version=1;v.service="abstraction.asks/operator@1";v.method="AnswerQuestion";enc_oaquestionoperatoranswerquestionarguments(v.arguments,args,1);std::string frame;enc_oaserviceframe(frame,v,0);service_payload(frame);
-auto response=transport_.ExchangeFrame(frame);auto payload=service_response(response,v.service,v.method);Reader r{payload};r.depth=1;r.skip_ws();auto result=decode_oaquestionoperatoranswerquestionresult(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
+OperatorDecision answer_question(const std::string& id,const std::string& option)override{detail::OAQuestionOperatorAnswerQuestionArguments args;
+args.id=id;
+args.option=option;
+detail::OAServiceFrame v;v.version=1;v.service="abstraction.asks/operator@1";v.method="AnswerQuestion";detail::enc_oa_question_operator_answer_question_arguments(v.arguments,args,1);std::string frame;detail::enc_oa_service_frame(frame,v,0);detail::service_payload(frame);
+auto response=transport_.exchange_frame(frame);auto payload=detail::service_response(response,v.service,v.method);detail::Reader r{payload};r.depth=1;r.skip_ws();auto result=detail::decode_oa_question_operator_answer_question_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
 return result.value;
 }
-OperatorRetirement RetireQuestion(const std::string& arg0)override{OAQuestionOperatorRetireQuestionArguments args;
-args.id=arg0;
-OAServiceFrame v;v.version=1;v.service="abstraction.asks/operator@1";v.method="RetireQuestion";enc_oaquestionoperatorretirequestionarguments(v.arguments,args,1);std::string frame;enc_oaserviceframe(frame,v,0);service_payload(frame);
-auto response=transport_.ExchangeFrame(frame);auto payload=service_response(response,v.service,v.method);Reader r{payload};r.depth=1;r.skip_ws();auto result=decode_oaquestionoperatorretirequestionresult(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
+OperatorRetirement retire_question(const std::string& id)override{detail::OAQuestionOperatorRetireQuestionArguments args;
+args.id=id;
+detail::OAServiceFrame v;v.version=1;v.service="abstraction.asks/operator@1";v.method="RetireQuestion";detail::enc_oa_question_operator_retire_question_arguments(v.arguments,args,1);std::string frame;detail::enc_oa_service_frame(frame,v,0);detail::service_payload(frame);
+auto response=transport_.exchange_frame(frame);auto payload=detail::service_response(response,v.service,v.method);detail::Reader r{payload};r.depth=1;r.skip_ws();auto result=detail::decode_oa_question_operator_retire_question_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
 return result.value;
 }
 };
-struct QuestionOperatorService{inline static constexpr std::string_view wire_name="abstraction.asks/operator@1";inline static constexpr std::string_view capability="abstraction.asks";template<class Transport>using Client=QuestionOperatorClient<Transport>;};
+struct QuestionOperatorService{inline static constexpr std::string_view kWireName="abstraction.asks/operator@1";inline static constexpr std::string_view kCapability="abstraction.asks";template<class Transport>using Client=QuestionOperatorClient<Transport>;};
 struct QuestionOperatorDispatcher:FrameWriter,FrameExchanger{QuestionOperator&handler;explicit QuestionOperatorDispatcher(QuestionOperator&h):handler(h){}
-void WriteFrame(std::string_view frame)override{auto v=service_payload(frame);if(v.service!="abstraction.asks/operator@1")throw DispatchError("unknown_service");
+// A handler whose own type has ready(), returning a pair of bool and std::string, reports its readiness through describe_service.
+template<class H,class=decltype(static_cast<QuestionOperator&>(*static_cast<H*>(nullptr)))>explicit QuestionOperatorDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)){}
+// This dispatcher's service as abstraction.facade/endpoint@1 Describe lists it.
+DescribedService describe_service()const{DescribedService s{"abstraction.asks/operator@1",true,std::string()};if(ready_hook_){s.ready=ready_hook_(ready_self_,s.why);if(s.ready)s.why.clear();}return s;}
+void write_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service!="abstraction.asks/operator@1")throw DispatchError("unknown_service");
 if(v.method=="ListQuestions"){
 throw DispatchError("wrong_mode");}
 if(v.method=="AnswerQuestion"){
@@ -2446,49 +2705,53 @@ throw DispatchError("wrong_mode");}
 if(v.method=="RetireQuestion"){
 throw DispatchError("wrong_mode");}
 throw DispatchError("unknown_method");}
-std::string ExchangeFrame(std::string_view frame)override{auto v=service_payload(frame);if(v.service!="abstraction.asks/operator@1"){ServiceError e("unknown_service","");return service_reply(v,"",&e);}
+std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/operator@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
 try{
 if(v.method=="ListQuestions"){
-Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=decode_oaquestionoperatorlistquestionsarguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_ListQuestions(args);return service_reply(v,payload);}
+detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_question_operator_list_questions_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_list_questions(args);return detail::service_reply(v,payload);}
 if(v.method=="AnswerQuestion"){
-Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=decode_oaquestionoperatoranswerquestionarguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_AnswerQuestion(args);return service_reply(v,payload);}
+detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_question_operator_answer_question_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_answer_question(args);return detail::service_reply(v,payload);}
 if(v.method=="RetireQuestion"){
-Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=decode_oaquestionoperatorretirequestionarguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_RetireQuestion(args);return service_reply(v,payload);}
-throw ServiceError("unknown_method","");}catch(const ServiceError&e){return service_reply(v,"",&e);}catch(const Refusal&e){ServiceError error(e.word,"");return service_reply(v,"",&error);}
+detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_question_operator_retire_question_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_retire_question(args);return detail::service_reply(v,payload);}
+throw ServiceError("unknown_method","");}catch(const ServiceError&e){return detail::service_reply(v,"",&e);}catch(const Refusal&e){ServiceError error(e.word,"");return detail::service_reply(v,"",&error);}
 }
-Raw invoke_ListQuestions(const OAQuestionOperatorListQuestionsArguments&args){
+private:
+Raw invoke_list_questions(const detail::OAQuestionOperatorListQuestionsArguments&args){
 OperatorPage result{};
 try{
-result=handler.ListQuestions(args.cursor,args.limit);
+result=handler.list_questions(args.cursor,args.limit);
 }catch(const ServiceError&){throw;}catch(...){throw ServiceError("handler_error","handler failed");}
 try{
-OAQuestionOperatorListQuestionsResult value;
+detail::OAQuestionOperatorListQuestionsResult value;
 value.value=result;
-Raw payload;enc_oaquestionoperatorlistquestionsresult(payload,value,1);Reader r{payload};r.depth=1;r.skip_ws();decode_oaquestionoperatorlistquestionsresult(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
+Raw payload;detail::enc_oa_question_operator_list_questions_result(payload,value,1);detail::Reader r{payload};r.depth=1;r.skip_ws();detail::decode_oa_question_operator_list_questions_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
 }catch(...){throw ServiceError("invalid_result","");}
 }
-Raw invoke_AnswerQuestion(const OAQuestionOperatorAnswerQuestionArguments&args){
+Raw invoke_answer_question(const detail::OAQuestionOperatorAnswerQuestionArguments&args){
 OperatorDecision result{};
 try{
-result=handler.AnswerQuestion(args.id,args.option);
+result=handler.answer_question(args.id,args.option);
 }catch(const ServiceError&){throw;}catch(...){throw ServiceError("handler_error","handler failed");}
 try{
-OAQuestionOperatorAnswerQuestionResult value;
+detail::OAQuestionOperatorAnswerQuestionResult value;
 value.value=result;
-Raw payload;enc_oaquestionoperatoranswerquestionresult(payload,value,1);Reader r{payload};r.depth=1;r.skip_ws();decode_oaquestionoperatoranswerquestionresult(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
+Raw payload;detail::enc_oa_question_operator_answer_question_result(payload,value,1);detail::Reader r{payload};r.depth=1;r.skip_ws();detail::decode_oa_question_operator_answer_question_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
 }catch(...){throw ServiceError("invalid_result","");}
 }
-Raw invoke_RetireQuestion(const OAQuestionOperatorRetireQuestionArguments&args){
+Raw invoke_retire_question(const detail::OAQuestionOperatorRetireQuestionArguments&args){
 OperatorRetirement result{};
 try{
-result=handler.RetireQuestion(args.id);
+result=handler.retire_question(args.id);
 }catch(const ServiceError&){throw;}catch(...){throw ServiceError("handler_error","handler failed");}
 try{
-OAQuestionOperatorRetireQuestionResult value;
+detail::OAQuestionOperatorRetireQuestionResult value;
 value.value=result;
-Raw payload;enc_oaquestionoperatorretirequestionresult(payload,value,1);Reader r{payload};r.depth=1;r.skip_ws();decode_oaquestionoperatorretirequestionresult(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
+Raw payload;detail::enc_oa_question_operator_retire_question_result(payload,value,1);detail::Reader r{payload};r.depth=1;r.skip_ws();detail::decode_oa_question_operator_retire_question_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
 }catch(...){throw ServiceError("invalid_result","");}
 }
+private:
+void* ready_self_=nullptr;
+bool(*ready_hook_)(void*,std::string&)=nullptr;
 };
 
 }  // namespace abstraction::asks::api

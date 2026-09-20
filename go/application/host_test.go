@@ -63,7 +63,7 @@ func TestApplicationWaitRestartAndOperatorDecision(t *testing.T) {
 	h, c, _ := live(t, b)
 	q := question()
 	r, e := c.AskContext(context.Background(), q)
-	if e != nil || r.Outcome != "pending" {
+	if e != nil || r.Outcome != wire.ObservationOutcomePending {
 		t.Fatal(r, e)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Millisecond)
@@ -73,14 +73,14 @@ func TestApplicationWaitRestartAndOperatorDecision(t *testing.T) {
 		t.Fatal(e)
 	}
 	pending, e := c.ObserveContext(context.Background(), q.RequestKey, 1)
-	if e != nil || pending.Outcome != "pending" || pending.Answer.Yes {
+	if e != nil || pending.Outcome != wire.ObservationOutcomePending || pending.Answer.Yes {
 		t.Fatal(pending, e)
 	}
-	if _, e = b.Answer(r.Answer.Id, "once"); e != nil {
+	if _, e = b.Answer(r.Answer.ID, "once"); e != nil {
 		t.Fatal(e)
 	}
 	answer, e := c.ObserveContext(context.Background(), q.RequestKey, 100)
-	if e != nil || answer.Outcome != "answered" || answer.Answer.Option != "once" {
+	if e != nil || answer.Outcome != wire.ObservationOutcomeAnswered || answer.Answer.Option != "once" {
 		t.Fatal(answer, e)
 	}
 	h.Close()
@@ -90,14 +90,14 @@ func TestApplicationWaitRestartAndOperatorDecision(t *testing.T) {
 	}
 	_, fresh, _ := live(t, reopened)
 	replay, e := fresh.AskContext(context.Background(), q)
-	if e != nil || replay.Answer.Id != r.Answer.Id || replay.Answer.Option != "once" {
+	if e != nil || replay.Answer.ID != r.Answer.ID || replay.Answer.Option != "once" {
 		t.Fatal(replay, e)
 	}
-	if e = reopened.Forget(r.Answer.Id); e != nil {
+	if e = reopened.Forget(r.Answer.ID); e != nil {
 		t.Fatal(e)
 	}
 	gone, e := fresh.AskContext(context.Background(), q)
-	if e != nil || gone.Outcome != "gone" || gone.Answer != nil {
+	if e != nil || gone.Outcome != wire.ObservationOutcomeGone || gone.Answer != nil {
 		t.Fatal(gone, e)
 	}
 }
@@ -108,7 +108,7 @@ func TestApplicationCrossExecutableCannotReuseAnswer(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, e = b.Answer(r.Answer.Id, "allow"); e != nil {
+	if _, e = b.Answer(r.Answer.ID, "allow"); e != nil {
 		t.Fatal(e)
 	}
 	executable, e := os.Executable()
@@ -133,7 +133,7 @@ func TestApplicationCrossExecutableCannotReuseAnswer(t *testing.T) {
 	if e = json.Unmarshal(out, &got); e != nil {
 		t.Fatal(e, string(out))
 	}
-	if got.Outcome != "pending" || got.Answer.Id == r.Answer.Id {
+	if got.Outcome != wire.ObservationOutcomePending || got.Answer.ID == r.Answer.ID {
 		t.Fatalf("cross-program reused answer: %+v", got)
 	}
 	records := b.List(true)
@@ -148,7 +148,7 @@ func TestApplicationCallerProcess(t *testing.T) {
 	}
 	c := client.New(endpoint)
 	r, e := c.ObserveContext(context.Background(), "request", 0)
-	if e != nil || r.Outcome != "unknown" {
+	if e != nil || r.Outcome != wire.ObservationOutcomeUnknown {
 		os.Exit(4)
 	}
 	r, e = c.AskContext(context.Background(), question())
@@ -181,7 +181,7 @@ func TestApplicationExpiredBeforeIOAndWrongAccount(t *testing.T) {
 	go func() { done <- denied.Serve(context.Background()) }()
 	defer func() { denied.Close(); <-done }()
 	r, e := client.New(endpoint).AskContext(context.Background(), question())
-	if e != nil || r.Outcome != "forbidden" || len(b.List(true)) != 0 {
+	if e != nil || r.Outcome != wire.ObservationOutcomeForbidden || len(b.List(true)) != 0 {
 		t.Fatal(r, e)
 	}
 }
@@ -249,7 +249,7 @@ func TestApplicationLostReplyReplaysSameAdmission(t *testing.T) {
 	}
 	close(delay.release)
 	replay, e := c.AskContext(context.Background(), question())
-	if e != nil || replay.Answer.Id != records[0].ID || len(b.List(true)) != 1 {
+	if e != nil || replay.Answer.ID != records[0].ID || len(b.List(true)) != 1 {
 		t.Fatal(replay, e)
 	}
 }

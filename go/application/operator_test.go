@@ -104,7 +104,7 @@ func TestOperatorAuthorizedAnswerHistoryReplayAndRestart(t *testing.T) {
 	child := func(want string) {
 		t.Helper()
 		cmd := exec.Command(copied, "-test.run=^TestOperatorCallerProcess$")
-		cmd.Env = append(os.Environ(), "OA_OPERATOR_ENDPOINT="+endpoint, "OA_OPERATOR_CURSOR="+page.Next, "OA_OPERATOR_ID="+first.Answer.Id, "OA_OPERATOR_WANT="+want)
+		cmd.Env = append(os.Environ(), "OA_OPERATOR_ENDPOINT="+endpoint, "OA_OPERATOR_CURSOR="+page.Next, "OA_OPERATOR_ID="+first.Answer.ID, "OA_OPERATOR_WANT="+want)
 		if output, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("operator child: %v %s", err, output)
 		}
@@ -113,29 +113,29 @@ func TestOperatorAuthorizedAnswerHistoryReplayAndRestart(t *testing.T) {
 	all.Store(true)
 	child("gap")
 	all.Store(false)
-	answer, err := op.AnswerQuestionContext(context.Background(), first.Answer.Id, "once")
-	if err != nil || answer.Outcome != "answered" || answer.Record.Kept {
+	answer, err := op.AnswerQuestionContext(context.Background(), first.Answer.ID, "once")
+	if err != nil || answer.Outcome != wire.OperatorDecisionOutcomeAnswered || answer.Record.Kept {
 		t.Fatal(answer, err)
 	}
-	again, err := op.AnswerQuestionContext(context.Background(), first.Answer.Id, "once")
+	again, err := op.AnswerQuestionContext(context.Background(), first.Answer.ID, "once")
 	if err != nil || !reflect.DeepEqual(again, answer) {
 		t.Fatal("answer replay changed", again, err)
 	}
-	conflict, err := op.AnswerQuestionContext(context.Background(), first.Answer.Id, "refuse")
-	if err != nil || conflict.Outcome != "conflict" {
+	conflict, err := op.AnswerQuestionContext(context.Background(), first.Answer.ID, "refuse")
+	if err != nil || conflict.Outcome != wire.OperatorDecisionOutcomeConflict {
 		t.Fatal(conflict, err)
 	}
 	gap, err := op.ListQuestionsContext(context.Background(), page.Next, 1)
-	if err != nil || gap.Outcome != "gap" {
+	if err != nil || gap.Outcome != wire.OperatorPageOutcomeGap {
 		t.Fatal("edit gap hidden", gap, err)
 	}
 	observed, err := app.ObserveContext(context.Background(), "request", 0)
-	if err != nil || observed.Outcome != "answered" || observed.Answer.Option != "once" {
+	if err != nil || observed.Outcome != wire.ObservationOutcomeAnswered || observed.Answer.Option != "once" {
 		t.Fatal(observed, err)
 	}
 	denied.Store(true)
 	refusal, err := op.ListQuestionsContext(context.Background(), "", 1)
-	if err != nil || refusal.Outcome != "forbidden" {
+	if err != nil || refusal.Outcome != wire.OperatorPageOutcomeForbidden {
 		t.Fatal(refusal, err)
 	}
 	denied.Store(false)
@@ -145,12 +145,12 @@ func TestOperatorAuthorizedAnswerHistoryReplayAndRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, _, fresh, _ := liveOperator(t, freshBook, authorize)
-	after, err := fresh.AnswerQuestionContext(context.Background(), first.Answer.Id, "once")
+	after, err := fresh.AnswerQuestionContext(context.Background(), first.Answer.ID, "once")
 	if err != nil || !reflect.DeepEqual(after, answer) {
 		t.Fatal("restart changed answer", after, err)
 	}
 	gap, err = fresh.ListQuestionsContext(context.Background(), page.Next, 1)
-	if err != nil || gap.Outcome != "gap" {
+	if err != nil || gap.Outcome != wire.OperatorPageOutcomeGap {
 		t.Fatal("restart gap hidden", gap, err)
 	}
 }
@@ -161,12 +161,12 @@ func TestOperatorCallerProcess(t *testing.T) {
 	}
 	op := client.NewOperator(endpoint)
 	page, err := op.ListQuestionsContext(context.Background(), os.Getenv("OA_OPERATOR_CURSOR"), 1)
-	if err != nil || page.Outcome != os.Getenv("OA_OPERATOR_WANT") {
+	if err != nil || page.Outcome.String() != os.Getenv("OA_OPERATOR_WANT") {
 		os.Exit(3)
 	}
-	if page.Outcome == "forbidden" {
+	if page.Outcome == wire.OperatorPageOutcomeForbidden {
 		answer, err := op.AnswerQuestionContext(context.Background(), os.Getenv("OA_OPERATOR_ID"), "allow")
-		if err != nil || answer.Outcome != "forbidden" {
+		if err != nil || answer.Outcome != wire.OperatorDecisionOutcomeForbidden {
 			os.Exit(4)
 		}
 	}
@@ -179,17 +179,17 @@ func TestOperatorUnconfiguredAndCanceledRefusesWithoutEffects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	answer, err := op.AnswerQuestionContext(context.Background(), pending.Answer.Id, "allow")
-	if err != nil || answer.Outcome != "forbidden" || h.OperatorAvailable() {
+	answer, err := op.AnswerQuestionContext(context.Background(), pending.Answer.ID, "allow")
+	if err != nil || answer.Outcome != wire.OperatorDecisionOutcomeForbidden || h.OperatorAvailable() {
 		t.Fatal(answer, err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err = op.AnswerQuestionContext(ctx, pending.Answer.Id, "allow"); !errors.Is(err, context.Canceled) {
+	if _, err = op.AnswerQuestionContext(ctx, pending.Answer.ID, "allow"); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
 	observed, err := app.ObserveContext(context.Background(), "request", 0)
-	if err != nil || observed.Outcome != "pending" {
+	if err != nil || observed.Outcome != wire.ObservationOutcomePending {
 		t.Fatal(observed, err)
 	}
 	if err = h.EnableOperator(func(context.Context, *identity.Peer) error { return nil }); err == nil {
@@ -214,16 +214,16 @@ func TestOperatorWireBoundsAndStorageRefusal(t *testing.T) {
 	c := wire.NewQuestionOperatorClient(listen.FrameClient{Endpoint: endpoint, Timeout: time.Second, MaxFrame: MaxFrameBytes})
 	for _, limit := range []int64{0, 65} {
 		page, err := c.ListQuestions("", limit)
-		if err != nil || page.Outcome != "invalid" {
+		if err != nil || page.Outcome != wire.OperatorPageOutcomeInvalid {
 			t.Fatal(page, err)
 		}
 	}
 	page, err := c.ListQuestions(strings.Repeat("x", 257), 1)
-	if err != nil || page.Outcome != "invalid" {
+	if err != nil || page.Outcome != wire.OperatorPageOutcomeInvalid {
 		t.Fatal(page, err)
 	}
-	answer, err := c.AnswerQuestion(pending.Answer.Id, strings.Repeat("x", 129))
-	if err != nil || answer.Outcome != "invalid" {
+	answer, err := c.AnswerQuestion(pending.Answer.ID, strings.Repeat("x", 129))
+	if err != nil || answer.Outcome != wire.OperatorDecisionOutcomeInvalid {
 		t.Fatal(answer, err)
 	}
 	original, err := os.ReadFile(path)
@@ -235,29 +235,29 @@ func TestOperatorWireBoundsAndStorageRefusal(t *testing.T) {
 	}
 	denied.Store(true)
 	page, err = c.ListQuestions("", 1)
-	if err != nil || page.Outcome != "forbidden" {
+	if err != nil || page.Outcome != wire.OperatorPageOutcomeForbidden {
 		t.Fatal("authorization did not precede storage", page, err)
 	}
 	denied.Store(false)
 	page, err = c.ListQuestions("", 1)
-	if err != nil || page.Outcome != "unavailable" || len(page.Records) != 0 {
+	if err != nil || page.Outcome != wire.OperatorPageOutcomeUnavailable || len(page.Records) != 0 {
 		t.Fatal("storage error hidden", page, err)
 	}
 	if err = os.WriteFile(path, original, 0600); err != nil {
 		t.Fatal(err)
 	}
 	page, err = c.ListQuestions("", 64)
-	if err != nil || page.Outcome != "page" || len(page.Records) != 1 {
+	if err != nil || page.Outcome != wire.OperatorPageOutcomePage || len(page.Records) != 1 {
 		t.Fatal("fresh reuse failed", page, err)
 	}
 }
 
 func TestOperatorCanceledWhileEditWaitsDoesNotAnswer(t *testing.T) {
 	b, path := book(t)
-	entered := make(chan struct{}, 1)
-	h, app, op, _ := liveOperator(t, b, func(context.Context, *identity.Peer) error {
+	entered := make(chan context.Context, 1)
+	h, app, op, _ := liveOperator(t, b, func(ctx context.Context, _ *identity.Peer) error {
 		select {
-		case entered <- struct{}{}:
+		case entered <- ctx:
 		default:
 		}
 		return nil
@@ -267,6 +267,14 @@ func TestOperatorCanceledWhileEditWaitsDoesNotAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 	locked, release := make(chan struct{}), make(chan struct{})
+	released := false
+	releaseLock := func() {
+		if !released {
+			close(release)
+			released = true
+		}
+	}
+	defer releaseLock()
 	lockDone := make(chan error, 1)
 	go func() {
 		lockDone <- cas.ChangeLimit(path, asks.MaxApplicationBytes, func(data []byte) ([]byte, error) { close(locked); <-release; return data, nil })
@@ -275,11 +283,11 @@ func TestOperatorCanceledWhileEditWaitsDoesNotAnswer(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)
-	go func() { _, err := op.AnswerQuestionContext(ctx, pending.Answer.Id, "once"); done <- err }()
+	go func() { _, err := op.AnswerQuestionContext(ctx, pending.Answer.ID, "once"); done <- err }()
+	var serverCtx context.Context
 	select {
-	case <-entered:
+	case serverCtx = <-entered:
 	case <-time.After(2 * time.Second):
-		close(release)
 		t.Fatal("operator not admitted before edit wait")
 	}
 	cancel()
@@ -291,7 +299,12 @@ func TestOperatorCanceledWhileEditWaitsDoesNotAnswer(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Error("caller cancellation did not return")
 	}
-	close(release)
+	select {
+	case <-serverCtx.Done():
+	case <-time.After(2 * time.Second):
+		t.Fatal("server did not observe caller cancellation")
+	}
+	releaseLock()
 	if err := <-lockDone; err != nil {
 		t.Fatal(err)
 	}
@@ -303,11 +316,11 @@ func TestOperatorCanceledWhileEditWaitsDoesNotAnswer(t *testing.T) {
 		runtime.Gosched()
 	}
 	observed, err := app.ObserveContext(context.Background(), "request", 0)
-	if err != nil || observed.Outcome != "pending" {
+	if err != nil || observed.Outcome != wire.ObservationOutcomePending {
 		t.Fatal("cancelled lock wait answered", observed, err)
 	}
-	answer, err := op.AnswerQuestionContext(context.Background(), pending.Answer.Id, "once")
-	if err != nil || answer.Outcome != "answered" {
+	answer, err := op.AnswerQuestionContext(context.Background(), pending.Answer.ID, "once")
+	if err != nil || answer.Outcome != wire.OperatorDecisionOutcomeAnswered {
 		t.Fatal("fresh operator failed", answer, err)
 	}
 }
@@ -319,15 +332,15 @@ func TestOperatorPolicyOutageIsUnavailable(t *testing.T) {
 		t.Fatal(err)
 	}
 	page, err := op.ListQuestionsContext(context.Background(), "", 1)
-	if err != nil || page.Outcome != "unavailable" {
+	if err != nil || page.Outcome != wire.OperatorPageOutcomeUnavailable {
 		t.Fatal(page, err)
 	}
-	answer, err := op.AnswerQuestionContext(context.Background(), pending.Answer.Id, "once")
-	if err != nil || answer.Outcome != "unavailable" {
+	answer, err := op.AnswerQuestionContext(context.Background(), pending.Answer.ID, "once")
+	if err != nil || answer.Outcome != wire.OperatorDecisionOutcomeUnavailable {
 		t.Fatal(answer, err)
 	}
 	observed, err := app.ObserveContext(context.Background(), "request", 0)
-	if err != nil || observed.Outcome != "pending" {
+	if err != nil || observed.Outcome != wire.ObservationOutcomePending {
 		t.Fatal(observed, err)
 	}
 }
@@ -354,7 +367,7 @@ func TestOperatorFullPageEncodedBudget(t *testing.T) {
 	transport := &measuredOperatorTransport{FrameClient: listen.FrameClient{Endpoint: endpoint, Timeout: 5 * time.Second, MaxFrame: MaxFrameBytes}}
 	c := wire.NewQuestionOperatorClient(transport)
 	page, err := c.ListQuestions("", 64)
-	if err != nil || page.Outcome != "page" || len(page.Records) != 64 || page.Complete || transport.replyBytes > 256<<10 {
+	if err != nil || page.Outcome != wire.OperatorPageOutcomePage || len(page.Records) != 64 || page.Complete || transport.replyBytes > 256<<10 {
 		t.Fatal("full encoded page exceeds contract", len(page.Records), transport.replyBytes, err)
 	}
 	end, err := c.ListQuestions(page.Next, 64)

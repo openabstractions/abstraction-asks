@@ -64,7 +64,7 @@ func checked(result QuestionObservation, e error) (QuestionObservation, error) {
 		return QuestionObservation{}, errors.New("asks: inconsistent observation")
 	}
 	if a := result.Answer; a != nil {
-		if a.Id == "" || a.Pending != pending || (pending && (a.Option != "" || a.Yes || a.Kept)) || (answered && a.Option == "") {
+		if a.ID == "" || a.Pending != pending || (pending && (a.Option != "" || a.Yes || a.Kept)) || (answered && a.Option == "") {
 			return QuestionObservation{}, errors.New("asks: inconsistent answer")
 		}
 	}

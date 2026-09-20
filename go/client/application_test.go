@@ -9,12 +9,12 @@ import (
 )
 
 func TestObservationRefusesInventedAnswer(t *testing.T) {
-	for _, r := range []QuestionObservation{{Outcome: "pending"}, {Outcome: "unknown", Answer: &wire.Answer{Id: "x"}}, {Outcome: "pending", Answer: &wire.Answer{Id: "x", Pending: true, Yes: true}}, {Outcome: "answered", Answer: &wire.Answer{Id: "x"}}, {Outcome: "answered", Answer: &wire.Answer{Id: "x", Option: "allow", Pending: true}}} {
+	for _, r := range []QuestionObservation{{Outcome: wire.ObservationOutcomePending}, {Outcome: wire.ObservationOutcomeUnknown, Answer: &wire.Answer{ID: "x"}}, {Outcome: wire.ObservationOutcomePending, Answer: &wire.Answer{ID: "x", Pending: true, Yes: true}}, {Outcome: wire.ObservationOutcomeAnswered, Answer: &wire.Answer{ID: "x"}}, {Outcome: wire.ObservationOutcomeAnswered, Answer: &wire.Answer{ID: "x", Option: "allow", Pending: true}}} {
 		if _, e := checked(r, nil); e == nil {
 			t.Fatal("accepted", r)
 		}
 	}
-	for _, r := range []QuestionObservation{{Outcome: "pending", Answer: &wire.Answer{Id: "x", Pending: true}}, {Outcome: "answered", Answer: &wire.Answer{Id: "x", Option: "never", Kept: true}}, {Outcome: "gone"}} {
+	for _, r := range []QuestionObservation{{Outcome: wire.ObservationOutcomePending, Answer: &wire.Answer{ID: "x", Pending: true}}, {Outcome: wire.ObservationOutcomeAnswered, Answer: &wire.Answer{ID: "x", Option: "never", Kept: true}}, {Outcome: wire.ObservationOutcomeGone}} {
 		if _, e := checked(r, nil); e != nil {
 			t.Fatal(r, e)
 		}

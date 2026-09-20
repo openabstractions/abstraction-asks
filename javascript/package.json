@@ -13,7 +13,8 @@
     "url": "https://github.com/openabstractions/abstraction-asks/issues"
   },
   "type": "module",
-  "exports": "./js/abstraction/asks/api/rec.mjs",
+  "types": "./js/abstraction/asks/api/index.d.mts",
+  "exports": {".": {"types": "./js/abstraction/asks/api/index.d.mts", "default": "./js/abstraction/asks/api/index.mjs"}},
   "files": [
     "js"
   ],

@@ -33,6 +33,7 @@ type Host struct {
 	OnStopped     func()
 	operator      AuthorizeOperator
 	operatorEpoch string
+	askPolicy     AskPolicy
 }
 
 // Listen requires a separate application-profile Book owned by this host.
@@ -107,19 +108,9 @@ func (h *Host) Serve(ctx context.Context) error {
 			}
 			if e == nil {
 				var reply []byte
-				var service string
-				service, e = wire.ServiceName(call.Frame)
-				if e == nil {
-					switch service {
-					case "abstraction.asks/application@1":
-						reply, e = (&wire.QuestionApplicationDispatcher{Handler: &receiver{host: h, call: call}}).ExchangeFrame(call.Frame)
-					case "abstraction.asks/operator@1":
-						reply, e = (&wire.QuestionOperatorDispatcher{Handler: &operatorReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()}}).ExchangeFrame(call.Frame)
-					default:
-						e = errors.New("asks: unsupported service")
-					}
-				}
-
+				reply, e = wire.ServeEndpoint(call.Frame, "openabstractions", "",
+					&wire.QuestionApplicationDispatcher{Handler: &receiver{host: h, call: call}},
+					&wire.QuestionOperatorDispatcher{Handler: &operatorReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()}})
 				if e == nil {
 					e = call.Reply(reply)
 				}
