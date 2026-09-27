@@ -1,5 +1,7 @@
 # C++ application questions
 
+Install the runtime first: https://openabstractions.org/adopt.html
+
 `abstraction::asks_client` is supplied by the installed `abstraction_asks` CMake
 package. It uses generated QuestionApplication codecs and shared identity IPC.
 

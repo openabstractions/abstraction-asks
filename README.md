@@ -1,5 +1,13 @@
 # abstraction-asks
 
+Questions come from a fixed catalogue: today three, `rights.register`,
+`download.reach` and `rights.first_use`. An application names one of these and
+fills the slots it declares; it cannot define a question of its own. A person
+answers later, through the Panel or the command line, and the answer is a
+durable record that outlives the application that asked. A new question is
+added by appending one entry to `Questions` in
+[`go/questions.go`](go/questions.go).
+
 Ask a person once and remember the answer after the application closes. Typical
 questions include allowing a first model call, choosing where content belongs,
 or approving a known recovery action. The service supplies the wording and
@@ -8,9 +16,10 @@ choices, keeps the pending question and retains the answer.
 Applications resolve `abstraction.asks/application@1` through the facade, then
 call `AskContext` and `ObserveContext` with a stable request key. The application
 chooses a question from the service's fixed catalogue and supplies its values.
-Operators use the separate asks operator client to list and answer pending
-questions. The
-receiving account and native program identity scope every application request.
+Operators (people at the command line) use the separate asks operator client
+to list and answer pending questions. The
+receiving account and native program identity define the subject of every
+application request.
 
 [CONTRACT.md](CONTRACT.md) specifies replay, waiting, authorization and operator
 integration. The native CLI/provider workflow below remains an explicit adopter
@@ -38,10 +47,79 @@ answer is kept, so the same question is not asked twice.
 | **ask** | an application filling a question's slots; pending until a person answers, and one record however many times it is asked |
 | **answer** | a record the person keeps: the text as the person saw it, who asked, what the platform proved about who connected, and when |
 | **kept** | an answer that stops the question being asked again; `once` is not kept, `never` always is |
-| **via** / **for** | the program that connected, bound by this service; and the program it asks on behalf of, on its word |
+| **via** / **for** | the program that connected, bound by this service; and the program it asks on behalf of, on its word (deprecated, kept for explicitly selected native integration; CONTRACT.md ASK-A5) |
 
-No rule on this page carries a tag; the contract below is held by the tests
-named in it.
+CONTRACT.md's rule ids, `ASK-A1` and the rest, are what tests and refusals
+cite.
+
+## Catalogue
+
+The closed list an application chooses from, generated from
+[`go/questions.go`](go/questions.go). `go -C go test ./... -count=1` fails
+when this table and that file disagree; run it with `-update` to regenerate
+the table in place.
+
+<!-- questions-table:start -->
+| id | wording shown to the person | what answering allows |
+|---|---|---|
+| `rights.register` | `{asker} wants to: {rights}` | `allow`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
+| `download.reach` | `{asker} wants to fetch from {host}` | `allow`: permitted permanently, remembered · `once`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
+| `rights.first_use` | `{program} wants to {action} on {resource}` | `allow`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
+<!-- questions-table:end -->
+
+A new question is added by appending one `Question` to `Questions` in
+`go/questions.go`; the table above is regenerated from that change.
+
+When the asks service cannot be resolved, `ResolveAsks` fails the way any
+capability resolution fails. The calling application then decides what
+happens next. `dl` here logs that no one answered and fetches unasked,
+below.
+
+## Ask from an application
+
+`Ask` and `Observe` decide `abstraction.asks/question.ask` on `account`
+before admitting a question. A person grants that rule explicitly, through
+`openabstractions rights grant --program /absolute/path/to/built/binary
+--action abstraction.asks/question.ask --resource account`; the runtime's own
+first-use question covers job submit, model lookup and inference complete.
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+
+	asks "github.com/openabstractions/abstraction-asks/go/client"
+	facade "github.com/openabstractions/abstraction-facade/go"
+)
+
+func main() {
+	ctx := context.Background()
+	q, err := facade.Discover().ResolveAsks(ctx, facade.Requirements{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	obs, err := q.AskContext(ctx, asks.ApplicationQuestion{
+		RequestKey: "dl-fetch-example.com",
+		Key:        "download.reach",
+		Slots:      map[string]string{"host": "example.com"},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	if obs.Outcome.String() == "pending" {
+		log.Println("waiting for a person to answer; dl will retry the same key")
+	}
+}
+```
+
+`AskContext` admits the question and returns whatever is already known about
+it; a first ask reads `pending`, and the application shows that a person has
+not answered yet rather than inventing a wait of its own. `ObserveContext(ctx,
+key, waitMS)` long-polls the same key up to 30 seconds for a later answer.
+Retrying `AskContext` with the same `RequestKey` and the same slots after an
+uncertain reply reaches the same record rather than opening a second question.
 
 ## Obtain
 
@@ -54,6 +132,11 @@ named in it.
   in this repository and the facade. Native provider support is separate.
 
 ## Run
+
+Install the runtime first: https://openabstractions.org/adopt.html. The
+installed `openabstractions serve runtime` already serves this layer;
+`asksd` below is for a checkout without the runtime installed, and it
+refuses to start on the same pipe the installed runtime uses.
 
     go build -o bin/ ./go/cmd/...
     bin/asksd                        # foreground; prints where it listens
@@ -188,9 +271,10 @@ gap requires restarting enumeration from an empty cursor. After an uncertain
 answer reply, explicitly retry the same ID and option to recover the original
 decision. Recorded answers do not grant resource authority.
 
-`RetireQuestionContext(ctx, id)` removes a retained pending or answered question.
-It returns `retired` with the question's last metadata, `unknown`, `invalid`,
-`forbidden` or `unavailable`. Repeat the same ID to reconcile an uncertain
+`RetireQuestionContext(ctx, id)` dismisses a retained pending or answered
+question (CONTRACT.md's `DismissQuestion`, ASK-O4). It returns `retired`
+with the question's last metadata, `unknown`, `invalid`, `forbidden` or
+`unavailable`. Repeat the same ID to reconcile an uncertain
 reply. An application's later Ask or Observe for that key reports `gone`, and
 the key never admits a new question. Python operators use
 `Machine.resolve_asks_operator()`. See [CONTRACT.md](CONTRACT.md) for limits and
