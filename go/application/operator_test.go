@@ -57,13 +57,14 @@ func TestOperatorAuthorizedAnswerHistoryReplayAndRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	program := identity.CanonicalProgramPath(filepath.Clean(exe))
 	var all, denied atomic.Bool
 	authorize := func(_ context.Context, peer *identity.Peer) error {
 		path, err := peer.Path.AtLeast(listen.Program.Path)
 		if err != nil {
 			return err
 		}
-		if denied.Load() || (!all.Load() && filepath.Clean(path) != filepath.Clean(exe)) {
+		if denied.Load() || (!all.Load() && identity.CanonicalProgramPath(filepath.Clean(path)) != program) {
 			return ErrOperatorForbidden
 		}
 		return nil
