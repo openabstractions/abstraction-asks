@@ -168,6 +168,8 @@ binary refuses a file that carries them as an unknown field (ASK-P1).
 
 **[ASK-A7] A pending question expires.** A question still pending 15
 minutes after it was asked MUST expire; a host MAY configure another
+positive lifetime for the questions of one key, which takes precedence
+over the Book's lifetime for that key, or another
 positive lifetime. The lifetime is wall-clock time from the question's
 recorded `asked` time, and a sleeping machine or a stopped service counts
 toward it. An expired question is no longer retained. It is removed
@@ -806,6 +808,26 @@ Tests: `TestSetupFactsStrictDecodedRows`,
 `TestSetupFactsRetainedByBookAcrossNewOccurrenceAndRestart` (go),
 `TestStepQuestionCataloguePreservesFrozenWording` (Panel Setup),
 `TestSetupQuestionPresenterUsesRetainedFactsAndExactOccurrence` (Panel).
+
+**[ASK-O17] Only the person answers through an operator.** The runtime
+composes `EnableOperatorAnswers`. `AnswerQuestion`, `AnswerQuestionIfPending`
+and `AnswerPermissionIfPending` then also pass it, before the edit and again
+inside it: the Panel window, the Asks presenter that draws the person's
+popups, and an exempt elevated caller (rights RIGHTS-O17) answer; every other
+operator program, the command line's `questions answer` included, is
+`forbidden` and records nothing. It still lists, reads and dismisses. An
+answer is a rights mutation: a first-use Allow, a typed permission, a pairing
+approval and a rights change request all take effect from it.
+The runtime-only question `rights.change` carries one typed rights change an
+operator program requested (RIGHTS-O17). The runtime admits it as itself with
+slots it words from its own catalogue (`requester`, `change`, `program`,
+`action`, `resource`, `code`, `until`), and declares the
+OS-like consent presentation with Allow and Not now; closing means Not now.
+No responder lists or answers it, and it is runtime-bound (ASK-S1): a restart
+withdraws it while pending. The runtime acts only on an operator Allow
+recorded on that exact occurrence before the request expires.
+Tests: `TestCommandLineGrantWaitsForThePerson`,
+`TestWithdrawRuntimeBoundAtStartup`.
 
 **[ASK-O7] `ReadAttributedQuestion`.** `ReadAttributedQuestion(id)` MUST
 return one retained question's recorded metadata and attribution to an

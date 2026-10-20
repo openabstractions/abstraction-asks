@@ -5,6 +5,8 @@ import oa_dependency_rights "github.com/openabstractions/abstraction-rights/go/a
 
 import "time"
 
+import "runtime/debug"
+
 type Raw = string
 
 func escByte(out []byte, c byte) []byte {
@@ -21501,6 +21503,23 @@ func serviceReply(v *oaServiceFrame, payload Raw, err error) (frame []byte, outE
 	return frame, nil
 }
 
+// handlerPanic writes a recovered handler panic and its stack to standard error.
+func handlerPanic(service, method string, p interface{}) {
+	value := "a value that is neither a string nor an error"
+	func() {
+		defer func() { _ = recover() }()
+		switch v := p.(type) {
+		case string:
+			value = v
+		case error:
+			value = v.Error()
+		case interface{ String() string }:
+			value = v.String()
+		}
+	}()
+	print(service, " ", method, ": handler panic: ", value, "\n", string(debug.Stack()))
+}
+
 // EndpointContract is abstraction.facade/endpoint@1, which every dispatcher
 // answers beside its own service.
 const EndpointContract = "abstraction.facade/endpoint@1"
@@ -21708,7 +21727,8 @@ func ServeEndpointRemote(frame []byte, program, version string, admit func(contr
 			return &ServiceError{Code: "forbidden", Message: "remote admission required"}
 		}
 		defer func() {
-			if recover() != nil {
+			if p := recover(); p != nil {
+				handlerPanic(v.Service, v.Method+" admission", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}()
@@ -21998,6 +22018,7 @@ func (d *QuestionApplicationDispatcher) invokeAsk(args *oaQuestionApplicationAsk
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/application@1", "Ask", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -22034,6 +22055,7 @@ func (d *QuestionApplicationDispatcher) invokeObserve(args *oaQuestionApplicatio
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/application@1", "Observe", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23001,6 +23023,7 @@ func (d *QuestionOperatorDispatcher) invokeReadQuestionContent(args *oaQuestionO
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "ReadQuestionContent", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23033,6 +23056,7 @@ func (d *QuestionOperatorDispatcher) invokeListAnswerContents(args *oaQuestionOp
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "ListAnswerContents", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23065,6 +23089,7 @@ func (d *QuestionOperatorDispatcher) invokeListChoices(args *oaQuestionOperatorL
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "ListChoices", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23097,6 +23122,7 @@ func (d *QuestionOperatorDispatcher) invokeReadChoice(args *oaQuestionOperatorRe
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "ReadChoice", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23129,6 +23155,7 @@ func (d *QuestionOperatorDispatcher) invokeAnswerChoice(args *oaQuestionOperator
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "AnswerChoice", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23161,6 +23188,7 @@ func (d *QuestionOperatorDispatcher) invokeDismissChoice(args *oaQuestionOperato
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "DismissChoice", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23193,6 +23221,7 @@ func (d *QuestionOperatorDispatcher) invokeListQuestions(args *oaQuestionOperato
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "ListQuestions", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23225,6 +23254,7 @@ func (d *QuestionOperatorDispatcher) invokeAnswerQuestion(args *oaQuestionOperat
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "AnswerQuestion", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23257,6 +23287,7 @@ func (d *QuestionOperatorDispatcher) invokeRetireQuestion(args *oaQuestionOperat
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "RetireQuestion", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23289,6 +23320,7 @@ func (d *QuestionOperatorDispatcher) invokeReadAttributedQuestion(args *oaQuesti
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "ReadAttributedQuestion", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23321,6 +23353,7 @@ func (d *QuestionOperatorDispatcher) invokeReadChoiceDetails(args *oaQuestionOpe
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "ReadChoiceDetails", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23353,6 +23386,7 @@ func (d *QuestionOperatorDispatcher) invokeReadQuestionAsker(args *oaQuestionOpe
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "ReadQuestionAsker", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23385,6 +23419,7 @@ func (d *QuestionOperatorDispatcher) invokeAnswerQuestionIfPending(args *oaQuest
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "AnswerQuestionIfPending", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23417,6 +23452,7 @@ func (d *QuestionOperatorDispatcher) invokeListAnswers(args *oaQuestionOperatorL
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/operator@1", "ListAnswers", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23902,6 +23938,7 @@ func (d *ChoiceApplicationDispatcher) invokeAsk(args *oaChoiceApplicationAskArgu
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/application@2", "Ask", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23934,6 +23971,7 @@ func (d *ChoiceApplicationDispatcher) invokeObserve(args *oaChoiceApplicationObs
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/application@2", "Observe", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23966,6 +24004,7 @@ func (d *ChoiceApplicationDispatcher) invokeAnswer(args *oaChoiceApplicationAnsw
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/application@2", "Answer", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -23998,6 +24037,7 @@ func (d *ChoiceApplicationDispatcher) invokeDismiss(args *oaChoiceApplicationDis
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/application@2", "Dismiss", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -24030,6 +24070,7 @@ func (d *ChoiceApplicationDispatcher) invokeShareChoice(args *oaChoiceApplicatio
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/application@2", "ShareChoice", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -24062,6 +24103,7 @@ func (d *ChoiceApplicationDispatcher) invokeAcknowledge(args *oaChoiceApplicatio
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/application@2", "Acknowledge", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -24485,6 +24527,7 @@ func (d *QuestionResponderDispatcher) invokeListAnswerable(args *oaQuestionRespo
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/responder@1", "ListAnswerable", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -24517,6 +24560,7 @@ func (d *QuestionResponderDispatcher) invokeAnswer(args *oaQuestionResponderAnsw
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/responder@1", "Answer", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -24549,6 +24593,7 @@ func (d *QuestionResponderDispatcher) invokeListChoices(args *oaQuestionResponde
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/responder@1", "ListChoices", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -24581,6 +24626,7 @@ func (d *QuestionResponderDispatcher) invokeRequestAnswering(args *oaQuestionRes
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/responder@1", "RequestAnswering", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -24613,6 +24659,7 @@ func (d *QuestionResponderDispatcher) invokeAnswerChoice(args *oaQuestionRespond
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/responder@1", "AnswerChoice", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -24928,6 +24975,7 @@ func (d *PermissionApplicationDispatcher) invokeRequest(args *oaPermissionApplic
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/permission@1", "Request", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -24964,6 +25012,7 @@ func (d *PermissionApplicationDispatcher) invokeObserve(args *oaPermissionApplic
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/permission@1", "Observe", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -25000,6 +25049,7 @@ func (d *PermissionApplicationDispatcher) invokeObserveQuestion(args *oaPermissi
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/permission@1", "ObserveQuestion", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -25305,6 +25355,7 @@ func (d *PermissionOperatorDispatcher) invokeListPermissions(args *oaPermissionO
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/permission-operator@1", "ListPermissions", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -25337,6 +25388,7 @@ func (d *PermissionOperatorDispatcher) invokeReadPermissionDetails(args *oaPermi
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/permission-operator@1", "ReadPermissionDetails", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -25369,6 +25421,7 @@ func (d *PermissionOperatorDispatcher) invokeAnswerPermissionIfPending(args *oaP
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/permission-operator@1", "AnswerPermissionIfPending", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -25736,6 +25789,7 @@ func (d *NotificationApplicationDispatcher) invokePost(args *oaNotificationAppli
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/notification@1", "Post", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -25768,6 +25822,7 @@ func (d *NotificationApplicationDispatcher) invokeObserve(args *oaNotificationAp
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/notification@1", "Observe", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -25800,6 +25855,7 @@ func (d *NotificationApplicationDispatcher) invokeWithdraw(args *oaNotificationA
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/notification@1", "Withdraw", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -25832,6 +25888,7 @@ func (d *NotificationApplicationDispatcher) invokeAcknowledge(args *oaNotificati
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/notification@1", "Acknowledge", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -26317,6 +26374,7 @@ func (d *NotificationOperatorDispatcher) invokeListNotifications(args *oaNotific
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/notification-operator@1", "ListNotifications", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -26349,6 +26407,7 @@ func (d *NotificationOperatorDispatcher) invokeReadNotification(args *oaNotifica
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/notification-operator@1", "ReadNotification", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -26381,6 +26440,7 @@ func (d *NotificationOperatorDispatcher) invokeAct(args *oaNotificationOperatorA
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/notification-operator@1", "Act", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -26413,6 +26473,7 @@ func (d *NotificationOperatorDispatcher) invokeDismiss(args *oaNotificationOpera
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/notification-operator@1", "Dismiss", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -26445,6 +26506,7 @@ func (d *NotificationOperatorDispatcher) invokeWithdrawProgram(args *oaNotificat
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/notification-operator@1", "WithdrawProgram", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}
@@ -26477,6 +26539,7 @@ func (d *NotificationOperatorDispatcher) invokeListNotifiers(args *oaNotificatio
 			if _, ok := p.(*Refusal); ok {
 				err = &ServiceError{Code: ServiceErrorCodeInvalidResult}
 			} else {
+				handlerPanic("abstraction.asks/notification-operator@1", "ListNotifiers", p)
 				err = &ServiceError{Code: ServiceErrorCodeHandlerError, Message: "handler failed"}
 			}
 		}

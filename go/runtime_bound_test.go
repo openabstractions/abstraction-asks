@@ -60,8 +60,8 @@ func TestWithdrawRuntimeBoundAtStartup(t *testing.T) {
 		t.Fatalf("a second startup withdrew %+v %v", again, err)
 	}
 	for _, q := range Questions {
-		if q.RuntimeBound != (q.Key == ProgramReviewKey || q.Key == SystemSecurityLogKey || q.Key == PairingKey || q.Key == ApplicationCommandOnceKey) {
-			t.Fatalf("%s RuntimeBound=%v: system-access, pairing and one-call command questions follow runtime operation lifetime", q.Key, q.RuntimeBound)
+		if q.RuntimeBound != (q.Key == ProgramReviewKey || q.Key == SystemSecurityLogKey || q.Key == PairingKey || q.Key == ApplicationCommandOnceKey || q.Key == RightsChangeKey) {
+			t.Fatalf("%s RuntimeBound=%v: system-access, pairing, one-call command and rights change questions follow runtime operation lifetime", q.Key, q.RuntimeBound)
 		}
 	}
 }

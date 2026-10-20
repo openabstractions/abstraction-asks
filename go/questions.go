@@ -71,6 +71,7 @@ const FirstUseKey = catalogue.FirstUseKey
 const SystemSecurityLogKey = catalogue.SystemSecurityLogKey
 const PairingKey = catalogue.PairingKey
 const ApplicationCommandOnceKey = catalogue.ApplicationCommandOnceKey
+const RightsChangeKey = catalogue.RightsChangeKey
 
 func Find(key string) (Question, bool) { q, ok := catalogue.Find(key); return Question(q), ok }
 func SelfRegistered(key, about, text string) (string, string, bool) {

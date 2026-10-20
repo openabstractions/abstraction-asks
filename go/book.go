@@ -75,8 +75,11 @@ type Book struct {
 	// lifetime is how long an application-profile question stays pending
 	// (ASK-A7); zero means DefaultPendingLifetime. now is the clock.
 	lifetime time.Duration
-	now      func() time.Time
-	owner    string
+	// keyLifetimes overrides lifetime for the questions of one key
+	// (SetKeyLifetime).
+	keyLifetimes map[string]time.Duration
+	now          func() time.Time
+	owner        string
 	// events receives raised and settled questions (SetQuestionEvents).
 	events QuestionEvents
 }

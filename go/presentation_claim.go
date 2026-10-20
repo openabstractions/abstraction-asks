@@ -177,7 +177,7 @@ func (b *Book) presentationSessionValid(session PresentationSession) bool {
 }
 
 func (b *Book) presentationPending(record *Record, now time.Time) bool {
-	return record.Pending() && now.Before(record.Asked.Add(b.pendingLifetime()))
+	return record.Pending() && now.Before(record.Asked.Add(b.lifetimeOf(record.Key)))
 }
 
 func (b *Book) presentationPrecedes(a, other *Record) bool {

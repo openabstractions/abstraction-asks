@@ -118,3 +118,39 @@ func TestDecidedOnALapsedQuestionThenItsAnswerSettlesOnce(t *testing.T) {
 	}
 	<-waiting
 }
+
+// TestKeyLifetimeOutlastsTheBookLifetime is ASK-A7's per-key lifetime: a key
+// the host gave a longer lifetime stays pending past the Book's own
+// lifetime, other keys expire at it, and PendingUntil states each one.
+func TestKeyLifetimeOutlastsTheBookLifetime(t *testing.T) {
+	b, err := LoadApplicationBook(filepath.Join(t.TempDir(), "application.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock := time.Date(2026, 11, 22, 9, 0, 0, 0, time.UTC)
+	b.now = func() time.Time { return clock }
+	if err := b.SetKeyLifetime("download.reach", 0); err == nil {
+		t.Fatal("a key lifetime must be positive")
+	}
+	if err := b.SetKeyLifetime("", time.Hour); err == nil {
+		t.Fatal("a key lifetime must name a key")
+	}
+	if err := b.SetKeyLifetime("download.reach", 24*time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	long, outcome, err := b.AskApplication("scope", "app", "long", "download.reach", map[string]string{"host": "long.example"}, listen.Seen{})
+	if err != nil || outcome != "pending" {
+		t.Fatal(outcome, err)
+	}
+	if got := b.PendingUntil(long); !got.Equal(long.Asked.Add(24 * time.Hour)) {
+		t.Fatalf("PendingUntil = %v, want asked + 24 h", got)
+	}
+	clock = clock.Add(DefaultPendingLifetime)
+	if _, outcome, err = b.ObserveApplication("scope", "long"); err != nil || outcome != "pending" {
+		t.Fatalf("a question under its key's longer lifetime expired at the Book's: %q %v", outcome, err)
+	}
+	clock = long.Asked.Add(24 * time.Hour)
+	if _, outcome, err = b.ObserveApplication("scope", "long"); err != nil || outcome != "unknown" {
+		t.Fatalf("a question past its key's lifetime stayed: %q %v", outcome, err)
+	}
+}

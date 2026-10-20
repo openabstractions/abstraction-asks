@@ -19,10 +19,34 @@ const (
 	tableEndMark   = "<!-- questions-table:end -->"
 )
 
-// optionMeaning states what choosing one option allows, from Option.Yes and
-// Option.Kept alone: whether the choice permits or refuses the asker, and
-// whether the service remembers it or asks again next time.
-func optionMeaning(o Option) string {
+// rightsEffects states the Rights effect of each option of a question whose
+// answer the runtime applies as a rights rule or change. Option.Kept describes
+// only Asks' own answer retention, so these options read their effect here
+// (rights README "Decide from an application", ASK-R2, RIGHTS-O10, RIGHTS-O17).
+var rightsEffects = map[string]map[string]string{
+	FirstUseKey: {
+		"allow":  "adds a lasting permission for this program, action and resource",
+		"refuse": "refused now, no rule written, asked again next time",
+		"never":  "adds a lasting deny for this program, action and resource",
+	},
+	RightsChangeKey: {
+		"allow":   "applies the requested rights change, which lasts until removed",
+		"not_now": "nothing changes",
+	},
+	PairingKey: {
+		"once":   "pairs the computers; the listed permissions last until removed in the Panel",
+		"refuse": "nothing is paired",
+	},
+}
+
+// optionMeaning states what choosing one option allows. An option with a
+// Rights effect states it; any other reads from Option.Yes and Option.Kept:
+// whether the choice permits or refuses the asker, and whether the service
+// remembers it or asks again next time.
+func optionMeaning(key string, o Option) string {
+	if effect, ok := rightsEffects[key][o.Name]; ok {
+		return fmt.Sprintf("`%s`: %s", o.Name, effect)
+	}
 	switch o.Name {
 	case "keep":
 		return "`keep`: the app stays registered, confirmed"
@@ -47,7 +71,7 @@ func questionRow(q Question) string {
 	}
 	for _, name := range q.OptionNames() {
 		o, _ := q.Option(name)
-		meanings = append(meanings, optionMeaning(o))
+		meanings = append(meanings, optionMeaning(q.Key, o))
 	}
 	return fmt.Sprintf("| `%s` | `%s` | %s |", q.Key, q.Text, strings.Join(meanings, " · "))
 }
@@ -169,4 +193,38 @@ func TestReadmeQuestionCatalogueMatchesQuestionsGo(t *testing.T) {
 		return
 	}
 	t.Errorf("%s: question catalogue is stale; rerun with -update, or paste:\n%s", readmePath, want)
+}
+
+// Every option of a question with a Rights effect states that effect, so a
+// catalogue change cannot fall back to "asked again next time" for an Allow
+// that writes a lasting rule.
+func TestReadmeQuestionCatalogueStatesRightsEffects(t *testing.T) {
+	for key, effects := range rightsEffects {
+		q, ok := Find(key)
+		if !ok {
+			t.Fatalf("%s is not in the catalogue", key)
+		}
+		names := q.OptionNames()
+		if len(names) != len(effects) {
+			t.Errorf("%s offers %v; rightsEffects names %d options", key, names, len(effects))
+		}
+		for _, name := range names {
+			if _, ok := effects[name]; !ok {
+				t.Errorf("%s option %s has no stated Rights effect", key, name)
+			}
+		}
+	}
+	row := questionRow(mustFind(t, FirstUseKey))
+	if !strings.Contains(row, "`allow`: adds a lasting permission") || strings.Contains(row, "`allow`: permitted now") {
+		t.Fatalf("rights.first_use Allow row: %s", row)
+	}
+}
+
+func mustFind(t *testing.T, key string) Question {
+	t.Helper()
+	q, ok := Find(key)
+	if !ok {
+		t.Fatalf("%s is not in the catalogue", key)
+	}
+	return q
 }

@@ -35,6 +35,7 @@ type Host struct {
 	// Assign before Serve. Called when admission stops, before calls drain.
 	OnStopped            func()
 	operator             AuthorizeOperator
+	operatorAnswers      AuthorizeOperator
 	presenter            PresentationSession
 	responder            AuthorizeResponder
 	responderWait        ResponderEnrollment

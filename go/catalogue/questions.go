@@ -104,7 +104,7 @@ var Questions = []Question{
 		Options: []Option{{Name: "allow", Yes: true}, {Name: "refuse"}}},
 	// The runtime admits this question as itself, once, when a program
 	// registered itself under the account-wide registration default (rights
-	// RIGHTS-R22). Keep confirms the entry; Remove removes it and blocks the
+	// RIGHTS-R22). Allow (recorded as keep) confirms the entry; Don't allow (recorded as remove) removes it and blocks the
 	// program from registering itself again. Closing or expiry answers
 	// nothing and the entry stays unconfirmed. Only the person answers: it
 	// vouches for app-written title text, so no answerer may (ASK-R11).
@@ -112,10 +112,23 @@ var Questions = []Question{
 	// path of the program that registered itself, bound from its connection;
 	// SelfRegistered reads the program and title back.
 	{Key: SelfRegisteredKey,
-		Text:    "{program} was added to OpenAbstractions as {title}. Keep it?",
+		Text:    "Let {title} work with OpenAbstractions?",
 		About:   "program",
 		Options: []Option{{Name: "keep", Yes: true}, {Name: "remove"}},
 		Closed:  true},
+	// The runtime admits this question as itself for one typed rights change
+	// an operator program other than the Panel window requested (rights
+	// RIGHTS-O17, architect ruling A of 2026-11-22). Only the person answers
+	// it: no responder lists it, and the runtime applies the change only on an
+	// operator Allow from the Panel window or its presenter. The slots are the
+	// service's own words for the exact change it holds in memory, so a
+	// restarted runtime withdraws it while pending.
+	{Key: RightsChangeKey,
+		Text:         "Let {requester} {change}? Program {program}. Action {action}. Resource {resource}. Request {code} expires {until}.",
+		About:        "code",
+		Options:      []Option{{Name: "allow", Yes: true}, {Name: "not_now"}},
+		Closed:       true,
+		RuntimeBound: true},
 	// The runtime admits this question as itself, naming the requesting
 	// program as asker, for one protected Security-log page (ASK-S1). Only
 	// the person answers it; once authorizes one execution by the installed
@@ -146,9 +159,16 @@ func SelfRegistered(key, about, text string) (program, title string, ok bool) {
 	if key != SelfRegisteredKey || about == "" {
 		return "", "", false
 	}
+	// Questions retained from earlier releases keep their original wording.
+	if rest, found := strings.CutPrefix(text, "Let "); found {
+		title, found = strings.CutSuffix(rest, " work with OpenAbstractions?")
+		if found && title != "" {
+			return about, title, true
+		}
+		return "", "", false
+	}
 	rest, found := strings.CutPrefix(text, about+" was added to OpenAbstractions as ")
 	if !found {
-		// Retained questions keep their original wording across this change.
 		rest, found = strings.CutPrefix(text, about+" added itself to OpenAbstractions as ")
 	}
 	if !found {
@@ -184,6 +204,10 @@ const SystemSecurityLogKey = "system.securitylog.read"
 // transport transcript and conditional receiving effect under the Book pin.
 const PairingKey = "runtime.machine.pair"
 
+// RightsChangeKey is the runtime's person-only question for one typed rights
+// change an operator program requested (rights RIGHTS-O17).
+const RightsChangeKey = "rights.change"
+
 // ApplicationCommandOnceKey is admitted only by the native command enforcer.
 // Ordinary/responding applications cannot answer it; it deliberately stays
 // outside FirstUseKey's persistent permission shape.
@@ -193,7 +217,7 @@ const ApplicationCommandOnceKey = "application.command.once"
 // first-use, typed permission and system-access questions and its question
 // about a self-registered app (ASK-R2, ASK-S1, ASK-R11).
 func RuntimeOnlyKey(key string) bool {
-	return key == ProgramReviewKey || key == SetupModelsKey || key == FirstUseKey || key == TypedPermissionKey || key == SystemSecurityLogKey || key == SelfRegisteredKey || key == AgentEnrollmentKey || key == AgentUpdateKey || key == PairingKey || key == ApplicationCommandOnceKey
+	return key == ProgramReviewKey || key == SetupModelsKey || key == FirstUseKey || key == TypedPermissionKey || key == SystemSecurityLogKey || key == SelfRegisteredKey || key == AgentEnrollmentKey || key == AgentUpdateKey || key == PairingKey || key == ApplicationCommandOnceKey || key == RightsChangeKey
 }
 
 // FirstUse reads the program, action and resource of a first-use question from

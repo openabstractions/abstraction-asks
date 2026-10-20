@@ -46,9 +46,9 @@ explains how Identity, Rights and Asks connect native consent to an applied
 rule and an actual credential-bearing operation. It preserves the accepted
 broader-access design and the current limits of the Windows/macOS demonstration.
 
-**Development source:** the 0.4.0 work below has separate source, native and
-installed evidence. [Released 0.3.0](https://github.com/openabstractions/redist/releases/tag/v0.3.0)
-has its own package contents and qualification.
+**Release status:** [OpenAbstractions 0.8.0](https://github.com/openabstractions/redist/releases/tag/v0.8.0)
+is published. The table below separates what is integrated from what remains
+open, and each row carries its own source, native and installed evidence.
 
 | Job | What asks does | Today |
 | --- | --- | --- |
@@ -161,9 +161,12 @@ chrome. Successful answers finish without a second confirmation dialog at
 lifetime/answer guards and result-report checks passed on reviewed worker
 `d26c823b9`, whose Monitor source matches `957df22bd`, using synthetic requests
 and a fake Rights owner. The owner-supplied screenshot shows Windows 11
-renderer baseline `3c3b31abf`; final visual acceptance of the compact revision,
-keyboard/UIA inspection, cross-monitor DPI/high contrast and Windows 10
-appearance remain open.
+renderer baseline `3c3b31abf`. On that renderer Tab and screen readers meet
+the controls top to bottom, every reachable control has a UI Automation name,
+high contrast uses the system colours, and a DPI change rebuilds fonts and
+layout (`TestPermissionDialogReadingOrderAndNames`, monitor/win). Final visual
+acceptance of the compact revision, a check on two monitors of different
+scale, VoiceOver on the macOS panel and Windows 10 appearance remain open.
 System-access and privacy-access forms remain planned; actual administrator
 and device/data consent use their platform-owned authorization paths.
 Action notifications remain a separate planned compact surface.
@@ -189,9 +192,8 @@ Breadth warnings and actual OS elevation remain separate.
 
 ## The problem
 
-The legacy walkthrough below names a question the service already knows.
-
-The example is in [Ask from an application](#ask-from-an-application).
+An application that needs a right, a choice or a notice uses the profiles in
+[Use from an application](#use-from-an-application).
 
 Legacy `application@1` questions come from the fixed catalogue below. It includes application prompts,
 the runtime's first-use rights prompt, legacy registration, and the native
@@ -247,20 +249,21 @@ the table in place.
 | `application.agent_update` | `Update the {members}{membersmore}{memberslast} connections? Keep these updated connections as your assistants. Each access permission is reviewed separately. Restart {members}{membersmore}{memberslast} to finish. Request {code}.` | `update`: permits only this prepared set · `not_now`: preserves the connections; remembered for this prepared set |
 | `application.command.once` | `{operation}{operationmore}? {program} requests this once. Command {command}. Request {code} expires {until}.` | `once`: permitted now, asked again next time · `refuse`: refused now, asked again next time |
 | `application.agent_enrollment` | `Connect {title}?` | `keep`: the app stays registered, confirmed · `refuse`: refused now, asked again next time |
-| `runtime.machine.pair` | `Pair these computers? Check that both computers show {check}. This computer allows: {given} {givenmore} The other computer allows: {received} {receivedmore} Permissions stay until removed in the Panel. {givenreplacement} {receivedreplacement} Each computer approves separately. Details: Verified peer key {peer}. Local binding {binding}. This computer's source: {givensource}. The other computer's source: {receivedsource}. Request {code} expires {until}.` | `once`: permitted now, asked again next time · `refuse`: refused now, asked again next time |
+| `runtime.machine.pair` | `Pair these computers? Check that both computers show {check}. This computer allows: {given} {givenmore} The other computer allows: {received} {receivedmore} Permissions stay until removed in the Panel. {givenreplacement} {receivedreplacement} Each computer approves separately. Details: Verified peer key {peer}. Local binding {binding}. This computer's source: {givensource}. The other computer's source: {receivedsource}. Request {code} expires {until}.` | `once`: pairs the computers; the listed permissions last until removed in the Panel · `refuse`: nothing is paired |
 | `content.replace` | `{asker} requests a one-time replacement of {target} with {replacement}. Request {code} expires {until}.` | `once`: permitted now, asked again next time · `never`: refused permanently, remembered |
 | `rights.register` | `{asker} wants to: {rights}` | `allow`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
 | `opencode.project.edit` | `OpenCode requests permission to read, run, create, edit and delete files throughout {folder}, including its subfolders, until this sandbox session exits. Request {code} expires {until}.` | `once`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
 | `download.reach` | `{asker} wants to fetch from {host}` | `allow`: permitted permanently, remembered · `once`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
-| `rights.first_use` | `{program} wants to {action} on {resource}` | `allow`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
-| `application.self_registered` | `{program} was added to OpenAbstractions as {title}. Keep it?` | `keep`: the app stays registered, confirmed · `remove`: the app's entry is removed and it may not register itself again |
+| `rights.first_use` | `{program} wants to {action} on {resource}` | `allow`: adds a lasting permission for this program, action and resource · `refuse`: refused now, no rule written, asked again next time · `never`: adds a lasting deny for this program, action and resource |
+| `application.self_registered` | `Let {title} work with OpenAbstractions?` | `keep`: the app stays registered, confirmed · `remove`: the app's entry is removed and it may not register itself again |
+| `rights.change` | `Let {requester} {change}? Program {program}. Action {action}. Resource {resource}. Request {code} expires {until}.` | `allow`: applies the requested rights change, which lasts until removed · `not_now`: nothing changes |
 | `system.securitylog.read` | `{asker} wants to read one page of the Windows Security log. Windows asks for administrator approval next. Request {code} expires {until}.` | `once`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
 <!-- questions-table:end -->
 
 These entries are templates; the three first-use permission risk tiers are a
 separate policy. `rights.first_use` is active in the installed runtime, and
 `rights.register` remains in the legacy registration flow. `download.reach`
-is a historical `dl` question used in examples. `content.replace` has no
+is a historical `dl` question with no current caller. `content.replace` has no
 current product consumer; its ComfyUI canvas-replacement caller was removed
 after the owner's decision that the person's click authorizes that in-app
 action. The catalogue still supports decoding and replay of retained records.
@@ -268,18 +271,32 @@ action. The catalogue still supports decoding and replay of retained records.
 A new legacy catalogue question is added by appending one `Question` to `Questions` in
 `go/questions.go`; the table above is regenerated from that change.
 
-When the asks service cannot be resolved, `ResolveAsks` fails the way any
-capability resolution fails. The calling application then decides what
-happens next. The removed standalone `dl` caller logged that no one answered
-and fetched unasked, as described under [Today](#today).
+When the asks service cannot be resolved, each `ResolveAsks…` call fails the
+way any capability resolution fails. The calling application then decides
+what happens next.
 
-## Ask from an application
+## Use from an application
 
-`Ask` and `Observe` decide `abstraction.asks/question.ask` on `account`
-before admitting a question. A person grants that rule explicitly, through
-`openabstractions rights grant --program /absolute/path/to/built/binary
---action abstraction.asks/question.ask --resource account`; the runtime's own
-first-use question covers job submit, model lookup and inference complete.
+An application reaches the person in three ways. It requests a right through
+`abstraction.asks/permission@1`, and OA words and shows the question. It asks
+the person to choose between its own options through
+`abstraction.asks/application@2`. It posts a notification through
+`abstraction.asks/notification@1`. The installed runtime's account-wide
+defaults `ask` (`abstraction.asks/question.ask`) and `notify`
+(`abstraction.asks/notification.post`) are on after a fresh install (rights
+[README](https://github.com/openabstractions/abstraction-rights/blob/main/README.md), "Defaults for all apps"). An
+application of the person's own account needs no rule of its own for choices
+or notifications. A right request needs no ask rule.
+
+### Request a right
+
+`ResolveAsksPermission` binds `permission@1`. `RequestContext` names the right
+the application needs. A right already granted reads `permitted`, and a block
+reads `denied`; neither asks anything. Otherwise the runtime raises the same
+first-use question a refused call would raise and returns `pending` with its
+id. `ObserveQuestionContext` waits for the person's answer. An Allow writes a
+lasting rule, and the observation reads `permitted` once that rule stands.
+The application then retries the call it needed the right for, once.
 
 ```go
 package main
@@ -287,6 +304,80 @@ package main
 import (
 	"context"
 	"log"
+	"time"
+
+	asks "github.com/openabstractions/abstraction-asks/go/client"
+	facade "github.com/openabstractions/abstraction-facade/go"
+)
+
+func main() {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	permission, err := facade.Discover().ResolveAsksPermission(ctx, facade.Requirements{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Send model requests to the hosted server the router lists as openrouter.
+	selection := asks.PermissionSelection{
+		Permission: asks.PermissionKey{Action: "abstraction.inference/complete", ResourceProfile: "abstraction.rights/legacy-exact-string@1"},
+		Selector:   asks.ResourceSelector{Kind: asks.ResourceSelectorKindOne, Target: []byte("host:openrouter")},
+	}
+	obs, err := permission.RequestContext(ctx, asks.PermissionIntent{RequestKey: "chat-openrouter", Selection: &selection})
+	if err != nil {
+		log.Fatal(err)
+	}
+	for waiting(obs) {
+		pending, err := permission.ObserveQuestionContext(ctx, obs.Answer.ID, 30000)
+		if err != nil {
+			log.Fatal(err)
+		}
+		obs = pending.Observation
+	}
+	switch {
+	case obs.Outcome == asks.PermissionOutcomePermitted:
+		log.Println("allowed: retry the inference call once")
+	case obs.Answer != nil:
+		log.Println("the person answered", obs.Answer.Option)
+	default:
+		log.Println("not allowed:", obs.Outcome)
+	}
+}
+
+// waiting is true while the question is open, and after an Allow until its
+// rule stands.
+func waiting(obs asks.PermissionObservation) bool {
+	if obs.Answer == nil {
+		return false
+	}
+	return obs.Outcome == asks.PermissionOutcomePending ||
+		obs.Outcome == asks.PermissionOutcomeAnswered && obs.Answer.Option == "allow"
+}
+```
+
+The served first-use rights are listed under ASK-A14 in
+[CONTRACT.md](CONTRACT.md): inference on a listed host, model lookup on a
+listed registry, job submission of a known kind and the content profiles.
+Any other target reads `invalid`. A refused service call names the same
+question in its `rights:question_pending` word, and `ObserveQuestionContext`
+waits on that id as well.
+
+### Ask the person to choose
+
+`ResolveAsksChoices` binds `application@2`. The application writes the title
+and up to three options. OA shows them in a native popup that names the
+application, and the application may also show them in its own window and
+record the person's pick with `AnswerContext`. The service keeps the request
+and the answer after the application exits. `ObserveContext` waits for an
+answer from either place. The application keeps its `RequestRef` unchanged
+across restarts and acknowledges the answer once it has acted on it.
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+	"time"
 
 	asks "github.com/openabstractions/abstraction-asks/go/client"
 	facade "github.com/openabstractions/abstraction-facade/go"
@@ -294,30 +385,93 @@ import (
 
 func main() {
 	ctx := context.Background()
-	q, err := facade.Discover().ResolveAsks(ctx, facade.Requirements{})
+	resolved, err := facade.Discover().ResolveAsksChoices(ctx, facade.Requirements{})
 	if err != nil {
 		log.Fatal(err)
 	}
-	obs, err := q.AskContext(ctx, asks.ApplicationQuestion{
-		RequestKey: "dl-fetch-example.com",
-		Key:        "download.reach",
-		Slots:      map[string]string{"host": "example.com"},
+	choices, err := resolved.WithTimeout(35 * time.Second)
+	if err != nil {
+		log.Fatal(err)
+	}
+	now := time.Now()
+	ref := asks.RequestRef{Key: "export-format-42", ReplayUntilMs: now.Add(24 * time.Hour).UnixMilli()}
+	obs, err := choices.AskContext(ctx, asks.ChoiceRequest{
+		RequestRef:     ref,
+		Title:          "Export the drawing as",
+		Options:        []asks.ChoiceOption{{ID: "png", Label: "PNG image"}, {ID: "svg", Label: "SVG drawing"}},
+		PendingUntilMs: now.Add(time.Hour).UnixMilli(),
 	})
+	for err == nil && obs.Outcome == asks.ChoiceOutcomePending {
+		obs, err = choices.ObserveContext(ctx, ref, 30000)
+	}
 	if err != nil {
 		log.Fatal(err)
 	}
-	if obs.Outcome.String() == "pending" {
-		log.Println("waiting for a person to answer; dl will retry the same key")
+	if obs.Outcome != asks.ChoiceOutcomeAnswered {
+		log.Println("no choice:", obs.Outcome)
+		return
+	}
+	log.Println("export as", obs.Answer.Option)
+	if _, err := choices.AcknowledgeContext(ctx, ref, *obs.Answer); err != nil {
+		log.Fatal(err)
 	}
 }
 ```
 
-`AskContext` admits the question and returns whatever is already known about
-it; a first ask reads `pending`, and the application shows that a person has
-not answered yet rather than inventing a wait of its own. `ObserveContext(ctx,
-key, waitMS)` long-polls the same key up to 30 seconds for a later answer.
-Retrying `AskContext` with the same `RequestKey` and the same slots after an
-uncertain reply reaches the same record rather than opening a second question.
+`ShareContext` admits the same choice and lets an assistant the person
+enrolled pick among the options it names (ASK-A12). A choice grants no right.
+
+### Post a notification
+
+`ResolveAsksNotifications` binds `notification@1`. `PostContext` shows the
+title, an optional body and up to two actions in the session's native
+notification, and the service records the person's action after the poster
+exits. `ObserveContext` reads that action. A program the person blocked reads
+`suppressed`, and the rate and live limits read `exhausted`; neither stores
+anything.
+
+```go
+package main
+
+import (
+	"context"
+	"log"
+	"time"
+
+	asks "github.com/openabstractions/abstraction-asks/go/client"
+	facade "github.com/openabstractions/abstraction-facade/go"
+)
+
+func main() {
+	ctx := context.Background()
+	notifications, err := facade.Discover().ResolveAsksNotifications(ctx, facade.Requirements{})
+	if err != nil {
+		log.Fatal(err)
+	}
+	now := time.Now()
+	ref := asks.RequestRef{Key: "render-done-42", ReplayUntilMs: now.Add(24 * time.Hour).UnixMilli()}
+	obs, err := notifications.PostContext(ctx, asks.NotificationRequest{
+		RequestRef: ref,
+		Title:      "Render finished",
+		Body:       "drawing-42.png is ready.",
+		Actions:    []asks.NotificationAction{{ID: "open", Title: "Open", Activation: asks.NotificationActivationApp}},
+		ExpiresMs:  now.Add(time.Hour).UnixMilli(),
+		Delivery:   asks.NotificationDeliveryNow,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("notification", obs.Outcome)
+}
+```
+
+### Catalogue questions
+
+`ResolveAsks` binds the earlier `application@1` profile. `AskContext` names a
+question from the fixed catalogue above and fills its slots; this layer words
+it. `Ask` and `Observe` decide `abstraction.asks/question.ask` on `account`,
+which the `ask` default permits. New applications use the three profiles
+above.
 
 ## Obtain
 
@@ -360,12 +514,15 @@ rule to a decoded reply. Known native sentinels remain accessible through
 `errors.Is`. The [code constants](go/errors.go) define the vocabulary; an
 unclassified service failure uses `internal`. Diagnostic wording is not an API.
 
-- **An application phrases nothing.** It names a question from `Questions` in
-  [`go/questions.go`](go/questions.go) and fills the slots that question
-  declares — one line each, at most 200 characters. An unknown question, a
-  missing slot or a slot with a newline is refused. Adding a question is a
-  change to this layer, which is the friction that keeps forty dialogs from
-  coming back through one door.
+- **OA words every permission question.** A right request names a typed
+  permission, and the runtime words the question from its own catalogue. A
+  catalogue question names an entry of `Questions` in
+  [`go/questions.go`](go/questions.go) and fills the slots that entry
+  declares, one line each, at most 200 characters; an unknown question, a
+  missing slot or a slot with a newline is refused. A choice title and option
+  labels, and a notification title, body and action titles, are the
+  application's own words. OA shows them attributed to the application, and
+  they grant nothing.
 - **An answer is a record the person keeps.** It carries the text as the person
   saw it, who asked, what the platform proved about who connected, and when.
   It survives the service; `asks.json` is the whole state.
@@ -404,28 +561,26 @@ and native Mac public-XPC permission/ordinary fixtures passed at `e27199249`.
 The app-owned ordinary presentation correction has source and Windows
 production-polling evidence; its fresh native Mac verification remains open.
 The modern Windows default appearance, Linux native presentation and installed
-0.4.0 acceptance remain open. Mac XPC evidence is separate from a standalone
+acceptance remain open. Mac XPC evidence is separate from a standalone
 Unix socket provider's qualification.
 
-In the installed runtime path, applications ask through the application profile
-and operators answer through `openabstractions questions`. The separate native
-Go standalone implementation retains
+In the installed runtime path, applications request rights through
+`permission@1`, ask choices through `application@2` and post notifications
+through `notification@1`; the session presenter shows each natively, and
+operators also answer through the Panel and `openabstractions questions`.
+Every admission is bounded per program and in total, as CONTRACT.md's Bounds
+table states: a program that asks in a loop reaches its share and reads
+`exhausted`, and notifications have an hourly rate and a live limit.
+
+The separate standalone Go implementation (`asksd`) retains
 [`rights`](https://github.com/openabstractions/abstraction-rights) as its legacy
 registration caller. A registration is `rights.register`, and its Allow answer
-is not kept, because a
-kept *allow* would let any later process with the same name in without the
-person seeing its path. The removed standalone `dl` caller asked
-`download.reach` before the first fetch from a host; without a running `asksd`,
-it said so and fetched unasked. That template remains in the catalogue and
-examples.
-
-What may break: the pipe name belongs to the first listener
-(`FILE_FLAG_FIRST_PIPE_INSTANCE`): a second `asksd` on the same name refuses to
-start, and so does one started while a client of the previous one has not hung
-up. There is no notification: in standalone mode, a person finds out there is a
-question by running `asks pending`, or because the application said so. Pending questions are
-unbounded, and an application that asks in a loop fills the file with one
-record — the dedupe holds — but a hostile one can vary the subject.
+is not kept, because a kept *allow* would let any later process with the same
+name in without the person seeing its path. The standalone service has no
+presenter: a person finds its questions by running `asks pending`. Its pipe
+name belongs to the first listener (`FILE_FLAG_FIRST_PIPE_INSTANCE`): a second
+`asksd` on the same name refuses to start, and so does one started while a
+client of the previous one has not hung up.
 
 ## Conformance
 

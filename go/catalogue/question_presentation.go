@@ -39,6 +39,10 @@ func QuestionPopupChoices(key string) (PopupChoicePolicy, bool) {
 		return PopupChoicePolicy{Labels: map[string]string{"once": "Allow", "refuse": "Not now"}, DefaultOption: "refuse"}, true
 	case AgentEnrollmentKey:
 		return PopupChoicePolicy{Labels: map[string]string{"keep": "Connect", "refuse": "Not now"}, DefaultOption: "refuse"}, true
+	case SelfRegisteredKey:
+		return PopupChoicePolicy{Labels: map[string]string{"keep": "Allow", "remove": "Don't allow"}}, true
+	case RightsChangeKey:
+		return PopupChoicePolicy{Labels: map[string]string{"allow": "Allow", "not_now": "Not now"}, DefaultOption: "not_now"}, true
 	}
 	return PopupChoicePolicy{}, false
 }
@@ -62,6 +66,14 @@ func QuestionPresentation(key, asker string, slots map[string]string) (QuestionV
 		return []string{"Request: " + slots["code"], "Expires: " + slots["until"]}
 	}
 	switch key {
+	case RightsChangeKey:
+		if !has("requester", "change", "program", "action", "resource", "code", "until") {
+			return QuestionView{}, false
+		}
+		return QuestionView{
+			Heading: "Let " + slots["requester"] + " " + slots["change"] + "?",
+			Details: strings.Join(append([]string{"Program: " + slots["program"], "Action: " + slots["action"], "Resource: " + slots["resource"]}, request()...), "\n"),
+		}, true
 	case SystemSecurityLogKey:
 		if !has("code", "until") {
 			return QuestionView{}, false

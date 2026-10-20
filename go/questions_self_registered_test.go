@@ -14,7 +14,7 @@ func TestSelfRegisteredReadsProgramAndTitle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if text != program+" was added to OpenAbstractions as Editor. Keep it? Pro. Keep it?" {
+	if text != "Let Editor. Keep it? Pro work with OpenAbstractions?" {
 		t.Fatalf("registration wording invents its actor: %q", text)
 	}
 	got, title, ok := SelfRegistered(SelfRegisteredKey, program, text)
@@ -28,7 +28,7 @@ func TestSelfRegisteredReadsProgramAndTitle(t *testing.T) {
 	for _, c := range []struct{ key, about, text string }{
 		{FirstUseKey, program, text},
 		{SelfRegisteredKey, "", text},
-		{SelfRegisteredKey, `C:\Other\editor.exe`, text},
+		{SelfRegisteredKey, program, "Let  work with OpenAbstractions?"},
 		{SelfRegisteredKey, program, program + " added itself to OpenAbstractions as . Keep it?"},
 		{SelfRegisteredKey, program, program + " was added to OpenAbstractions as . Keep it?"},
 		{SelfRegisteredKey, `C:\Other\editor.exe`, historical},

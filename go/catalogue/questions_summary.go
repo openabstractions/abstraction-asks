@@ -24,6 +24,7 @@ var questionSummaries = map[string]questionSummary{
 	FirstUseKey:               {"Asked a question", "Asked a question"},
 	SelfRegisteredKey:         {"Added to OpenAbstractions", "Asked a question"},
 	SystemSecurityLogKey:      {"Asked to read the Windows Security log", "Asked a question"},
+	RightsChangeKey:           {"Asked to change permissions", "Asked a question"},
 	TypedPermissionKey:        {"Asked for permissions", "Asked a question"},
 }
 

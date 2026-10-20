@@ -28,6 +28,7 @@ var questionPresentations = map[string]PresentationFamily{
 	FirstUseKey:               PresentationConsent,
 	SelfRegisteredKey:         PresentationConsent,
 	SystemSecurityLogKey:      PresentationConsent,
+	RightsChangeKey:           PresentationConsent,
 	TypedPermissionKey:        PresentationConsent,
 }
 

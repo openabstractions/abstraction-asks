@@ -57,6 +57,39 @@ func (h *Host) EnableOperator(authorize AuthorizeOperator) error {
 	h.operator = authorize
 	return nil
 }
+
+// EnableOperatorAnswers adds a second check to every operator answer
+// (ASK-O17): AnswerQuestion, AnswerQuestionIfPending and
+// AnswerPermissionIfPending. The runtime admits the Panel window, its presenter
+// and an exempt elevated caller; any other operator program reads, lists and
+// dismisses, and its answer is forbidden. It is checked with the operator
+// callback, again inside the conditional edit.
+func (h *Host) EnableOperatorAnswers(authorize AuthorizeOperator) error {
+	h.lifecycle.Lock()
+	defer h.lifecycle.Unlock()
+	if h.serving || h.ctx.Err() != nil || authorize == nil {
+		return errors.New("asks: configure operator answers before Serve")
+	}
+	h.operatorAnswers = authorize
+	return nil
+}
+
+// authorizeAnswer is authorize plus the answer check (ASK-O17).
+func (r *operatorReceiver) authorizeAnswer() (string, error) {
+	scope, err := r.authorize()
+	if err != nil || r.host.operatorAnswers == nil {
+		return scope, err
+	}
+	peer, err := r.call.Peer()
+	if err != nil {
+		return "", err
+	}
+	if err = r.host.operatorAnswers(r.ctx, peer); err != nil {
+		return "", err
+	}
+	return scope, r.ctx.Err()
+}
+
 func (h *Host) OperatorAvailable() bool {
 	h.lifecycle.Lock()
 	defer h.lifecycle.Unlock()
@@ -308,10 +341,10 @@ func (r *operatorReceiver) AnswerQuestionIfPending(id, option string) (wire.Oper
 }
 
 func (r *operatorReceiver) answer(id, option string, record func(id, option string, authorize func() error) (asks.Record, string, error)) (wire.OperatorDecision, error) {
-	if _, err := r.authorize(); err != nil {
+	if _, err := r.authorizeAnswer(); err != nil {
 		return wire.OperatorDecision{Outcome: operatorDecisionError(err)}, nil
 	}
-	answered, outcome, err := record(id, option, func() error { _, err := r.authorize(); return err })
+	answered, outcome, err := record(id, option, func() error { _, err := r.authorizeAnswer(); return err })
 	if err != nil {
 		return wire.OperatorDecision{Outcome: operatorDecisionError(err)}, nil
 	}

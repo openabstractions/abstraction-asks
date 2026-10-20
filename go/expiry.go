@@ -32,14 +32,38 @@ func (b *Book) pendingLifetime() time.Duration {
 	return DefaultPendingLifetime
 }
 
+// SetKeyLifetime sets how long this Book's pending questions of one key stay
+// pending (ASK-A7). It takes precedence over SetPendingLifetime for that key.
+// The lifetime must be positive.
+func (b *Book) SetKeyLifetime(key string, d time.Duration) error {
+	if d <= 0 || key == "" {
+		return errors.New("asks: a key lifetime must be positive and name a key")
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.keyLifetimes == nil {
+		b.keyLifetimes = map[string]time.Duration{}
+	}
+	b.keyLifetimes[key] = d
+	return nil
+}
+
+// lifetimeOf is the pending lifetime of a question of key. Callers hold b.mu.
+func (b *Book) lifetimeOf(key string) time.Duration {
+	if d, ok := b.keyLifetimes[key]; ok {
+		return d
+	}
+	return b.pendingLifetime()
+}
+
 // expire removes every question still pending a full lifetime after it was
 // asked, with each admission naming it, and returns their ids. The keys of
 // those admissions admit a new question; an answered question never expires.
-func (f *book) expire(now time.Time, lifetime time.Duration) []string {
+func (f *book) expire(now time.Time, lifetime func(key string) time.Duration) []string {
 	var gone []string
 	kept := f.Asks[:0]
 	for _, r := range f.Asks {
-		if r.Pending() && !now.Before(r.Asked.Add(lifetime)) {
+		if r.Pending() && !now.Before(r.Asked.Add(lifetime(r.Key))) {
 			gone = append(gone, r.ID)
 			continue
 		}
@@ -67,9 +91,9 @@ func (b *Book) clock() time.Time {
 }
 
 // PendingUntil is the time a pending question expires (ASK-A7): its recorded
-// asked time plus this Book's pending lifetime.
+// asked time plus this Book's pending lifetime for its key.
 func (b *Book) PendingUntil(r Record) time.Time {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return r.Asked.Add(b.pendingLifetime())
+	return r.Asked.Add(b.lifetimeOf(r.Key))
 }

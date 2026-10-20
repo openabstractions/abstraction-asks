@@ -270,7 +270,7 @@ func (b *Book) readApplication() (book, error) {
 			return book{}, e
 		}
 		// Expired questions are not retained (ASK-A7); the next edit writes that.
-		f.expire(b.clock(), b.pendingLifetime())
+		f.expire(b.clock(), b.lifetimeOf)
 		f.collectChoices(f.ChoiceTimeMs)
 		f.collectNotifications(f.ChoiceTimeMs)
 	}
@@ -308,7 +308,7 @@ func (b *Book) changeApplication(edit func(*book) error) error {
 			return nil, e
 		}
 		oldChoiceTime := f.ChoiceTimeMs
-		expired = f.expire(b.clock(), b.pendingLifetime())
+		expired = f.expire(b.clock(), b.lifetimeOf)
 		choiceTime := f.choiceTime(b.clock().UnixMilli())
 		choiceExpired := append(f.collectChoices(choiceTime), f.collectNotifications(choiceTime)...)
 		if f.ChoiceTimeMs == 0 || len(choiceExpired) > 0 {
@@ -719,7 +719,7 @@ func (b *Book) WithApplicationRecordContext(ctx context.Context, id string, use 
 		if err = b.validatePermissionAccounts(f); err != nil {
 			return nil, err
 		}
-		f.expire(b.clock(), b.pendingLifetime())
+		f.expire(b.clock(), b.lifetimeOf)
 		i := f.index(id)
 		if i < 0 {
 			return data, nil
