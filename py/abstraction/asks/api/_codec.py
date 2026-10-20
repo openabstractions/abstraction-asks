@@ -5,6 +5,8 @@ from __future__ import annotations
 import dataclasses
 import enum
 
+from abstraction.rights.api import _codec as _dependency_rights
+
 _HEX = b"0123456789abcdef"
 _WS = (0x20, 0x09, 0x0A, 0x0D)
 _SHORT = {0x22: b'\\"', 0x5C: b"\\\\", 0x08: b"\\b", 0x0C: b"\\f",
@@ -150,6 +152,14 @@ def _write_list(out, v, depth, enc):
     _pad(out, depth)
     out += b"]"
 
+_Imported0 = _dependency_rights.PermissionSelection
+
+_Imported1 = _dependency_rights.ResourceSelector
+
+_Imported2 = _dependency_rights.PermissionEffect
+
+_Imported3 = _dependency_rights.Decision
+
 
 try:
     from enum import StrEnum as _StrEnum
@@ -211,6 +221,144 @@ class OperatorRetirementOutcome(_StrEnum):
     UNAVAILABLE = "unavailable"
 
 
+class OperatorQuestionOutcome(_StrEnum):
+    FOUND = "found"
+    UNKNOWN = "unknown"
+    INVALID = "invalid"
+    FORBIDDEN = "forbidden"
+    UNAVAILABLE = "unavailable"
+
+
+class Answerer(_StrEnum):
+    OPERATOR = "operator"
+    RESPONDER = "responder"
+
+
+class ChoiceState(_StrEnum):
+    PENDING = "pending"
+    ANSWERED = "answered"
+    DISMISSED = "dismissed"
+    EXPIRED = "expired"
+
+
+class ChoiceOutcome(_StrEnum):
+    PENDING = "pending"
+    ANSWERED = "answered"
+    DISMISSED = "dismissed"
+    EXPIRED = "expired"
+    GONE = "gone"
+    UNKNOWN = "unknown"
+    CONFLICT = "conflict"
+    INVALID = "invalid"
+    EXHAUSTED = "exhausted"
+    FORBIDDEN = "forbidden"
+    UNAVAILABLE = "unavailable"
+
+
+class ChoiceAckOutcome(_StrEnum):
+    ACKNOWLEDGED = "acknowledged"
+    CONFLICT = "conflict"
+    UNKNOWN = "unknown"
+    EXPIRED = "expired"
+    INVALID = "invalid"
+    FORBIDDEN = "forbidden"
+    UNAVAILABLE = "unavailable"
+
+
+class ChoiceDecisionOutcome(_StrEnum):
+    ANSWERED = "answered"
+    DISMISSED = "dismissed"
+    EXPIRED = "expired"
+    GONE = "gone"
+    UNKNOWN = "unknown"
+    CONFLICT = "conflict"
+    INVALID = "invalid"
+    FORBIDDEN = "forbidden"
+    UNAVAILABLE = "unavailable"
+
+
+class ChoiceRoute(_StrEnum):
+    REQUESTER = "requester"
+    OPERATOR = "operator"
+    RESPONDER = "responder"
+
+
+class AnswerKind(_StrEnum):
+    QUESTION = "question"
+    CHOICE = "choice"
+
+
+class ResponderEffectOutcome(_StrEnum):
+    NONE = "none"
+    APPLIED = "applied"
+    CONFLICT = "conflict"
+    FORBIDDEN = "forbidden"
+    UNAVAILABLE = "unavailable"
+
+
+class PermissionOutcome(_StrEnum):
+    PENDING = "pending"
+    ANSWERED = "answered"
+    UNKNOWN = "unknown"
+    GONE = "gone"
+    INVALID = "invalid"
+    CONFLICT = "conflict"
+    FORBIDDEN = "forbidden"
+    UNAVAILABLE = "unavailable"
+    PERMITTED = "permitted"
+    DENIED = "denied"
+
+
+class NotificationActivation(_StrEnum):
+    APP = "app"
+    OPEN_ACTIVITY = "open_activity"
+
+
+class NotificationDelivery(_StrEnum):
+    NOW = "now"
+    OPERATION_END = "operation_end"
+
+
+class NotificationState(_StrEnum):
+    SCHEDULED = "scheduled"
+    POSTED = "posted"
+    ACTED = "acted"
+    DISMISSED = "dismissed"
+    WITHDRAWN = "withdrawn"
+    EXPIRED = "expired"
+
+
+class NotificationOutcome(_StrEnum):
+    SCHEDULED = "scheduled"
+    POSTED = "posted"
+    ACTED = "acted"
+    DISMISSED = "dismissed"
+    WITHDRAWN = "withdrawn"
+    EXPIRED = "expired"
+    GONE = "gone"
+    UNKNOWN = "unknown"
+    CONFLICT = "conflict"
+    INVALID = "invalid"
+    SUPPRESSED = "suppressed"
+    EXHAUSTED = "exhausted"
+    FORBIDDEN = "forbidden"
+    UNAVAILABLE = "unavailable"
+
+
+class NotificationDecisionOutcome(_StrEnum):
+    ACTED = "acted"
+    DISMISSED = "dismissed"
+    WITHDRAWN = "withdrawn"
+    EXPIRED = "expired"
+    GONE = "gone"
+    UNKNOWN = "unknown"
+    CONFLICT = "conflict"
+    STALE = "stale"
+    INVALID = "invalid"
+    FORBIDDEN = "forbidden"
+    UNAVAILABLE = "unavailable"
+
+
 class ServiceErrorCode(_StrEnum):
     HANDLER_ERROR = "handler_error"
     INVALID_RESULT = "invalid_result"
@@ -226,7 +374,7 @@ OPERATIONS = ["ask", "pending", "answered", "answer", "forget"]
 REFUSAL_CODES = ["internal", "invalid_request", "caller_refused", "unknown_operation", "not_administrator", "withdrawn", "unknown_question", "unknown_option", "bad_slot", "nothing_pending", "no_record"]
 
 
-RESOURCE_ACTIONS = ["abstraction.asks/question.ask"]
+RESOURCE_ACTIONS = ["abstraction.asks/question.ask", "abstraction.asks/question.answer", "abstraction.asks/notification.post"]
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -370,6 +518,548 @@ class OperatorRetirement:
 
 
 @dataclasses.dataclass(kw_only=True)
+class OperatorQuestion:
+    """Found carries the retained question's metadata and the requester's publisher
+    as the admitting service recorded it at admission: the code signer's subject
+    and whether the platform trust policy accepted the signature. Absent
+    publisher means none was recorded. Program description and program original
+    name are the FileDescription and OriginalFilename of the requesting
+    program's signed version resource, recorded with a trusted signature only;
+    absent means none was recorded. Answered by names the service through which
+    the recorded answer arrived: operator for QuestionOperator, responder for a
+    delegated QuestionResponder answer. It is absent for a pending question and
+    for an answer recorded before the service kept it. Only the service sets
+    these fields; no caller supplies them. Every other outcome carries no
+    record, publisher, program or answered by. Unknown means no retained
+    question. Invalid means a malformed ID. Unavailable establishes nothing
+    about the question."""
+
+    outcome: OperatorQuestionOutcome | None = None
+    record: RecordMetadata | None = None
+    publisher: str = ""
+    publisher_trusted: bool = False
+    answered_by: Answerer | None = None
+    program_description: str = ""
+    program_original_name: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class AttributedQuestion:
+    """Recorded metadata and attribution for a retained question. answerer is the
+    program bound from the answering peer when answered_by is responder, and
+    absent for every other answer and every refusal. The service supplies it;
+    request text never does. This metadata read carries no permission target and
+    remains available when a legacy target cannot be recovered."""
+
+    question: OperatorQuestion = dataclasses.field(default_factory=OperatorQuestion)
+    answerer: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class PermissionTarget:
+    """An exact service-owned first-use target. Account is the receiving runtime
+    account, 1..128 UTF-8 bytes; program is a normalized subject program up to
+    4096 bytes; action is 1..128 bytes; resource is 1..1024 bytes. All exclude
+    control characters. Display text supplies no target authority."""
+
+    account: str = ""
+    program: str = ""
+    action: str = ""
+    resource: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class PermissionRequest:
+    """The immutable permission effect retained with a trusted runtime occurrence.
+    Exactly one primary target, or its uniquely determined content.read pair for
+    content.write on input:image, input:audio, output:image, output:speech or
+    output:video. A pair has the same account, normalized program and resource;
+    independent secondary targets are refused. Applications cannot admit this
+    record."""
+
+    targets: list[PermissionTarget] = dataclasses.field(default_factory=list)
+
+
+@dataclasses.dataclass(kw_only=True)
+class QuestionDetails:
+    """Opt-in structured permission details from the same retained occurrence as
+    question. Permission is present only for a runtime first-use record;
+    canonical legacy records are read through the explicit legacy reader. Other
+    outcomes carry no permission. Existing operator responses retain their
+    closed shapes. All exact target strings remain complete regardless of
+    presentation limits."""
+
+    question: AttributedQuestion = dataclasses.field(default_factory=AttributedQuestion)
+    permission: PermissionRequest | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class QuestionAsker:
+    """Trusted permission details and asker attribution from one retained
+    occurrence. program is the bound program the application service derived the
+    question's subject from: the clean absolute executable path the platform
+    proved at admission, up to 4096 bytes. The record's asker is its display
+    name, derived from it. Program is absent for every refusal, for the
+    runtime's own questions and for a question admitted before the service kept
+    it. The service supplies it; request text never does. An unrecoverable
+    legacy permission target returns unavailable without details or program."""
+
+    details: QuestionDetails = dataclasses.field(default_factory=QuestionDetails)
+    program: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class RequestRef:
+    """Caller-created immutable ordinary request identity: key is 1..128 UTF-8
+    bytes without controls and replay_until_ms is an absolute Unix millisecond
+    deadline. Create it once and retain both fields unchanged for all retries.
+    The initial provider admits at most seven days ahead. The same key with a
+    different replay deadline is deliberate new intent. Effective ordinary time
+    is the maximum of service UTC and a private durably recorded ordinary time
+    floor. An observed expiry is committed before success and never reopens
+    after rollback, collection or restart. A forward clock jump can expire
+    choices permanently."""
+
+    key: str = ""
+    replay_until_ms: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class ChoiceOption:
+    """Stable application option ID, 1..64 UTF-8 bytes without controls, and a
+    nonblank single-line label of at most 80 Unicode characters. Labels do not
+    determine selection or authority."""
+
+    id: str = ""
+    label: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class ChoiceRequest:
+    """Application-authored ordinary choice. Title is nonblank, single-line and at
+    most 80 Unicode characters. Exactly 1..3 distinct stable IDs are offered.
+    pending_until_ms is an explicit absolute deadline after service time and no
+    later than replay_until_ms. Full ref and request content are immutable:
+    identical retry replays its occurrence; changed content under that full ref
+    conflicts. The service derives requester attribution. This request carries
+    no permission or configuration authority."""
+
+    request_ref: RequestRef = dataclasses.field(default_factory=RequestRef)
+    title: str = ""
+    options: list[ChoiceOption] = dataclasses.field(default_factory=list)
+    pending_until_ms: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class ChoiceAnswer:
+    """Exact recorded occurrence and decision time. answered_by is the full valid
+    subject program of the proven answering operator or owning requester,
+    derived by the service. It proves program attribution, not human presence.
+    An answered choice carries its offered option ID. A dismissal carries no
+    option. This decision proves no application effect or resource permission."""
+
+    id: str = ""
+    option: str = ""
+    answered_ms: int = 0
+    answered_by: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class ChoiceObservation:
+    """Pending, answered and dismissed carry the admitted occurrence ID. Exactly
+    answered/dismissed carry its exact decision. Other outcomes carry neither.
+    Expired means the pending or replay deadline elapsed, and creates no new
+    occurrence. Gone is an acknowledged admission. Unknown means this full ref
+    has no retained admission. Conflict is changed immutable content. Exhausted
+    is bounded ordinary capacity; unavailable is an uncertain storage/service
+    result. All establish no resource authority."""
+
+    outcome: ChoiceOutcome | None = None
+    id: str = ""
+    answer: ChoiceAnswer | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class ChoiceAcknowledgement:
+    outcome: ChoiceAckOutcome | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class ChoiceRecord:
+    """An ordinary occurrence with immutable application-authored request and
+    service-recorded requester attribution. Exactly answered/dismissed carry a
+    decision. Pending and expired select no option. Display text and option IDs
+    carry no permission effect; no rights target is accepted or returned."""
+
+    id: str = ""
+    asker: str = ""
+    request: ChoiceRequest = dataclasses.field(default_factory=ChoiceRequest)
+    state: ChoiceState | None = None
+    asked_ms: int = 0
+    answer: ChoiceAnswer | None = None
+    publisher: str = ""
+    publisher_trusted: bool = False
+    program_description: str = ""
+    program_original_name: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class ChoicePage:
+    outcome: OperatorPageOutcome | None = None
+    records: list[ChoiceRecord] = dataclasses.field(default_factory=list)
+    next: str = ""
+    complete: bool = False
+
+
+@dataclasses.dataclass(kw_only=True)
+class ChoiceRead:
+    """Exactly found carries one ordinary record. Other outcomes carry none."""
+
+    outcome: OperatorQuestionOutcome | None = None
+    record: ChoiceRecord | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class ChoiceDecision:
+    """Exactly answered/dismissed carry the exact recorded ordinary decision. These
+    outcomes record application intent only. Expired, gone, unknown, conflict,
+    invalid, forbidden and unavailable carry no record or effect."""
+
+    outcome: ChoiceDecisionOutcome | None = None
+    record: ChoiceRecord | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class ChoiceDetails:
+    """Opt-in details of a retained ordinary occurrence. choice is the same closed
+    response ReadChoice returns. asker_program is the bound program the
+    application service derived the requester's scope from, up to 4096 bytes; it
+    is absent for refusals and for a choice admitted before the service kept it.
+    assistant_options are the options the application shared with an assistant,
+    empty for an unshared choice. answered_via names the service route of the
+    recorded decision: requester for the application's own application@2
+    decision, operator for operator@1 and responder for an enrolled assistant's
+    responder@1 answer. It is absent while pending, after expiry and for a
+    decision recorded before the service kept it. Only the service sets these
+    fields."""
+
+    choice: ChoiceRead = dataclasses.field(default_factory=ChoiceRead)
+    asker_program: str = ""
+    assistant_options: list[str] = dataclasses.field(default_factory=list)
+    answered_via: ChoiceRoute | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class AnswerEntry:
+    """One answer the service recorded through operator@1, permission-operator@1 or
+    responder@1, as it recorded it. kind question is a catalogue question: key
+    is its catalogue key, about its About slot, title its text, and label its
+    option. kind choice is an ordinary choice: key and about are empty, title is
+    the application's title and label the chosen option's label. asker,
+    asker_program and publisher come from the admission. answered_by names the
+    route; answerer is the bound program of a responder and absent for an
+    operator. Title and label may be application-authored text and decide
+    nothing."""
+
+    id: str = ""
+    kind: AnswerKind | None = None
+    key: str = ""
+    asker: str = ""
+    asker_program: str = ""
+    publisher: str = ""
+    publisher_trusted: bool = False
+    about: str = ""
+    title: str = ""
+    option: str = ""
+    label: str = ""
+    answered_by: Answerer | None = None
+    answerer: str = ""
+    answered_ms: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class AnswerEntryPage:
+    """Exactly page carries answers, newest first. complete_since_ms is zero while
+    every retained answer is listed; otherwise answers recorded at or before it
+    may have been evicted by the Book's bound. Other outcomes carry no answers."""
+
+    outcome: OperatorPageOutcome | None = None
+    answers: list[AnswerEntry] = dataclasses.field(default_factory=list)
+    next: str = ""
+    complete: bool = False
+    complete_since_ms: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class AnswerableChoice:
+    """A pending shared ordinary choice as an enrolled assistant may answer it:
+    options holds only the shared options, in the order the application offered
+    them. The title and labels are application-authored data and carry no
+    instruction or authority."""
+
+    id: str = ""
+    asker: str = ""
+    title: str = ""
+    options: list[ChoiceOption] = dataclasses.field(default_factory=list)
+    pending_until_ms: int = 0
+    publisher: str = ""
+    publisher_trusted: bool = False
+
+
+@dataclasses.dataclass(kw_only=True)
+class AnswerableChoicePage:
+    """Exactly page carries choices. Other outcomes carry none."""
+
+    outcome: OperatorPageOutcome | None = None
+    choices: list[AnswerableChoice] = dataclasses.field(default_factory=list)
+    next: str = ""
+    complete: bool = False
+
+
+@dataclasses.dataclass(kw_only=True)
+class ResponderDecision:
+    """Answered means the question choice is recorded, including an idempotent
+    same-option replay. Effect reports the separate exact resource-rule write:
+    none for a refusal, applied for a successful bounded rule, conflict for a
+    policy revision change or an already-answered replay, forbidden for expired
+    or revoked delegation, unavailable for an unconfirmed policy write. A
+    recorded answer may have an unapplied effect. An answered replay never
+    writes target policy: inspect target outcome and reconcile through an
+    explicit operator edit. Target outcome is the current rights decision word
+    when a fresh read succeeds. No caller-supplied target or rule is accepted."""
+
+    outcome: OperatorDecisionOutcome | None = None
+    record: RecordMetadata | None = None
+    effect: ResponderEffectOutcome | None = None
+    target_outcome: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class PermissionIntent:
+    """One selection OR a registered immutable bundle reference and selector. The
+    receiving native peer supplies the subject. Trusted capability preparation
+    canonicalizes owner-IDL targets and admits only served first-use selectors;
+    caller FileKey/subject assertions grant no authority. Purpose is attributed
+    display text. A stable key replays the frozen original occurrence, never a
+    later bundle expansion."""
+
+    request_key: str = ""
+    selection: _dependency_rights.PermissionSelection | None = None
+    bundle_ref: str = ""
+    bundle_selector: _dependency_rights.ResourceSelector | None = None
+    purpose: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class PermissionObservation:
+    """Pending/answered carries the retained answer. Permitted/denied is an
+    admission-time current-policy result. An Allow answer supplies no proof of a
+    committed rule effect; retry the enforcing capability. Observe uses only
+    caller-owned admission and has no rule editing authority."""
+
+    outcome: PermissionOutcome | None = None
+    answer: Answer | None = None
+    policy_revision: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class TypedPermissionDetails:
+    """Found carries the complete immutable trusted effect, its digest, app/service
+    origin and separately attributed purpose. Other outcomes have no effect and
+    empty strings. Existing exact details methods retain their original meaning
+    and refuse typed entries."""
+
+    question: AttributedQuestion = dataclasses.field(default_factory=AttributedQuestion)
+    effect: _dependency_rights.PermissionEffect | None = None
+    effect_digest: str = ""
+    origin: str = ""
+    purpose: str = ""
+    display: PermissionDisplay | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class PermissionDisplaySelection:
+    """Trusted capability-authored explanation aligned in order with the frozen
+    effect selections. Monitor never parses target binary or caller prose into
+    this projection."""
+
+    operation: str = ""
+    target: str = ""
+    collection: str = ""
+    all_effect: str = ""
+    disclosure: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class PermissionDisplay:
+    """Immutable trusted display metadata pinned with the complete effect. Breadth
+    follows each typed selector independently of OS authorization and answering
+    tier."""
+
+    selections: list[PermissionDisplaySelection] = dataclasses.field(default_factory=list)
+    bundle_label: str = ""
+    bundle_disclosure: str = ""
+    requires_os_authorization: bool = False
+
+
+@dataclasses.dataclass(kw_only=True)
+class NotificationAction:
+    """Stable application action ID, 1..64 UTF-8 bytes without controls, and a
+    nonblank single-line title of at most 40 Unicode characters. app records
+    application intent for the poster to observe. open_activity also opens the
+    person's Activity view at the request's own operation and requires
+    operation_id. Titles do not determine the recorded action or any authority
+    (ASK-N2)."""
+
+    id: str = ""
+    title: str = ""
+    activation: NotificationActivation | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class NotificationRequest:
+    """Application-authored one-way notification (ASK-N1, ASK-N2). Title is
+    nonblank, single-line and at most 80 Unicode characters; body is 1..240
+    Unicode characters without control characters other than line feed. 0..2
+    distinct actions. expires_ms is an absolute deadline after service time and
+    no later than replay_until_ms. operation_id names one job operation the same
+    caller scope accepted, 1..128 lowercase ASCII letters, digits and '-';
+    open_activity and operation_end require it. A tag of 1..64 UTF-8 bytes
+    replaces this caller's live notification with the same tag. operation_end
+    holds the notification scheduled until the trusted runtime observes that
+    operation end. Full ref and request content are immutable. The service
+    derives the sender; no request field names a program, publisher or icon."""
+
+    request_ref: RequestRef = dataclasses.field(default_factory=RequestRef)
+    title: str = ""
+    body: str = ""
+    actions: list[NotificationAction] = dataclasses.field(default_factory=list)
+    expires_ms: int = 0
+    operation_id: str = ""
+    tag: str = ""
+    delivery: NotificationDelivery | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class NotificationResult:
+    """The exact terminal outcome of one occurrence: acted, dismissed or withdrawn.
+    Exactly acted carries the offered action ID. decided_by is the full subject
+    program of the proven operator or posting caller that recorded it, derived
+    by the service. It proves program attribution, not human presence, and no
+    application effect."""
+
+    id: str = ""
+    state: NotificationState | None = None
+    action: str = ""
+    decided_ms: int = 0
+    decided_by: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class NotificationObservation:
+    """Scheduled, posted, acted, dismissed and withdrawn carry the admitted
+    occurrence ID; exactly acted, dismissed and withdrawn carry the result.
+    Expired means the expiry or replay deadline elapsed with no recorded
+    outcome, or the replay deadline elapsed; it carries nothing. Gone is an
+    acknowledged occurrence. Unknown means this full ref has no retained
+    admission. Conflict is changed immutable content. Suppressed is a live
+    explicit block on this program; nothing was stored or shown. Exhausted is a
+    rate, live or capacity bound; nothing was stored. Unavailable is an
+    uncertain storage or decision result. None establishes resource authority."""
+
+    outcome: NotificationOutcome | None = None
+    id: str = ""
+    result: NotificationResult | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class NotificationRecord:
+    """One occurrence with its immutable application-authored request and
+    service-recorded sender: the bound program (a clean absolute path up to 4096
+    bytes), its display name and the publisher evidence recorded at admission.
+    posted_ms is set once the notification is posted. Exactly acted, dismissed
+    and withdrawn carry a result. presentation is present only in operator
+    reads: a staleness token bound to this record and the current host epoch,
+    which Act requires."""
+
+    id: str = ""
+    asker: str = ""
+    program: str = ""
+    request: NotificationRequest = dataclasses.field(default_factory=NotificationRequest)
+    state: NotificationState | None = None
+    admitted_ms: int = 0
+    posted_ms: int = 0
+    result: NotificationResult | None = None
+    publisher: str = ""
+    publisher_trusted: bool = False
+    program_description: str = ""
+    program_original_name: str = ""
+    presentation: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class NotificationPage:
+    """Retained occurrences in admission order under the operator page and cursor
+    rules of ListQuestions: 1..64 records, 256 KiB, cursors bound to the caller,
+    host epoch and revision. Refusals carry no records."""
+
+    outcome: OperatorPageOutcome | None = None
+    records: list[NotificationRecord] = dataclasses.field(default_factory=list)
+    next: str = ""
+    complete: bool = False
+
+
+@dataclasses.dataclass(kw_only=True)
+class NotificationRead:
+    """Exactly found carries one record."""
+
+    outcome: OperatorQuestionOutcome | None = None
+    record: NotificationRecord | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class NotificationDecision:
+    """Acted, dismissed and withdrawn carry the record as recorded; a replay of the
+    same outcome returns the original actor and time. Conflict means another
+    terminal outcome stands. Stale means the presentation token belongs to
+    another showing or host epoch; nothing was recorded. Expired, gone, unknown,
+    invalid, forbidden and unavailable carry no record. count is the number of
+    notifications a WithdrawProgram call withdrew."""
+
+    outcome: NotificationDecisionOutcome | None = None
+    record: NotificationRecord | None = None
+    count: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class NotifierDay:
+    """Admitted posts on the service UTC day starting at day_ms."""
+
+    day_ms: int = 0
+    posts: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class NotifierCount:
+    """Admitted posts for one bound program on each of the last seven service UTC
+    days that had any, oldest first, and its last admission time. Counts include
+    notifications later withdrawn or expired."""
+
+    program: str = ""
+    asker: str = ""
+    days: list[NotifierDay] = dataclasses.field(default_factory=list)
+    last_posted_ms: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class NotifierPage:
+    outcome: OperatorPageOutcome | None = None
+    notifiers: list[NotifierCount] = dataclasses.field(default_factory=list)
+    next: str = ""
+    complete: bool = False
+
+
+@dataclasses.dataclass(kw_only=True)
 class _QuestionApplicationAskArguments:
     question: ApplicationQuestion = dataclasses.field(default_factory=ApplicationQuestion)
 
@@ -378,6 +1068,29 @@ class _QuestionApplicationAskArguments:
 class _QuestionApplicationObserveArguments:
     request_key: str = ""
     wait_ms: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorListChoicesArguments:
+    cursor: str = ""
+    limit: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorReadChoiceArguments:
+    id: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorAnswerChoiceArguments:
+    id: str = ""
+    option: str = ""
+    if_pending: bool = False
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorDismissChoiceArguments:
+    id: str = ""
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -395,6 +1108,181 @@ class _QuestionOperatorAnswerQuestionArguments:
 @dataclasses.dataclass(kw_only=True)
 class _QuestionOperatorRetireQuestionArguments:
     id: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorReadAttributedQuestionArguments:
+    id: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorReadChoiceDetailsArguments:
+    id: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorReadQuestionAskerArguments:
+    id: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorAnswerQuestionIfPendingArguments:
+    id: str = ""
+    option: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorListAnswersArguments:
+    cursor: str = ""
+    limit: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ChoiceApplicationAskArguments:
+    request: ChoiceRequest = dataclasses.field(default_factory=ChoiceRequest)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ChoiceApplicationObserveArguments:
+    request_ref: RequestRef = dataclasses.field(default_factory=RequestRef)
+    wait_ms: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ChoiceApplicationAnswerArguments:
+    request_ref: RequestRef = dataclasses.field(default_factory=RequestRef)
+    option: str = ""
+    if_pending: bool = False
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ChoiceApplicationDismissArguments:
+    request_ref: RequestRef = dataclasses.field(default_factory=RequestRef)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ChoiceApplicationShareChoiceArguments:
+    request: ChoiceRequest = dataclasses.field(default_factory=ChoiceRequest)
+    assistant_options: list[str] = dataclasses.field(default_factory=list)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ChoiceApplicationAcknowledgeArguments:
+    request_ref: RequestRef = dataclasses.field(default_factory=RequestRef)
+    answer: ChoiceAnswer = dataclasses.field(default_factory=ChoiceAnswer)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionResponderListAnswerableArguments:
+    cursor: str = ""
+    limit: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionResponderAnswerArguments:
+    id: str = ""
+    option: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionResponderListChoicesArguments:
+    cursor: str = ""
+    limit: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionResponderRequestAnsweringArguments:
+    pass
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionResponderAnswerChoiceArguments:
+    id: str = ""
+    option: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _PermissionApplicationRequestArguments:
+    request: PermissionIntent = dataclasses.field(default_factory=PermissionIntent)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _PermissionApplicationObserveArguments:
+    request_key: str = ""
+    wait_ms: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class _PermissionOperatorListPermissionsArguments:
+    cursor: str = ""
+    limit: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class _PermissionOperatorReadPermissionDetailsArguments:
+    id: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _PermissionOperatorAnswerPermissionIfPendingArguments:
+    id: str = ""
+    option: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationApplicationPostArguments:
+    request: NotificationRequest = dataclasses.field(default_factory=NotificationRequest)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationApplicationObserveArguments:
+    request_ref: RequestRef = dataclasses.field(default_factory=RequestRef)
+    wait_ms: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationApplicationWithdrawArguments:
+    request_ref: RequestRef = dataclasses.field(default_factory=RequestRef)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationApplicationAcknowledgeArguments:
+    request_ref: RequestRef = dataclasses.field(default_factory=RequestRef)
+    result: NotificationResult = dataclasses.field(default_factory=NotificationResult)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationOperatorListNotificationsArguments:
+    cursor: str = ""
+    limit: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationOperatorReadNotificationArguments:
+    id: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationOperatorActArguments:
+    id: str = ""
+    action: str = ""
+    presentation: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationOperatorDismissArguments:
+    id: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationOperatorWithdrawProgramArguments:
+    program: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationOperatorListNotifiersArguments:
+    cursor: str = ""
+    limit: int = 0
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -431,6 +1319,26 @@ class _QuestionApplicationObserveResult:
 
 
 @dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorListChoicesResult:
+    value: ChoicePage = dataclasses.field(default_factory=ChoicePage)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorReadChoiceResult:
+    value: ChoiceRead = dataclasses.field(default_factory=ChoiceRead)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorAnswerChoiceResult:
+    value: ChoiceDecision = dataclasses.field(default_factory=ChoiceDecision)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorDismissChoiceResult:
+    value: ChoiceDecision = dataclasses.field(default_factory=ChoiceDecision)
+
+
+@dataclasses.dataclass(kw_only=True)
 class _QuestionOperatorListQuestionsResult:
     value: OperatorPage = dataclasses.field(default_factory=OperatorPage)
 
@@ -443,6 +1351,161 @@ class _QuestionOperatorAnswerQuestionResult:
 @dataclasses.dataclass(kw_only=True)
 class _QuestionOperatorRetireQuestionResult:
     value: OperatorRetirement = dataclasses.field(default_factory=OperatorRetirement)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorReadAttributedQuestionResult:
+    value: AttributedQuestion = dataclasses.field(default_factory=AttributedQuestion)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorReadChoiceDetailsResult:
+    value: ChoiceDetails = dataclasses.field(default_factory=ChoiceDetails)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorReadQuestionAskerResult:
+    value: QuestionAsker = dataclasses.field(default_factory=QuestionAsker)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorAnswerQuestionIfPendingResult:
+    value: OperatorDecision = dataclasses.field(default_factory=OperatorDecision)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorListAnswersResult:
+    value: AnswerEntryPage = dataclasses.field(default_factory=AnswerEntryPage)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ChoiceApplicationAskResult:
+    value: ChoiceObservation = dataclasses.field(default_factory=ChoiceObservation)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ChoiceApplicationObserveResult:
+    value: ChoiceObservation = dataclasses.field(default_factory=ChoiceObservation)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ChoiceApplicationAnswerResult:
+    value: ChoiceDecision = dataclasses.field(default_factory=ChoiceDecision)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ChoiceApplicationDismissResult:
+    value: ChoiceDecision = dataclasses.field(default_factory=ChoiceDecision)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ChoiceApplicationShareChoiceResult:
+    value: ChoiceObservation = dataclasses.field(default_factory=ChoiceObservation)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _ChoiceApplicationAcknowledgeResult:
+    value: ChoiceAcknowledgement = dataclasses.field(default_factory=ChoiceAcknowledgement)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionResponderListAnswerableResult:
+    value: OperatorPage = dataclasses.field(default_factory=OperatorPage)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionResponderAnswerResult:
+    value: ResponderDecision = dataclasses.field(default_factory=ResponderDecision)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionResponderListChoicesResult:
+    value: AnswerableChoicePage = dataclasses.field(default_factory=AnswerableChoicePage)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionResponderRequestAnsweringResult:
+    value: _dependency_rights.Decision = dataclasses.field(default_factory=_Imported3)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionResponderAnswerChoiceResult:
+    value: ChoiceDecision = dataclasses.field(default_factory=ChoiceDecision)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _PermissionApplicationRequestResult:
+    value: PermissionObservation = dataclasses.field(default_factory=PermissionObservation)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _PermissionApplicationObserveResult:
+    value: PermissionObservation = dataclasses.field(default_factory=PermissionObservation)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _PermissionOperatorListPermissionsResult:
+    value: OperatorPage = dataclasses.field(default_factory=OperatorPage)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _PermissionOperatorReadPermissionDetailsResult:
+    value: TypedPermissionDetails = dataclasses.field(default_factory=TypedPermissionDetails)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _PermissionOperatorAnswerPermissionIfPendingResult:
+    value: OperatorDecision = dataclasses.field(default_factory=OperatorDecision)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationApplicationPostResult:
+    value: NotificationObservation = dataclasses.field(default_factory=NotificationObservation)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationApplicationObserveResult:
+    value: NotificationObservation = dataclasses.field(default_factory=NotificationObservation)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationApplicationWithdrawResult:
+    value: NotificationObservation = dataclasses.field(default_factory=NotificationObservation)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationApplicationAcknowledgeResult:
+    value: ChoiceAcknowledgement = dataclasses.field(default_factory=ChoiceAcknowledgement)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationOperatorListNotificationsResult:
+    value: NotificationPage = dataclasses.field(default_factory=NotificationPage)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationOperatorReadNotificationResult:
+    value: NotificationRead = dataclasses.field(default_factory=NotificationRead)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationOperatorActResult:
+    value: NotificationDecision = dataclasses.field(default_factory=NotificationDecision)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationOperatorDismissResult:
+    value: NotificationDecision = dataclasses.field(default_factory=NotificationDecision)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationOperatorWithdrawProgramResult:
+    value: NotificationDecision = dataclasses.field(default_factory=NotificationDecision)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _NotificationOperatorListNotifiersResult:
+    value: NotifierPage = dataclasses.field(default_factory=NotifierPage)
 
 
 def _write_question(out, v, depth):
@@ -792,6 +1855,1298 @@ def _write_operator_retirement(out, v, depth):
     out += b"}"
 
 
+def _write_operator_question(out, v, depth):
+    _closed_enum(OperatorQuestionOutcome, v.outcome)
+    if v.answered_by is not None:
+        _closed_enum(Answerer, v.answered_by)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    if v.record is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "record")
+        out += b": "
+        _write_record_metadata(out, v.record, depth + 1)
+    if v.publisher:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "publisher")
+        out += b": "
+        _esc(out, v.publisher)
+    if v.publisher_trusted:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "publisher_trusted")
+        out += b": "
+        out += b"true" if v.publisher_trusted else b"false"
+    if v.answered_by is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "answered_by")
+        out += b": "
+        _esc(out, v.answered_by)
+    if v.program_description:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "program_description")
+        out += b": "
+        _esc(out, v.program_description)
+    if v.program_original_name:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "program_original_name")
+        out += b": "
+        _esc(out, v.program_original_name)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_attributed_question(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "question")
+    out += b": "
+    _write_operator_question(out, v.question, depth + 1)
+    if v.answerer:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "answerer")
+        out += b": "
+        _esc(out, v.answerer)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_permission_target(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "account")
+    out += b": "
+    _esc(out, v.account)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "program")
+    out += b": "
+    _esc(out, v.program)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "action")
+    out += b": "
+    _esc(out, v.action)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "resource")
+    out += b": "
+    _esc(out, v.resource)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_permission_request(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "targets")
+    out += b": "
+    _write_list(out, v.targets, depth + 1, _write_permission_target)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_question_details(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "question")
+    out += b": "
+    _write_attributed_question(out, v.question, depth + 1)
+    if v.permission is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "permission")
+        out += b": "
+        _write_permission_request(out, v.permission, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_question_asker(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "details")
+    out += b": "
+    _write_question_details(out, v.details, depth + 1)
+    if v.program:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "program")
+        out += b": "
+        _esc(out, v.program)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_request_ref(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "key")
+    out += b": "
+    _esc(out, v.key)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "replay_until_ms")
+    out += b": "
+    _num(out, v.replay_until_ms)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_choice_option(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "label")
+    out += b": "
+    _esc(out, v.label)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_choice_request(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request_ref")
+    out += b": "
+    _write_request_ref(out, v.request_ref, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "title")
+    out += b": "
+    _esc(out, v.title)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "options")
+    out += b": "
+    _write_list(out, v.options, depth + 1, _write_choice_option)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "pending_until_ms")
+    out += b": "
+    _num(out, v.pending_until_ms)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_choice_answer(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    if v.option:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "option")
+        out += b": "
+        _esc(out, v.option)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "answered_ms")
+    out += b": "
+    _num(out, v.answered_ms)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "answered_by")
+    out += b": "
+    _esc(out, v.answered_by)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_choice_observation(out, v, depth):
+    _closed_enum(ChoiceOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    if v.id:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "id")
+        out += b": "
+        _esc(out, v.id)
+    if v.answer is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "answer")
+        out += b": "
+        _write_choice_answer(out, v.answer, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_choice_acknowledgement(out, v, depth):
+    _closed_enum(ChoiceAckOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_choice_record(out, v, depth):
+    _closed_enum(ChoiceState, v.state)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "asker")
+    out += b": "
+    _esc(out, v.asker)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request")
+    out += b": "
+    _write_choice_request(out, v.request, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "state")
+    out += b": "
+    _esc(out, v.state)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "asked_ms")
+    out += b": "
+    _num(out, v.asked_ms)
+    if v.answer is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "answer")
+        out += b": "
+        _write_choice_answer(out, v.answer, depth + 1)
+    if v.publisher:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "publisher")
+        out += b": "
+        _esc(out, v.publisher)
+    if v.publisher_trusted:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "publisher_trusted")
+        out += b": "
+        out += b"true" if v.publisher_trusted else b"false"
+    if v.program_description:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "program_description")
+        out += b": "
+        _esc(out, v.program_description)
+    if v.program_original_name:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "program_original_name")
+        out += b": "
+        _esc(out, v.program_original_name)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_choice_page(out, v, depth):
+    _closed_enum(OperatorPageOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "records")
+    out += b": "
+    _write_list(out, v.records, depth + 1, _write_choice_record)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "next")
+    out += b": "
+    _esc(out, v.next)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "complete")
+    out += b": "
+    out += b"true" if v.complete else b"false"
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_choice_read(out, v, depth):
+    _closed_enum(OperatorQuestionOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    if v.record is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "record")
+        out += b": "
+        _write_choice_record(out, v.record, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_choice_decision(out, v, depth):
+    _closed_enum(ChoiceDecisionOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    if v.record is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "record")
+        out += b": "
+        _write_choice_record(out, v.record, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_choice_details(out, v, depth):
+    if v.answered_via is not None:
+        _closed_enum(ChoiceRoute, v.answered_via)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "choice")
+    out += b": "
+    _write_choice_read(out, v.choice, depth + 1)
+    if v.asker_program:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "asker_program")
+        out += b": "
+        _esc(out, v.asker_program)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "assistant_options")
+    out += b": "
+    _strs(out, v.assistant_options, depth + 1)
+    if v.answered_via is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "answered_via")
+        out += b": "
+        _esc(out, v.answered_via)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_answer_entry(out, v, depth):
+    _closed_enum(AnswerKind, v.kind)
+    _closed_enum(Answerer, v.answered_by)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "kind")
+    out += b": "
+    _esc(out, v.kind)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "key")
+    out += b": "
+    _esc(out, v.key)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "asker")
+    out += b": "
+    _esc(out, v.asker)
+    if v.asker_program:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "asker_program")
+        out += b": "
+        _esc(out, v.asker_program)
+    if v.publisher:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "publisher")
+        out += b": "
+        _esc(out, v.publisher)
+    if v.publisher_trusted:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "publisher_trusted")
+        out += b": "
+        out += b"true" if v.publisher_trusted else b"false"
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "about")
+    out += b": "
+    _esc(out, v.about)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "title")
+    out += b": "
+    _esc(out, v.title)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "option")
+    out += b": "
+    _esc(out, v.option)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "label")
+    out += b": "
+    _esc(out, v.label)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "answered_by")
+    out += b": "
+    _esc(out, v.answered_by)
+    if v.answerer:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "answerer")
+        out += b": "
+        _esc(out, v.answerer)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "answered_ms")
+    out += b": "
+    _num(out, v.answered_ms)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_answer_entry_page(out, v, depth):
+    _closed_enum(OperatorPageOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "answers")
+    out += b": "
+    _write_list(out, v.answers, depth + 1, _write_answer_entry)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "next")
+    out += b": "
+    _esc(out, v.next)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "complete")
+    out += b": "
+    out += b"true" if v.complete else b"false"
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "complete_since_ms")
+    out += b": "
+    _num(out, v.complete_since_ms)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_answerable_choice(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "asker")
+    out += b": "
+    _esc(out, v.asker)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "title")
+    out += b": "
+    _esc(out, v.title)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "options")
+    out += b": "
+    _write_list(out, v.options, depth + 1, _write_choice_option)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "pending_until_ms")
+    out += b": "
+    _num(out, v.pending_until_ms)
+    if v.publisher:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "publisher")
+        out += b": "
+        _esc(out, v.publisher)
+    if v.publisher_trusted:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "publisher_trusted")
+        out += b": "
+        out += b"true" if v.publisher_trusted else b"false"
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_answerable_choice_page(out, v, depth):
+    _closed_enum(OperatorPageOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "choices")
+    out += b": "
+    _write_list(out, v.choices, depth + 1, _write_answerable_choice)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "next")
+    out += b": "
+    _esc(out, v.next)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "complete")
+    out += b": "
+    out += b"true" if v.complete else b"false"
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_responder_decision(out, v, depth):
+    _closed_enum(OperatorDecisionOutcome, v.outcome)
+    _closed_enum(ResponderEffectOutcome, v.effect)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    if v.record is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "record")
+        out += b": "
+        _write_record_metadata(out, v.record, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "effect")
+    out += b": "
+    _esc(out, v.effect)
+    if v.target_outcome:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "target_outcome")
+        out += b": "
+        _esc(out, v.target_outcome)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_permission_intent(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request_key")
+    out += b": "
+    _esc(out, v.request_key)
+    if v.selection is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "selection")
+        out += b": "
+        _write_oa_imported0(out, v.selection, depth + 1)
+    if v.bundle_ref:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "bundle_ref")
+        out += b": "
+        _esc(out, v.bundle_ref)
+    if v.bundle_selector is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "bundle_selector")
+        out += b": "
+        _write_oa_imported1(out, v.bundle_selector, depth + 1)
+    if v.purpose:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "purpose")
+        out += b": "
+        _esc(out, v.purpose)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_permission_observation(out, v, depth):
+    _closed_enum(PermissionOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    if v.answer is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "answer")
+        out += b": "
+        _write_answer(out, v.answer, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "policy_revision")
+    out += b": "
+    _esc(out, v.policy_revision)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_typed_permission_details(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "question")
+    out += b": "
+    _write_attributed_question(out, v.question, depth + 1)
+    if v.effect is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "effect")
+        out += b": "
+        _write_oa_imported2(out, v.effect, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "effect_digest")
+    out += b": "
+    _esc(out, v.effect_digest)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "origin")
+    out += b": "
+    _esc(out, v.origin)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "purpose")
+    out += b": "
+    _esc(out, v.purpose)
+    if v.display is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "display")
+        out += b": "
+        _write_permission_display(out, v.display, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_permission_display_selection(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "operation")
+    out += b": "
+    _esc(out, v.operation)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "target")
+    out += b": "
+    _esc(out, v.target)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "collection")
+    out += b": "
+    _esc(out, v.collection)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "all_effect")
+    out += b": "
+    _esc(out, v.all_effect)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "disclosure")
+    out += b": "
+    _esc(out, v.disclosure)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_permission_display(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "selections")
+    out += b": "
+    _write_list(out, v.selections, depth + 1, _write_permission_display_selection)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "bundle_label")
+    out += b": "
+    _esc(out, v.bundle_label)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "bundle_disclosure")
+    out += b": "
+    _esc(out, v.bundle_disclosure)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "requires_os_authorization")
+    out += b": "
+    out += b"true" if v.requires_os_authorization else b"false"
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_notification_action(out, v, depth):
+    _closed_enum(NotificationActivation, v.activation)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "title")
+    out += b": "
+    _esc(out, v.title)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "activation")
+    out += b": "
+    _esc(out, v.activation)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_notification_request(out, v, depth):
+    _closed_enum(NotificationDelivery, v.delivery)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request_ref")
+    out += b": "
+    _write_request_ref(out, v.request_ref, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "title")
+    out += b": "
+    _esc(out, v.title)
+    if v.body:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "body")
+        out += b": "
+        _esc(out, v.body)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "actions")
+    out += b": "
+    _write_list(out, v.actions, depth + 1, _write_notification_action)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "expires_ms")
+    out += b": "
+    _num(out, v.expires_ms)
+    if v.operation_id:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "operation_id")
+        out += b": "
+        _esc(out, v.operation_id)
+    if v.tag:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "tag")
+        out += b": "
+        _esc(out, v.tag)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "delivery")
+    out += b": "
+    _esc(out, v.delivery)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_notification_result(out, v, depth):
+    _closed_enum(NotificationState, v.state)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "state")
+    out += b": "
+    _esc(out, v.state)
+    if v.action:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "action")
+        out += b": "
+        _esc(out, v.action)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "decided_ms")
+    out += b": "
+    _num(out, v.decided_ms)
+    if v.decided_by:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "decided_by")
+        out += b": "
+        _esc(out, v.decided_by)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_notification_observation(out, v, depth):
+    _closed_enum(NotificationOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    if v.id:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "id")
+        out += b": "
+        _esc(out, v.id)
+    if v.result is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "result")
+        out += b": "
+        _write_notification_result(out, v.result, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_notification_record(out, v, depth):
+    _closed_enum(NotificationState, v.state)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "asker")
+    out += b": "
+    _esc(out, v.asker)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "program")
+    out += b": "
+    _esc(out, v.program)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request")
+    out += b": "
+    _write_notification_request(out, v.request, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "state")
+    out += b": "
+    _esc(out, v.state)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "admitted_ms")
+    out += b": "
+    _num(out, v.admitted_ms)
+    if v.posted_ms != 0:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "posted_ms")
+        out += b": "
+        _num(out, v.posted_ms)
+    if v.result is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "result")
+        out += b": "
+        _write_notification_result(out, v.result, depth + 1)
+    if v.publisher:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "publisher")
+        out += b": "
+        _esc(out, v.publisher)
+    if v.publisher_trusted:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "publisher_trusted")
+        out += b": "
+        out += b"true" if v.publisher_trusted else b"false"
+    if v.program_description:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "program_description")
+        out += b": "
+        _esc(out, v.program_description)
+    if v.program_original_name:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "program_original_name")
+        out += b": "
+        _esc(out, v.program_original_name)
+    if v.presentation:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "presentation")
+        out += b": "
+        _esc(out, v.presentation)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_notification_page(out, v, depth):
+    _closed_enum(OperatorPageOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "records")
+    out += b": "
+    _write_list(out, v.records, depth + 1, _write_notification_record)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "next")
+    out += b": "
+    _esc(out, v.next)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "complete")
+    out += b": "
+    out += b"true" if v.complete else b"false"
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_notification_read(out, v, depth):
+    _closed_enum(OperatorQuestionOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    if v.record is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "record")
+        out += b": "
+        _write_notification_record(out, v.record, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_notification_decision(out, v, depth):
+    _closed_enum(NotificationDecisionOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    if v.record is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "record")
+        out += b": "
+        _write_notification_record(out, v.record, depth + 1)
+    if v.count != 0:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "count")
+        out += b": "
+        _num(out, v.count)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_notifier_day(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "day_ms")
+    out += b": "
+    _num(out, v.day_ms)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "posts")
+    out += b": "
+    _num(out, v.posts)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_notifier_count(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "program")
+    out += b": "
+    _esc(out, v.program)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "asker")
+    out += b": "
+    _esc(out, v.asker)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "days")
+    out += b": "
+    _write_list(out, v.days, depth + 1, _write_notifier_day)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "last_posted_ms")
+    out += b": "
+    _num(out, v.last_posted_ms)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_notifier_page(out, v, depth):
+    _closed_enum(OperatorPageOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "notifiers")
+    out += b": "
+    _write_list(out, v.notifiers, depth + 1, _write_notifier_count)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "next")
+    out += b": "
+    _esc(out, v.next)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "complete")
+    out += b": "
+    out += b"true" if v.complete else b"false"
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
 def _write_oa_question_application_ask_arguments(out, v, depth):
     out += b"{"
     out += b"\n"
@@ -817,6 +3172,72 @@ def _write_oa_question_application_observe_arguments(out, v, depth):
     _esc(out, "wait_ms")
     out += b": "
     _num(out, v.wait_ms)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_list_choices_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "cursor")
+    out += b": "
+    _esc(out, v.cursor)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "limit")
+    out += b": "
+    _num(out, v.limit)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_read_choice_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_answer_choice_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "option")
+    out += b": "
+    _esc(out, v.option)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "if_pending")
+    out += b": "
+    out += b"true" if v.if_pending else b"false"
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_dismiss_choice_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
     out += b"\n"
     _pad(out, depth)
     out += b"}"
@@ -865,6 +3286,491 @@ def _write_oa_question_operator_retire_question_arguments(out, v, depth):
     _esc(out, "id")
     out += b": "
     _esc(out, v.id)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_read_attributed_question_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_read_choice_details_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_read_question_asker_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_answer_question_if_pending_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "option")
+    out += b": "
+    _esc(out, v.option)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_list_answers_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "cursor")
+    out += b": "
+    _esc(out, v.cursor)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "limit")
+    out += b": "
+    _num(out, v.limit)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_choice_application_ask_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request")
+    out += b": "
+    _write_choice_request(out, v.request, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_choice_application_observe_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request_ref")
+    out += b": "
+    _write_request_ref(out, v.request_ref, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "wait_ms")
+    out += b": "
+    _num(out, v.wait_ms)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_choice_application_answer_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request_ref")
+    out += b": "
+    _write_request_ref(out, v.request_ref, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "option")
+    out += b": "
+    _esc(out, v.option)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "if_pending")
+    out += b": "
+    out += b"true" if v.if_pending else b"false"
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_choice_application_dismiss_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request_ref")
+    out += b": "
+    _write_request_ref(out, v.request_ref, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_choice_application_share_choice_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request")
+    out += b": "
+    _write_choice_request(out, v.request, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "assistant_options")
+    out += b": "
+    _strs(out, v.assistant_options, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_choice_application_acknowledge_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request_ref")
+    out += b": "
+    _write_request_ref(out, v.request_ref, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "answer")
+    out += b": "
+    _write_choice_answer(out, v.answer, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_responder_list_answerable_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "cursor")
+    out += b": "
+    _esc(out, v.cursor)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "limit")
+    out += b": "
+    _num(out, v.limit)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_responder_answer_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "option")
+    out += b": "
+    _esc(out, v.option)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_responder_list_choices_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "cursor")
+    out += b": "
+    _esc(out, v.cursor)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "limit")
+    out += b": "
+    _num(out, v.limit)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_responder_request_answering_arguments(out, v, depth):
+    out += b"{"
+    out += b"}"
+
+
+def _write_oa_question_responder_answer_choice_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "option")
+    out += b": "
+    _esc(out, v.option)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_permission_application_request_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request")
+    out += b": "
+    _write_permission_intent(out, v.request, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_permission_application_observe_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request_key")
+    out += b": "
+    _esc(out, v.request_key)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "wait_ms")
+    out += b": "
+    _num(out, v.wait_ms)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_permission_operator_list_permissions_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "cursor")
+    out += b": "
+    _esc(out, v.cursor)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "limit")
+    out += b": "
+    _num(out, v.limit)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_permission_operator_read_permission_details_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_permission_operator_answer_permission_if_pending_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "option")
+    out += b": "
+    _esc(out, v.option)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_application_post_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request")
+    out += b": "
+    _write_notification_request(out, v.request, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_application_observe_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request_ref")
+    out += b": "
+    _write_request_ref(out, v.request_ref, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "wait_ms")
+    out += b": "
+    _num(out, v.wait_ms)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_application_withdraw_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request_ref")
+    out += b": "
+    _write_request_ref(out, v.request_ref, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_application_acknowledge_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "request_ref")
+    out += b": "
+    _write_request_ref(out, v.request_ref, depth + 1)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "result")
+    out += b": "
+    _write_notification_result(out, v.result, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_operator_list_notifications_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "cursor")
+    out += b": "
+    _esc(out, v.cursor)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "limit")
+    out += b": "
+    _num(out, v.limit)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_operator_read_notification_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_operator_act_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "action")
+    out += b": "
+    _esc(out, v.action)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "presentation")
+    out += b": "
+    _esc(out, v.presentation)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_operator_dismiss_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_operator_withdraw_program_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "program")
+    out += b": "
+    _esc(out, v.program)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_operator_list_notifiers_arguments(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "cursor")
+    out += b": "
+    _esc(out, v.cursor)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "limit")
+    out += b": "
+    _num(out, v.limit)
     out += b"\n"
     _pad(out, depth)
     out += b"}"
@@ -978,6 +3884,54 @@ def _write_oa_question_application_observe_result(out, v, depth):
     out += b"}"
 
 
+def _write_oa_question_operator_list_choices_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_page(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_read_choice_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_read(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_answer_choice_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_decision(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_dismiss_choice_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_decision(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
 def _write_oa_question_operator_list_questions_result(out, v, depth):
     out += b"{"
     out += b"\n"
@@ -1014,11 +3968,380 @@ def _write_oa_question_operator_retire_question_result(out, v, depth):
     out += b"}"
 
 
-def encode(v):
-    out = bytearray()
-    _write_request(out, v, 0)
+def _write_oa_question_operator_read_attributed_question_result(out, v, depth):
+    out += b"{"
     out += b"\n"
-    return bytes(out)
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_attributed_question(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_read_choice_details_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_details(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_read_question_asker_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_question_asker(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_answer_question_if_pending_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_operator_decision(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_list_answers_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_answer_entry_page(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_choice_application_ask_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_observation(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_choice_application_observe_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_observation(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_choice_application_answer_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_decision(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_choice_application_dismiss_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_decision(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_choice_application_share_choice_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_observation(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_choice_application_acknowledge_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_acknowledgement(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_responder_list_answerable_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_operator_page(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_responder_answer_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_responder_decision(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_responder_list_choices_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_answerable_choice_page(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_responder_request_answering_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_oa_imported3(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_responder_answer_choice_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_decision(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_permission_application_request_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_permission_observation(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_permission_application_observe_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_permission_observation(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_permission_operator_list_permissions_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_operator_page(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_permission_operator_read_permission_details_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_typed_permission_details(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_permission_operator_answer_permission_if_pending_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_operator_decision(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_application_post_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_notification_observation(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_application_observe_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_notification_observation(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_application_withdraw_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_notification_observation(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_application_acknowledge_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_choice_acknowledgement(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_operator_list_notifications_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_notification_page(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_operator_read_notification_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_notification_read(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_operator_act_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_notification_decision(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_operator_dismiss_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_notification_decision(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_operator_withdraw_program_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_notification_decision(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_notification_operator_list_notifiers_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_notifier_page(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def encode(v):
+    return encode_request(v)
 
 
 _QUOTE, _BACKSLASH, _COLON, _COMMA = 0x22, 0x5C, 0x3A, 0x2C
@@ -1040,12 +4363,13 @@ class Refusal(ValueError):
 
 
 class _Reader:
-    __slots__ = ("buf", "pos", "depth")
+    __slots__ = ("buf", "pos", "depth", "limit")
 
     def __init__(self, buf):
         self.buf = buf
         self.pos = 0
         self.depth = 0
+        self.limit = _DEPTH_LIMIT
 
     def refuse(self, word):
         return Refusal(word, self.pos)
@@ -1059,7 +4383,7 @@ class _Reader:
 
     def enter(self):
         self.depth += 1
-        if self.depth > _DEPTH_LIMIT:
+        if self.depth > self.limit:
             raise self.refuse("depth_exceeded")
 
     def digit(self):
@@ -1945,6 +5269,2220 @@ def _read_operator_retirement(r):
     return v
 
 
+def _read_operator_question(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = OperatorQuestion()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "record":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.record = _read_record_metadata(r)
+            elif key == "publisher":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.publisher = r.string()
+            elif key == "publisher_trusted":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.publisher_trusted = r.boolean()
+            elif key == "answered_by":
+                if seen & 16:
+                    raise r.refuse("duplicate_field")
+                seen |= 16
+                v.answered_by = r.string()
+            elif key == "program_description":
+                if seen & 32:
+                    raise r.refuse("duplicate_field")
+                seen |= 32
+                v.program_description = r.string()
+            elif key == "program_original_name":
+                if seen & 64:
+                    raise r.refuse("duplicate_field")
+                seen |= 64
+                v.program_original_name = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = OperatorQuestionOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    if v.answered_by is not None:
+        try:
+            v.answered_by = Answerer(v.answered_by)
+        except ValueError:
+            raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_attributed_question(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = AttributedQuestion()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "question":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.question = _read_operator_question(r)
+            elif key == "answerer":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.answerer = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_permission_target(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = PermissionTarget()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "account":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.account = r.string()
+            elif key == "program":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.program = r.string()
+            elif key == "action":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.action = r.string()
+            elif key == "resource":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.resource = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 15 != 15:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_permission_request(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = PermissionRequest()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "targets":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.targets = _read_list(r, _read_permission_target)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_question_details(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = QuestionDetails()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "question":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.question = _read_attributed_question(r)
+            elif key == "permission":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.permission = _read_permission_request(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_question_asker(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = QuestionAsker()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "details":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.details = _read_question_details(r)
+            elif key == "program":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.program = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_request_ref(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = RequestRef()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "key":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.key = r.string()
+            elif key == "replay_until_ms":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.replay_until_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_choice_option(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = ChoiceOption()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "label":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.label = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_choice_request(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = ChoiceRequest()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request_ref":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request_ref = _read_request_ref(r)
+            elif key == "title":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.title = r.string()
+            elif key == "options":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.options = _read_list(r, _read_choice_option)
+            elif key == "pending_until_ms":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.pending_until_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 15 != 15:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_choice_answer(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = ChoiceAnswer()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "option":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.option = r.string()
+            elif key == "answered_ms":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.answered_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            elif key == "answered_by":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.answered_by = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 13 != 13:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_choice_observation(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = ChoiceObservation()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "id":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.id = r.string()
+            elif key == "answer":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.answer = _read_choice_answer(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = ChoiceOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_choice_acknowledgement(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = ChoiceAcknowledgement()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = ChoiceAckOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_choice_record(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = ChoiceRecord()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "asker":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.asker = r.string()
+            elif key == "request":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.request = _read_choice_request(r)
+            elif key == "state":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.state = r.string()
+            elif key == "asked_ms":
+                if seen & 16:
+                    raise r.refuse("duplicate_field")
+                seen |= 16
+                v.asked_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            elif key == "answer":
+                if seen & 32:
+                    raise r.refuse("duplicate_field")
+                seen |= 32
+                v.answer = _read_choice_answer(r)
+            elif key == "publisher":
+                if seen & 64:
+                    raise r.refuse("duplicate_field")
+                seen |= 64
+                v.publisher = r.string()
+            elif key == "publisher_trusted":
+                if seen & 128:
+                    raise r.refuse("duplicate_field")
+                seen |= 128
+                v.publisher_trusted = r.boolean()
+            elif key == "program_description":
+                if seen & 256:
+                    raise r.refuse("duplicate_field")
+                seen |= 256
+                v.program_description = r.string()
+            elif key == "program_original_name":
+                if seen & 512:
+                    raise r.refuse("duplicate_field")
+                seen |= 512
+                v.program_original_name = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 31 != 31:
+        raise r.refuse("missing_field")
+    try:
+        v.state = ChoiceState(v.state)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_choice_page(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = ChoicePage()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "records":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.records = _read_list(r, _read_choice_record)
+            elif key == "next":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.next = r.string()
+            elif key == "complete":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.complete = r.boolean()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 15 != 15:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = OperatorPageOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_choice_read(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = ChoiceRead()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "record":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.record = _read_choice_record(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = OperatorQuestionOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_choice_decision(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = ChoiceDecision()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "record":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.record = _read_choice_record(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = ChoiceDecisionOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_choice_details(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = ChoiceDetails()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "choice":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.choice = _read_choice_read(r)
+            elif key == "asker_program":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.asker_program = r.string()
+            elif key == "assistant_options":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.assistant_options = r.str_list()
+            elif key == "answered_via":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.answered_via = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 5 != 5:
+        raise r.refuse("missing_field")
+    if v.answered_via is not None:
+        try:
+            v.answered_via = ChoiceRoute(v.answered_via)
+        except ValueError:
+            raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_answer_entry(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = AnswerEntry()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "kind":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.kind = r.string()
+            elif key == "key":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.key = r.string()
+            elif key == "asker":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.asker = r.string()
+            elif key == "asker_program":
+                if seen & 16:
+                    raise r.refuse("duplicate_field")
+                seen |= 16
+                v.asker_program = r.string()
+            elif key == "publisher":
+                if seen & 32:
+                    raise r.refuse("duplicate_field")
+                seen |= 32
+                v.publisher = r.string()
+            elif key == "publisher_trusted":
+                if seen & 64:
+                    raise r.refuse("duplicate_field")
+                seen |= 64
+                v.publisher_trusted = r.boolean()
+            elif key == "about":
+                if seen & 128:
+                    raise r.refuse("duplicate_field")
+                seen |= 128
+                v.about = r.string()
+            elif key == "title":
+                if seen & 256:
+                    raise r.refuse("duplicate_field")
+                seen |= 256
+                v.title = r.string()
+            elif key == "option":
+                if seen & 512:
+                    raise r.refuse("duplicate_field")
+                seen |= 512
+                v.option = r.string()
+            elif key == "label":
+                if seen & 1024:
+                    raise r.refuse("duplicate_field")
+                seen |= 1024
+                v.label = r.string()
+            elif key == "answered_by":
+                if seen & 2048:
+                    raise r.refuse("duplicate_field")
+                seen |= 2048
+                v.answered_by = r.string()
+            elif key == "answerer":
+                if seen & 4096:
+                    raise r.refuse("duplicate_field")
+                seen |= 4096
+                v.answerer = r.string()
+            elif key == "answered_ms":
+                if seen & 8192:
+                    raise r.refuse("duplicate_field")
+                seen |= 8192
+                v.answered_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 12175 != 12175:
+        raise r.refuse("missing_field")
+    try:
+        v.kind = AnswerKind(v.kind)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    try:
+        v.answered_by = Answerer(v.answered_by)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_answer_entry_page(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = AnswerEntryPage()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "answers":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.answers = _read_list(r, _read_answer_entry)
+            elif key == "next":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.next = r.string()
+            elif key == "complete":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.complete = r.boolean()
+            elif key == "complete_since_ms":
+                if seen & 16:
+                    raise r.refuse("duplicate_field")
+                seen |= 16
+                v.complete_since_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 31 != 31:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = OperatorPageOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_answerable_choice(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = AnswerableChoice()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "asker":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.asker = r.string()
+            elif key == "title":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.title = r.string()
+            elif key == "options":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.options = _read_list(r, _read_choice_option)
+            elif key == "pending_until_ms":
+                if seen & 16:
+                    raise r.refuse("duplicate_field")
+                seen |= 16
+                v.pending_until_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            elif key == "publisher":
+                if seen & 32:
+                    raise r.refuse("duplicate_field")
+                seen |= 32
+                v.publisher = r.string()
+            elif key == "publisher_trusted":
+                if seen & 64:
+                    raise r.refuse("duplicate_field")
+                seen |= 64
+                v.publisher_trusted = r.boolean()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 31 != 31:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_answerable_choice_page(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = AnswerableChoicePage()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "choices":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.choices = _read_list(r, _read_answerable_choice)
+            elif key == "next":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.next = r.string()
+            elif key == "complete":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.complete = r.boolean()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 15 != 15:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = OperatorPageOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_responder_decision(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = ResponderDecision()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "record":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.record = _read_record_metadata(r)
+            elif key == "effect":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.effect = r.string()
+            elif key == "target_outcome":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.target_outcome = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 5 != 5:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = OperatorDecisionOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    try:
+        v.effect = ResponderEffectOutcome(v.effect)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_permission_intent(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = PermissionIntent()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request_key":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request_key = r.string()
+            elif key == "selection":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.selection = _read_oa_imported0(r)
+            elif key == "bundle_ref":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.bundle_ref = r.string()
+            elif key == "bundle_selector":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.bundle_selector = _read_oa_imported1(r)
+            elif key == "purpose":
+                if seen & 16:
+                    raise r.refuse("duplicate_field")
+                seen |= 16
+                v.purpose = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_permission_observation(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = PermissionObservation()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "answer":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.answer = _read_answer(r)
+            elif key == "policy_revision":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.policy_revision = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 5 != 5:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = PermissionOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_typed_permission_details(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = TypedPermissionDetails()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "question":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.question = _read_attributed_question(r)
+            elif key == "effect":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.effect = _read_oa_imported2(r)
+            elif key == "effect_digest":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.effect_digest = r.string()
+            elif key == "origin":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.origin = r.string()
+            elif key == "purpose":
+                if seen & 16:
+                    raise r.refuse("duplicate_field")
+                seen |= 16
+                v.purpose = r.string()
+            elif key == "display":
+                if seen & 32:
+                    raise r.refuse("duplicate_field")
+                seen |= 32
+                v.display = _read_permission_display(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 29 != 29:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_permission_display_selection(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = PermissionDisplaySelection()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "operation":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.operation = r.string()
+            elif key == "target":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.target = r.string()
+            elif key == "collection":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.collection = r.string()
+            elif key == "all_effect":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.all_effect = r.string()
+            elif key == "disclosure":
+                if seen & 16:
+                    raise r.refuse("duplicate_field")
+                seen |= 16
+                v.disclosure = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 31 != 31:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_permission_display(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = PermissionDisplay()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "selections":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.selections = _read_list(r, _read_permission_display_selection)
+            elif key == "bundle_label":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.bundle_label = r.string()
+            elif key == "bundle_disclosure":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.bundle_disclosure = r.string()
+            elif key == "requires_os_authorization":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.requires_os_authorization = r.boolean()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 15 != 15:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_notification_action(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = NotificationAction()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "title":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.title = r.string()
+            elif key == "activation":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.activation = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 7 != 7:
+        raise r.refuse("missing_field")
+    try:
+        v.activation = NotificationActivation(v.activation)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_notification_request(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = NotificationRequest()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request_ref":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request_ref = _read_request_ref(r)
+            elif key == "title":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.title = r.string()
+            elif key == "body":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.body = r.string()
+            elif key == "actions":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.actions = _read_list(r, _read_notification_action)
+            elif key == "expires_ms":
+                if seen & 16:
+                    raise r.refuse("duplicate_field")
+                seen |= 16
+                v.expires_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            elif key == "operation_id":
+                if seen & 32:
+                    raise r.refuse("duplicate_field")
+                seen |= 32
+                v.operation_id = r.string()
+            elif key == "tag":
+                if seen & 64:
+                    raise r.refuse("duplicate_field")
+                seen |= 64
+                v.tag = r.string()
+            elif key == "delivery":
+                if seen & 128:
+                    raise r.refuse("duplicate_field")
+                seen |= 128
+                v.delivery = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 155 != 155:
+        raise r.refuse("missing_field")
+    try:
+        v.delivery = NotificationDelivery(v.delivery)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_notification_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = NotificationResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "state":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.state = r.string()
+            elif key == "action":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.action = r.string()
+            elif key == "decided_ms":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.decided_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            elif key == "decided_by":
+                if seen & 16:
+                    raise r.refuse("duplicate_field")
+                seen |= 16
+                v.decided_by = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 11 != 11:
+        raise r.refuse("missing_field")
+    try:
+        v.state = NotificationState(v.state)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_notification_observation(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = NotificationObservation()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "id":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.id = r.string()
+            elif key == "result":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.result = _read_notification_result(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = NotificationOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_notification_record(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = NotificationRecord()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "asker":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.asker = r.string()
+            elif key == "program":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.program = r.string()
+            elif key == "request":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.request = _read_notification_request(r)
+            elif key == "state":
+                if seen & 16:
+                    raise r.refuse("duplicate_field")
+                seen |= 16
+                v.state = r.string()
+            elif key == "admitted_ms":
+                if seen & 32:
+                    raise r.refuse("duplicate_field")
+                seen |= 32
+                v.admitted_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            elif key == "posted_ms":
+                if seen & 64:
+                    raise r.refuse("duplicate_field")
+                seen |= 64
+                v.posted_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            elif key == "result":
+                if seen & 128:
+                    raise r.refuse("duplicate_field")
+                seen |= 128
+                v.result = _read_notification_result(r)
+            elif key == "publisher":
+                if seen & 256:
+                    raise r.refuse("duplicate_field")
+                seen |= 256
+                v.publisher = r.string()
+            elif key == "publisher_trusted":
+                if seen & 512:
+                    raise r.refuse("duplicate_field")
+                seen |= 512
+                v.publisher_trusted = r.boolean()
+            elif key == "program_description":
+                if seen & 1024:
+                    raise r.refuse("duplicate_field")
+                seen |= 1024
+                v.program_description = r.string()
+            elif key == "program_original_name":
+                if seen & 2048:
+                    raise r.refuse("duplicate_field")
+                seen |= 2048
+                v.program_original_name = r.string()
+            elif key == "presentation":
+                if seen & 4096:
+                    raise r.refuse("duplicate_field")
+                seen |= 4096
+                v.presentation = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 63 != 63:
+        raise r.refuse("missing_field")
+    try:
+        v.state = NotificationState(v.state)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_notification_page(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = NotificationPage()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "records":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.records = _read_list(r, _read_notification_record)
+            elif key == "next":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.next = r.string()
+            elif key == "complete":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.complete = r.boolean()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 15 != 15:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = OperatorPageOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_notification_read(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = NotificationRead()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "record":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.record = _read_notification_record(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = OperatorQuestionOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_notification_decision(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = NotificationDecision()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "record":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.record = _read_notification_record(r)
+            elif key == "count":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.count = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = NotificationDecisionOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
+def _read_notifier_day(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = NotifierDay()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "day_ms":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.day_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            elif key == "posts":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.posts = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_notifier_count(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = NotifierCount()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "program":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.program = r.string()
+            elif key == "asker":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.asker = r.string()
+            elif key == "days":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.days = _read_list(r, _read_notifier_day)
+            elif key == "last_posted_ms":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.last_posted_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 15 != 15:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_notifier_page(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = NotifierPage()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "notifiers":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.notifiers = _read_list(r, _read_notifier_count)
+            elif key == "next":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.next = r.string()
+            elif key == "complete":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.complete = r.boolean()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 15 != 15:
+        raise r.refuse("missing_field")
+    try:
+        v.outcome = OperatorPageOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
 def _read_oa_question_application_ask_arguments(r):
     if r.at() != _LBRACE:
         raise r.refuse("wrong_type")
@@ -2024,6 +7562,177 @@ def _read_oa_question_application_observe_arguments(r):
     r.pos += 1
     r.depth -= 1
     if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_list_choices_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorListChoicesArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "cursor":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.cursor = r.string()
+            elif key == "limit":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.limit = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_read_choice_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorReadChoiceArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_answer_choice_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorAnswerChoiceArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "option":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.option = r.string()
+            elif key == "if_pending":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.if_pending = r.boolean()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 7 != 7:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_dismiss_choice_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorDismissChoiceArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
         raise r.refuse("missing_field")
     return v
 
@@ -2151,6 +7860,1310 @@ def _read_oa_question_operator_retire_question_arguments(r):
     r.pos += 1
     r.depth -= 1
     if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_read_attributed_question_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorReadAttributedQuestionArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_read_choice_details_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorReadChoiceDetailsArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_read_question_asker_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorReadQuestionAskerArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_answer_question_if_pending_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorAnswerQuestionIfPendingArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "option":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.option = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_list_answers_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorListAnswersArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "cursor":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.cursor = r.string()
+            elif key == "limit":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.limit = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_choice_application_ask_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _ChoiceApplicationAskArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request = _read_choice_request(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_choice_application_observe_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _ChoiceApplicationObserveArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request_ref":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request_ref = _read_request_ref(r)
+            elif key == "wait_ms":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.wait_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_choice_application_answer_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _ChoiceApplicationAnswerArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request_ref":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request_ref = _read_request_ref(r)
+            elif key == "option":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.option = r.string()
+            elif key == "if_pending":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.if_pending = r.boolean()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 7 != 7:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_choice_application_dismiss_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _ChoiceApplicationDismissArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request_ref":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request_ref = _read_request_ref(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_choice_application_share_choice_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _ChoiceApplicationShareChoiceArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request = _read_choice_request(r)
+            elif key == "assistant_options":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.assistant_options = r.str_list()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_choice_application_acknowledge_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _ChoiceApplicationAcknowledgeArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request_ref":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request_ref = _read_request_ref(r)
+            elif key == "answer":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.answer = _read_choice_answer(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_responder_list_answerable_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionResponderListAnswerableArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "cursor":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.cursor = r.string()
+            elif key == "limit":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.limit = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_responder_answer_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionResponderAnswerArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "option":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.option = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_responder_list_choices_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionResponderListChoicesArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "cursor":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.cursor = r.string()
+            elif key == "limit":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.limit = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_responder_request_answering_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionResponderRequestAnsweringArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if False:
+                pass
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    return v
+
+
+def _read_oa_question_responder_answer_choice_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionResponderAnswerChoiceArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "option":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.option = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_permission_application_request_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _PermissionApplicationRequestArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request = _read_permission_intent(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_permission_application_observe_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _PermissionApplicationObserveArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request_key":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request_key = r.string()
+            elif key == "wait_ms":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.wait_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_permission_operator_list_permissions_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _PermissionOperatorListPermissionsArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "cursor":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.cursor = r.string()
+            elif key == "limit":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.limit = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_permission_operator_read_permission_details_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _PermissionOperatorReadPermissionDetailsArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_permission_operator_answer_permission_if_pending_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _PermissionOperatorAnswerPermissionIfPendingArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "option":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.option = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_application_post_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationApplicationPostArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request = _read_notification_request(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_application_observe_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationApplicationObserveArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request_ref":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request_ref = _read_request_ref(r)
+            elif key == "wait_ms":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.wait_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_application_withdraw_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationApplicationWithdrawArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request_ref":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request_ref = _read_request_ref(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_application_acknowledge_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationApplicationAcknowledgeArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "request_ref":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.request_ref = _read_request_ref(r)
+            elif key == "result":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.result = _read_notification_result(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_operator_list_notifications_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationOperatorListNotificationsArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "cursor":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.cursor = r.string()
+            elif key == "limit":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.limit = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_operator_read_notification_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationOperatorReadNotificationArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_operator_act_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationOperatorActArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "action":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.action = r.string()
+            elif key == "presentation":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.presentation = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 7 != 7:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_operator_dismiss_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationOperatorDismissArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_operator_withdraw_program_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationOperatorWithdrawProgramArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "program":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.program = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_operator_list_notifiers_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationOperatorListNotifiersArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "cursor":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.cursor = r.string()
+            elif key == "limit":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.limit = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
         raise r.refuse("missing_field")
     return v
 
@@ -2390,6 +9403,162 @@ def _read_oa_question_application_observe_result(r):
     return v
 
 
+def _read_oa_question_operator_list_choices_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorListChoicesResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_page(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_read_choice_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorReadChoiceResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_read(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_answer_choice_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorAnswerChoiceResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_decision(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_dismiss_choice_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorDismissChoiceResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_decision(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
 def _read_oa_question_operator_list_questions_result(r):
     if r.at() != _LBRACE:
         raise r.refuse("wrong_type")
@@ -2507,6 +9676,1215 @@ def _read_oa_question_operator_retire_question_result(r):
     return v
 
 
+def _read_oa_question_operator_read_attributed_question_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorReadAttributedQuestionResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_attributed_question(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_read_choice_details_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorReadChoiceDetailsResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_details(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_read_question_asker_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorReadQuestionAskerResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_question_asker(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_answer_question_if_pending_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorAnswerQuestionIfPendingResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_operator_decision(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_list_answers_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorListAnswersResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_answer_entry_page(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_choice_application_ask_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _ChoiceApplicationAskResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_observation(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_choice_application_observe_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _ChoiceApplicationObserveResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_observation(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_choice_application_answer_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _ChoiceApplicationAnswerResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_decision(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_choice_application_dismiss_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _ChoiceApplicationDismissResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_decision(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_choice_application_share_choice_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _ChoiceApplicationShareChoiceResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_observation(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_choice_application_acknowledge_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _ChoiceApplicationAcknowledgeResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_acknowledgement(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_responder_list_answerable_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionResponderListAnswerableResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_operator_page(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_responder_answer_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionResponderAnswerResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_responder_decision(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_responder_list_choices_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionResponderListChoicesResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_answerable_choice_page(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_responder_request_answering_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionResponderRequestAnsweringResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_oa_imported3(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_responder_answer_choice_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionResponderAnswerChoiceResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_decision(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_permission_application_request_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _PermissionApplicationRequestResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_permission_observation(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_permission_application_observe_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _PermissionApplicationObserveResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_permission_observation(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_permission_operator_list_permissions_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _PermissionOperatorListPermissionsResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_operator_page(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_permission_operator_read_permission_details_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _PermissionOperatorReadPermissionDetailsResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_typed_permission_details(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_permission_operator_answer_permission_if_pending_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _PermissionOperatorAnswerPermissionIfPendingResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_operator_decision(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_application_post_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationApplicationPostResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_notification_observation(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_application_observe_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationApplicationObserveResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_notification_observation(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_application_withdraw_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationApplicationWithdrawResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_notification_observation(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_application_acknowledge_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationApplicationAcknowledgeResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_choice_acknowledgement(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_operator_list_notifications_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationOperatorListNotificationsResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_notification_page(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_operator_read_notification_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationOperatorReadNotificationResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_notification_read(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_operator_act_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationOperatorActResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_notification_decision(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_operator_dismiss_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationOperatorDismissResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_notification_decision(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_operator_withdraw_program_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationOperatorWithdrawProgramResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_notification_decision(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_notification_operator_list_notifiers_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _NotificationOperatorListNotifiersResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_notifier_page(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
 def decode(data):
     r = _Reader(bytes(data))
     r.ws()
@@ -2592,6 +10970,11 @@ def _service_check(kind, value, depth=0):
             for key, item in value.items():
                 _service_check("string", key, depth + 1)
                 _service_check(kind[11:-1], item, depth + 1)
+    elif kind in _NAMED_IMPORTED:
+        cls, check = _NAMED_IMPORTED[kind]
+        valid = isinstance(value, cls)
+        if valid:
+            check(value, depth, _DEPTH_LIMIT)
     else:
         cls, fields = _SERVICE_RECORDS[kind]
         valid = isinstance(value, cls)
@@ -2648,19 +11031,127 @@ _SERVICE_RECORDS = {
     "OperatorPage": (OperatorPage, [("outcome", "enum", "never"), ("records", "list<RecordMetadata>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
     "OperatorDecision": (OperatorDecision, [("outcome", "enum", "never"), ("record", "RecordMetadata", "absent"), ]),
     "OperatorRetirement": (OperatorRetirement, [("outcome", "enum", "never"), ("record", "RecordMetadata", "absent"), ]),
+    "OperatorQuestion": (OperatorQuestion, [("outcome", "enum", "never"), ("record", "RecordMetadata", "absent"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ("answered_by", "enum", "absent"), ("program_description", "string", "absent"), ("program_original_name", "string", "absent"), ]),
+    "AttributedQuestion": (AttributedQuestion, [("question", "OperatorQuestion", "never"), ("answerer", "string", "absent"), ]),
+    "PermissionTarget": (PermissionTarget, [("account", "string", "never"), ("program", "string", "never"), ("action", "string", "never"), ("resource", "string", "never"), ]),
+    "PermissionRequest": (PermissionRequest, [("targets", "list<PermissionTarget>", "never"), ]),
+    "QuestionDetails": (QuestionDetails, [("question", "AttributedQuestion", "never"), ("permission", "PermissionRequest", "absent"), ]),
+    "QuestionAsker": (QuestionAsker, [("details", "QuestionDetails", "never"), ("program", "string", "absent"), ]),
+    "RequestRef": (RequestRef, [("key", "string", "never"), ("replay_until_ms", "i64", "never"), ]),
+    "ChoiceOption": (ChoiceOption, [("id", "string", "never"), ("label", "string", "never"), ]),
+    "ChoiceRequest": (ChoiceRequest, [("request_ref", "RequestRef", "never"), ("title", "string", "never"), ("options", "list<ChoiceOption>", "never"), ("pending_until_ms", "i64", "never"), ]),
+    "ChoiceAnswer": (ChoiceAnswer, [("id", "string", "never"), ("option", "string", "absent"), ("answered_ms", "i64", "never"), ("answered_by", "string", "never"), ]),
+    "ChoiceObservation": (ChoiceObservation, [("outcome", "enum", "never"), ("id", "string", "absent"), ("answer", "ChoiceAnswer", "absent"), ]),
+    "ChoiceAcknowledgement": (ChoiceAcknowledgement, [("outcome", "enum", "never"), ]),
+    "ChoiceRecord": (ChoiceRecord, [("id", "string", "never"), ("asker", "string", "never"), ("request", "ChoiceRequest", "never"), ("state", "enum", "never"), ("asked_ms", "i64", "never"), ("answer", "ChoiceAnswer", "absent"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ("program_description", "string", "absent"), ("program_original_name", "string", "absent"), ]),
+    "ChoicePage": (ChoicePage, [("outcome", "enum", "never"), ("records", "list<ChoiceRecord>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
+    "ChoiceRead": (ChoiceRead, [("outcome", "enum", "never"), ("record", "ChoiceRecord", "absent"), ]),
+    "ChoiceDecision": (ChoiceDecision, [("outcome", "enum", "never"), ("record", "ChoiceRecord", "absent"), ]),
+    "ChoiceDetails": (ChoiceDetails, [("choice", "ChoiceRead", "never"), ("asker_program", "string", "absent"), ("assistant_options", "list<string>", "never"), ("answered_via", "enum", "absent"), ]),
+    "AnswerEntry": (AnswerEntry, [("id", "string", "never"), ("kind", "enum", "never"), ("key", "string", "never"), ("asker", "string", "never"), ("asker_program", "string", "absent"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ("about", "string", "never"), ("title", "string", "never"), ("option", "string", "never"), ("label", "string", "never"), ("answered_by", "enum", "never"), ("answerer", "string", "absent"), ("answered_ms", "i64", "never"), ]),
+    "AnswerEntryPage": (AnswerEntryPage, [("outcome", "enum", "never"), ("answers", "list<AnswerEntry>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ("complete_since_ms", "i64", "never"), ]),
+    "AnswerableChoice": (AnswerableChoice, [("id", "string", "never"), ("asker", "string", "never"), ("title", "string", "never"), ("options", "list<ChoiceOption>", "never"), ("pending_until_ms", "i64", "never"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ]),
+    "AnswerableChoicePage": (AnswerableChoicePage, [("outcome", "enum", "never"), ("choices", "list<AnswerableChoice>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
+    "ResponderDecision": (ResponderDecision, [("outcome", "enum", "never"), ("record", "RecordMetadata", "absent"), ("effect", "enum", "never"), ("target_outcome", "string", "absent"), ]),
+    "PermissionIntent": (PermissionIntent, [("request_key", "string", "never"), ("selection", "OAImported0", "absent"), ("bundle_ref", "string", "absent"), ("bundle_selector", "OAImported1", "absent"), ("purpose", "string", "absent"), ]),
+    "PermissionObservation": (PermissionObservation, [("outcome", "enum", "never"), ("answer", "Answer", "absent"), ("policy_revision", "string", "never"), ]),
+    "TypedPermissionDetails": (TypedPermissionDetails, [("question", "AttributedQuestion", "never"), ("effect", "OAImported2", "absent"), ("effect_digest", "string", "never"), ("origin", "string", "never"), ("purpose", "string", "never"), ("display", "PermissionDisplay", "absent"), ]),
+    "PermissionDisplaySelection": (PermissionDisplaySelection, [("operation", "string", "never"), ("target", "string", "never"), ("collection", "string", "never"), ("all_effect", "string", "never"), ("disclosure", "string", "never"), ]),
+    "PermissionDisplay": (PermissionDisplay, [("selections", "list<PermissionDisplaySelection>", "never"), ("bundle_label", "string", "never"), ("bundle_disclosure", "string", "never"), ("requires_os_authorization", "bool", "never"), ]),
+    "NotificationAction": (NotificationAction, [("id", "string", "never"), ("title", "string", "never"), ("activation", "enum", "never"), ]),
+    "NotificationRequest": (NotificationRequest, [("request_ref", "RequestRef", "never"), ("title", "string", "never"), ("body", "string", "absent"), ("actions", "list<NotificationAction>", "never"), ("expires_ms", "i64", "never"), ("operation_id", "string", "absent"), ("tag", "string", "absent"), ("delivery", "enum", "never"), ]),
+    "NotificationResult": (NotificationResult, [("id", "string", "never"), ("state", "enum", "never"), ("action", "string", "absent"), ("decided_ms", "i64", "never"), ("decided_by", "string", "absent"), ]),
+    "NotificationObservation": (NotificationObservation, [("outcome", "enum", "never"), ("id", "string", "absent"), ("result", "NotificationResult", "absent"), ]),
+    "NotificationRecord": (NotificationRecord, [("id", "string", "never"), ("asker", "string", "never"), ("program", "string", "never"), ("request", "NotificationRequest", "never"), ("state", "enum", "never"), ("admitted_ms", "i64", "never"), ("posted_ms", "i64", "zero"), ("result", "NotificationResult", "absent"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ("program_description", "string", "absent"), ("program_original_name", "string", "absent"), ("presentation", "string", "absent"), ]),
+    "NotificationPage": (NotificationPage, [("outcome", "enum", "never"), ("records", "list<NotificationRecord>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
+    "NotificationRead": (NotificationRead, [("outcome", "enum", "never"), ("record", "NotificationRecord", "absent"), ]),
+    "NotificationDecision": (NotificationDecision, [("outcome", "enum", "never"), ("record", "NotificationRecord", "absent"), ("count", "i64", "zero"), ]),
+    "NotifierDay": (NotifierDay, [("day_ms", "i64", "never"), ("posts", "i64", "never"), ]),
+    "NotifierCount": (NotifierCount, [("program", "string", "never"), ("asker", "string", "never"), ("days", "list<NotifierDay>", "never"), ("last_posted_ms", "i64", "never"), ]),
+    "NotifierPage": (NotifierPage, [("outcome", "enum", "never"), ("notifiers", "list<NotifierCount>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
     "OAQuestionApplicationAskArguments": (_QuestionApplicationAskArguments, [("question", "ApplicationQuestion", "never"), ]),
     "OAQuestionApplicationObserveArguments": (_QuestionApplicationObserveArguments, [("request_key", "string", "never"), ("wait_ms", "i64", "never"), ]),
+    "OAQuestionOperatorListChoicesArguments": (_QuestionOperatorListChoicesArguments, [("cursor", "string", "never"), ("limit", "i64", "never"), ]),
+    "OAQuestionOperatorReadChoiceArguments": (_QuestionOperatorReadChoiceArguments, [("id", "string", "never"), ]),
+    "OAQuestionOperatorAnswerChoiceArguments": (_QuestionOperatorAnswerChoiceArguments, [("id", "string", "never"), ("option", "string", "never"), ("if_pending", "bool", "never"), ]),
+    "OAQuestionOperatorDismissChoiceArguments": (_QuestionOperatorDismissChoiceArguments, [("id", "string", "never"), ]),
     "OAQuestionOperatorListQuestionsArguments": (_QuestionOperatorListQuestionsArguments, [("cursor", "string", "never"), ("limit", "i64", "never"), ]),
     "OAQuestionOperatorAnswerQuestionArguments": (_QuestionOperatorAnswerQuestionArguments, [("id", "string", "never"), ("option", "string", "never"), ]),
     "OAQuestionOperatorRetireQuestionArguments": (_QuestionOperatorRetireQuestionArguments, [("id", "string", "never"), ]),
+    "OAQuestionOperatorReadAttributedQuestionArguments": (_QuestionOperatorReadAttributedQuestionArguments, [("id", "string", "never"), ]),
+    "OAQuestionOperatorReadChoiceDetailsArguments": (_QuestionOperatorReadChoiceDetailsArguments, [("id", "string", "never"), ]),
+    "OAQuestionOperatorReadQuestionAskerArguments": (_QuestionOperatorReadQuestionAskerArguments, [("id", "string", "never"), ]),
+    "OAQuestionOperatorAnswerQuestionIfPendingArguments": (_QuestionOperatorAnswerQuestionIfPendingArguments, [("id", "string", "never"), ("option", "string", "never"), ]),
+    "OAQuestionOperatorListAnswersArguments": (_QuestionOperatorListAnswersArguments, [("cursor", "string", "never"), ("limit", "i64", "never"), ]),
+    "OAChoiceApplicationAskArguments": (_ChoiceApplicationAskArguments, [("request", "ChoiceRequest", "never"), ]),
+    "OAChoiceApplicationObserveArguments": (_ChoiceApplicationObserveArguments, [("request_ref", "RequestRef", "never"), ("wait_ms", "i64", "never"), ]),
+    "OAChoiceApplicationAnswerArguments": (_ChoiceApplicationAnswerArguments, [("request_ref", "RequestRef", "never"), ("option", "string", "never"), ("if_pending", "bool", "never"), ]),
+    "OAChoiceApplicationDismissArguments": (_ChoiceApplicationDismissArguments, [("request_ref", "RequestRef", "never"), ]),
+    "OAChoiceApplicationShareChoiceArguments": (_ChoiceApplicationShareChoiceArguments, [("request", "ChoiceRequest", "never"), ("assistant_options", "list<string>", "never"), ]),
+    "OAChoiceApplicationAcknowledgeArguments": (_ChoiceApplicationAcknowledgeArguments, [("request_ref", "RequestRef", "never"), ("answer", "ChoiceAnswer", "never"), ]),
+    "OAQuestionResponderListAnswerableArguments": (_QuestionResponderListAnswerableArguments, [("cursor", "string", "never"), ("limit", "i64", "never"), ]),
+    "OAQuestionResponderAnswerArguments": (_QuestionResponderAnswerArguments, [("id", "string", "never"), ("option", "string", "never"), ]),
+    "OAQuestionResponderListChoicesArguments": (_QuestionResponderListChoicesArguments, [("cursor", "string", "never"), ("limit", "i64", "never"), ]),
+    "OAQuestionResponderRequestAnsweringArguments": (_QuestionResponderRequestAnsweringArguments, []),
+    "OAQuestionResponderAnswerChoiceArguments": (_QuestionResponderAnswerChoiceArguments, [("id", "string", "never"), ("option", "string", "never"), ]),
+    "OAPermissionApplicationRequestArguments": (_PermissionApplicationRequestArguments, [("request", "PermissionIntent", "never"), ]),
+    "OAPermissionApplicationObserveArguments": (_PermissionApplicationObserveArguments, [("request_key", "string", "never"), ("wait_ms", "i64", "never"), ]),
+    "OAPermissionOperatorListPermissionsArguments": (_PermissionOperatorListPermissionsArguments, [("cursor", "string", "never"), ("limit", "i64", "never"), ]),
+    "OAPermissionOperatorReadPermissionDetailsArguments": (_PermissionOperatorReadPermissionDetailsArguments, [("id", "string", "never"), ]),
+    "OAPermissionOperatorAnswerPermissionIfPendingArguments": (_PermissionOperatorAnswerPermissionIfPendingArguments, [("id", "string", "never"), ("option", "string", "never"), ]),
+    "OANotificationApplicationPostArguments": (_NotificationApplicationPostArguments, [("request", "NotificationRequest", "never"), ]),
+    "OANotificationApplicationObserveArguments": (_NotificationApplicationObserveArguments, [("request_ref", "RequestRef", "never"), ("wait_ms", "i64", "never"), ]),
+    "OANotificationApplicationWithdrawArguments": (_NotificationApplicationWithdrawArguments, [("request_ref", "RequestRef", "never"), ]),
+    "OANotificationApplicationAcknowledgeArguments": (_NotificationApplicationAcknowledgeArguments, [("request_ref", "RequestRef", "never"), ("result", "NotificationResult", "never"), ]),
+    "OANotificationOperatorListNotificationsArguments": (_NotificationOperatorListNotificationsArguments, [("cursor", "string", "never"), ("limit", "i64", "never"), ]),
+    "OANotificationOperatorReadNotificationArguments": (_NotificationOperatorReadNotificationArguments, [("id", "string", "never"), ]),
+    "OANotificationOperatorActArguments": (_NotificationOperatorActArguments, [("id", "string", "never"), ("action", "string", "never"), ("presentation", "string", "never"), ]),
+    "OANotificationOperatorDismissArguments": (_NotificationOperatorDismissArguments, [("id", "string", "never"), ]),
+    "OANotificationOperatorWithdrawProgramArguments": (_NotificationOperatorWithdrawProgramArguments, [("program", "string", "never"), ]),
+    "OANotificationOperatorListNotifiersArguments": (_NotificationOperatorListNotifiersArguments, [("cursor", "string", "never"), ("limit", "i64", "never"), ]),
     "OAServiceFrame": (_ServiceFrame, [("version", "i32", "never"), ("service", "string", "never"), ("method", "string", "never"), ("arguments", "json", "never"), ]),
     "OAServiceReply": (_ServiceReply, [("version", "i32", "never"), ("service", "string", "never"), ("method", "string", "never"), ("ok", "bool", "never"), ("payload", "json", "never"), ]),
     "OAServiceError": (_ServiceError, [("code", "string", "never"), ("message", "string", "never"), ]),
     "OAQuestionApplicationAskResult": (_QuestionApplicationAskResult, [("value", "QuestionObservation", "never"), ]),
     "OAQuestionApplicationObserveResult": (_QuestionApplicationObserveResult, [("value", "QuestionObservation", "never"), ]),
+    "OAQuestionOperatorListChoicesResult": (_QuestionOperatorListChoicesResult, [("value", "ChoicePage", "never"), ]),
+    "OAQuestionOperatorReadChoiceResult": (_QuestionOperatorReadChoiceResult, [("value", "ChoiceRead", "never"), ]),
+    "OAQuestionOperatorAnswerChoiceResult": (_QuestionOperatorAnswerChoiceResult, [("value", "ChoiceDecision", "never"), ]),
+    "OAQuestionOperatorDismissChoiceResult": (_QuestionOperatorDismissChoiceResult, [("value", "ChoiceDecision", "never"), ]),
     "OAQuestionOperatorListQuestionsResult": (_QuestionOperatorListQuestionsResult, [("value", "OperatorPage", "never"), ]),
     "OAQuestionOperatorAnswerQuestionResult": (_QuestionOperatorAnswerQuestionResult, [("value", "OperatorDecision", "never"), ]),
     "OAQuestionOperatorRetireQuestionResult": (_QuestionOperatorRetireQuestionResult, [("value", "OperatorRetirement", "never"), ]),
+    "OAQuestionOperatorReadAttributedQuestionResult": (_QuestionOperatorReadAttributedQuestionResult, [("value", "AttributedQuestion", "never"), ]),
+    "OAQuestionOperatorReadChoiceDetailsResult": (_QuestionOperatorReadChoiceDetailsResult, [("value", "ChoiceDetails", "never"), ]),
+    "OAQuestionOperatorReadQuestionAskerResult": (_QuestionOperatorReadQuestionAskerResult, [("value", "QuestionAsker", "never"), ]),
+    "OAQuestionOperatorAnswerQuestionIfPendingResult": (_QuestionOperatorAnswerQuestionIfPendingResult, [("value", "OperatorDecision", "never"), ]),
+    "OAQuestionOperatorListAnswersResult": (_QuestionOperatorListAnswersResult, [("value", "AnswerEntryPage", "never"), ]),
+    "OAChoiceApplicationAskResult": (_ChoiceApplicationAskResult, [("value", "ChoiceObservation", "never"), ]),
+    "OAChoiceApplicationObserveResult": (_ChoiceApplicationObserveResult, [("value", "ChoiceObservation", "never"), ]),
+    "OAChoiceApplicationAnswerResult": (_ChoiceApplicationAnswerResult, [("value", "ChoiceDecision", "never"), ]),
+    "OAChoiceApplicationDismissResult": (_ChoiceApplicationDismissResult, [("value", "ChoiceDecision", "never"), ]),
+    "OAChoiceApplicationShareChoiceResult": (_ChoiceApplicationShareChoiceResult, [("value", "ChoiceObservation", "never"), ]),
+    "OAChoiceApplicationAcknowledgeResult": (_ChoiceApplicationAcknowledgeResult, [("value", "ChoiceAcknowledgement", "never"), ]),
+    "OAQuestionResponderListAnswerableResult": (_QuestionResponderListAnswerableResult, [("value", "OperatorPage", "never"), ]),
+    "OAQuestionResponderAnswerResult": (_QuestionResponderAnswerResult, [("value", "ResponderDecision", "never"), ]),
+    "OAQuestionResponderListChoicesResult": (_QuestionResponderListChoicesResult, [("value", "AnswerableChoicePage", "never"), ]),
+    "OAQuestionResponderRequestAnsweringResult": (_QuestionResponderRequestAnsweringResult, [("value", "OAImported3", "never"), ]),
+    "OAQuestionResponderAnswerChoiceResult": (_QuestionResponderAnswerChoiceResult, [("value", "ChoiceDecision", "never"), ]),
+    "OAPermissionApplicationRequestResult": (_PermissionApplicationRequestResult, [("value", "PermissionObservation", "never"), ]),
+    "OAPermissionApplicationObserveResult": (_PermissionApplicationObserveResult, [("value", "PermissionObservation", "never"), ]),
+    "OAPermissionOperatorListPermissionsResult": (_PermissionOperatorListPermissionsResult, [("value", "OperatorPage", "never"), ]),
+    "OAPermissionOperatorReadPermissionDetailsResult": (_PermissionOperatorReadPermissionDetailsResult, [("value", "TypedPermissionDetails", "never"), ]),
+    "OAPermissionOperatorAnswerPermissionIfPendingResult": (_PermissionOperatorAnswerPermissionIfPendingResult, [("value", "OperatorDecision", "never"), ]),
+    "OANotificationApplicationPostResult": (_NotificationApplicationPostResult, [("value", "NotificationObservation", "never"), ]),
+    "OANotificationApplicationObserveResult": (_NotificationApplicationObserveResult, [("value", "NotificationObservation", "never"), ]),
+    "OANotificationApplicationWithdrawResult": (_NotificationApplicationWithdrawResult, [("value", "NotificationObservation", "never"), ]),
+    "OANotificationApplicationAcknowledgeResult": (_NotificationApplicationAcknowledgeResult, [("value", "ChoiceAcknowledgement", "never"), ]),
+    "OANotificationOperatorListNotificationsResult": (_NotificationOperatorListNotificationsResult, [("value", "NotificationPage", "never"), ]),
+    "OANotificationOperatorReadNotificationResult": (_NotificationOperatorReadNotificationResult, [("value", "NotificationRead", "never"), ]),
+    "OANotificationOperatorActResult": (_NotificationOperatorActResult, [("value", "NotificationDecision", "never"), ]),
+    "OANotificationOperatorDismissResult": (_NotificationOperatorDismissResult, [("value", "NotificationDecision", "never"), ]),
+    "OANotificationOperatorWithdrawProgramResult": (_NotificationOperatorWithdrawProgramResult, [("value", "NotificationDecision", "never"), ]),
+    "OANotificationOperatorListNotifiersResult": (_NotificationOperatorListNotifiersResult, [("value", "NotifierPage", "never"), ]),
 }
 
 
@@ -2726,6 +11217,34 @@ class QuestionOperator:
     callbacks are trusted service configuration and may use the rights service.
     Retirement and native Forget both retain admission tombstones."""
 
+    def list_choices(self, cursor: str, limit: int) -> ChoicePage:
+        """Opt-in bounded enumeration of application-authored ordinary choices.
+        Existing ListQuestions returns its unchanged catalogue records. The same
+        operator authorization, caller/epoch/revision cursor binding and
+        1..64/256-KiB page bounds apply."""
+        raise NotImplementedError
+
+    def read_choice(self, id: str) -> ChoiceRead:
+        """Read one ordinary occurrence and verified requester attribution. Recheck
+        authorization before disclosure. No permission target exists on this
+        record."""
+        raise NotImplementedError
+
+    def answer_choice(self, id: str, option: str, if_pending: bool) -> ChoiceDecision:
+        """Record an offered stable option ID for an ordinary choice. Recheck
+        operator authorization inside the edit. if_pending refuses every
+        terminal occurrence with conflict; otherwise the same decision replays
+        unchanged. An answer supplies application intent and no OA permission or
+        policy effect."""
+        raise NotImplementedError
+
+    def dismiss_choice(self, id: str) -> ChoiceDecision:
+        """Close one ordinary choice without selecting an option. The same
+        dismissal replays; an answered choice conflicts. Expired pending choices
+        cannot be answered or dismissed. No application work or resource policy
+        is changed."""
+        raise NotImplementedError
+
     def list_questions(self, cursor: str, limit: int) -> OperatorPage:
         """Read bounded current-book pages. Empty cursor starts enumeration; a gap
         requires an explicit restart. Receiver checks same-account Program
@@ -2750,12 +11269,110 @@ class QuestionOperator:
         retirement grants and revokes no resource authority."""
         raise NotImplementedError
 
+    def read_attributed_question(self, id: str) -> AttributedQuestion:
+        """Read one retained question's recorded metadata, publisher and bound
+        responder program for an explicitly authorized operator. ID is 1..128
+        UTF-8 bytes without control characters. Authorization is rechecked
+        before disclosure. This metadata-only read does not recover a permission
+        target. An earlier operator@1 service answers unknown_method."""
+        raise NotImplementedError
+
+    def read_choice_details(self, id: str) -> ChoiceDetails:
+        """Read one ordinary occurrence with its bound requester program, the
+        options its application shared with an assistant and the route through
+        which its decision arrived. Authorization is rechecked before
+        disclosure. Only found carries details beyond the read outcome. An
+        earlier operator@1 service answers unknown_method; ReadChoice keeps its
+        closed result."""
+        raise NotImplementedError
+
+    def read_question_asker(self, id: str) -> QuestionAsker:
+        """Read one retained occurrence's service-owned structured permission
+        target, answer attribution and bound asking program for an explicitly
+        authorized operator. Authorization is rechecked before disclosure. The
+        receiving account scopes every target. An unrecoverable legacy target
+        returns unavailable. An earlier operator@1 service answers
+        unknown_method; published methods and result shapes remain unchanged."""
+        raise NotImplementedError
+
+    def answer_question_if_pending(self, id: str, option: str) -> OperatorDecision:
+        """Record an explicitly authorized operator's choice only while the
+        question is still pending. A question ID names content that never
+        changes, so pending is the whole precondition. An answered question is
+        conflict for every option, the same one included, and is never replayed.
+        Other outcomes follow AnswerQuestion. No automatic retry: after an
+        uncertain reply, inspect history, since an explicit retry of a landed
+        answer reads conflict. Added to operator@1 as a method; an earlier
+        service answers unknown_method."""
+        raise NotImplementedError
+
+    def list_answers(self, cursor: str, limit: int) -> AnswerEntryPage:
+        """Read bounded pages of the retained answers to catalogue questions and
+        ordinary choices that arrived through operator@1, permission-operator@1
+        or responder@1, newest first. Entries survive release, dismissal,
+        acknowledgement and replay expiry for seven days after the answer,
+        within the Book's answer-audit bound. complete_since_ms names the time
+        from which the list is complete. The same operator authorization,
+        caller/epoch/revision cursor binding and 1..64/256-KiB page bounds
+        apply. An earlier operator@1 service answers unknown_method."""
+        raise NotImplementedError
+
 
 class QuestionOperatorClient(QuestionOperator):
     """Calls abstraction.asks/operator@1 through a transport that exchanges frames."""
 
     def __init__(self, transport):
         self._transport = transport
+
+    def list_choices(self, cursor: str, limit: int) -> ChoicePage:
+        _service_check("string", cursor)
+        _service_check("i64", limit)
+        _args = _QuestionOperatorListChoicesArguments()
+        _args.cursor = cursor
+        _args.limit = limit
+        _arguments = _service_encode(_write_oa_question_operator_list_choices_arguments, _args, 1)
+        _service_decode(_read_oa_question_operator_list_choices_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/operator@1", "ListChoices", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/operator@1", "ListChoices")
+        _result = _service_decode(_read_oa_question_operator_list_choices_result, _payload, 1)
+        return _result.value
+
+    def read_choice(self, id: str) -> ChoiceRead:
+        _service_check("string", id)
+        _args = _QuestionOperatorReadChoiceArguments()
+        _args.id = id
+        _arguments = _service_encode(_write_oa_question_operator_read_choice_arguments, _args, 1)
+        _service_decode(_read_oa_question_operator_read_choice_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/operator@1", "ReadChoice", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/operator@1", "ReadChoice")
+        _result = _service_decode(_read_oa_question_operator_read_choice_result, _payload, 1)
+        return _result.value
+
+    def answer_choice(self, id: str, option: str, if_pending: bool) -> ChoiceDecision:
+        _service_check("string", id)
+        _service_check("string", option)
+        _service_check("bool", if_pending)
+        _args = _QuestionOperatorAnswerChoiceArguments()
+        _args.id = id
+        _args.option = option
+        _args.if_pending = if_pending
+        _arguments = _service_encode(_write_oa_question_operator_answer_choice_arguments, _args, 1)
+        _service_decode(_read_oa_question_operator_answer_choice_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/operator@1", "AnswerChoice", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/operator@1", "AnswerChoice")
+        _result = _service_decode(_read_oa_question_operator_answer_choice_result, _payload, 1)
+        return _result.value
+
+    def dismiss_choice(self, id: str) -> ChoiceDecision:
+        _service_check("string", id)
+        _args = _QuestionOperatorDismissChoiceArguments()
+        _args.id = id
+        _arguments = _service_encode(_write_oa_question_operator_dismiss_choice_arguments, _args, 1)
+        _service_decode(_read_oa_question_operator_dismiss_choice_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/operator@1", "DismissChoice", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/operator@1", "DismissChoice")
+        _result = _service_decode(_read_oa_question_operator_dismiss_choice_result, _payload, 1)
+        return _result.value
 
     def list_questions(self, cursor: str, limit: int) -> OperatorPage:
         _service_check("string", cursor)
@@ -2793,3 +11410,2754 @@ class QuestionOperatorClient(QuestionOperator):
         _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/operator@1", "RetireQuestion")
         _result = _service_decode(_read_oa_question_operator_retire_question_result, _payload, 1)
         return _result.value
+
+    def read_attributed_question(self, id: str) -> AttributedQuestion:
+        _service_check("string", id)
+        _args = _QuestionOperatorReadAttributedQuestionArguments()
+        _args.id = id
+        _arguments = _service_encode(_write_oa_question_operator_read_attributed_question_arguments, _args, 1)
+        _service_decode(_read_oa_question_operator_read_attributed_question_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/operator@1", "ReadAttributedQuestion", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/operator@1", "ReadAttributedQuestion")
+        _result = _service_decode(_read_oa_question_operator_read_attributed_question_result, _payload, 1)
+        return _result.value
+
+    def read_choice_details(self, id: str) -> ChoiceDetails:
+        _service_check("string", id)
+        _args = _QuestionOperatorReadChoiceDetailsArguments()
+        _args.id = id
+        _arguments = _service_encode(_write_oa_question_operator_read_choice_details_arguments, _args, 1)
+        _service_decode(_read_oa_question_operator_read_choice_details_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/operator@1", "ReadChoiceDetails", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/operator@1", "ReadChoiceDetails")
+        _result = _service_decode(_read_oa_question_operator_read_choice_details_result, _payload, 1)
+        return _result.value
+
+    def read_question_asker(self, id: str) -> QuestionAsker:
+        _service_check("string", id)
+        _args = _QuestionOperatorReadQuestionAskerArguments()
+        _args.id = id
+        _arguments = _service_encode(_write_oa_question_operator_read_question_asker_arguments, _args, 1)
+        _service_decode(_read_oa_question_operator_read_question_asker_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/operator@1", "ReadQuestionAsker", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/operator@1", "ReadQuestionAsker")
+        _result = _service_decode(_read_oa_question_operator_read_question_asker_result, _payload, 1)
+        return _result.value
+
+    def answer_question_if_pending(self, id: str, option: str) -> OperatorDecision:
+        _service_check("string", id)
+        _service_check("string", option)
+        _args = _QuestionOperatorAnswerQuestionIfPendingArguments()
+        _args.id = id
+        _args.option = option
+        _arguments = _service_encode(_write_oa_question_operator_answer_question_if_pending_arguments, _args, 1)
+        _service_decode(_read_oa_question_operator_answer_question_if_pending_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/operator@1", "AnswerQuestionIfPending", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/operator@1", "AnswerQuestionIfPending")
+        _result = _service_decode(_read_oa_question_operator_answer_question_if_pending_result, _payload, 1)
+        return _result.value
+
+    def list_answers(self, cursor: str, limit: int) -> AnswerEntryPage:
+        _service_check("string", cursor)
+        _service_check("i64", limit)
+        _args = _QuestionOperatorListAnswersArguments()
+        _args.cursor = cursor
+        _args.limit = limit
+        _arguments = _service_encode(_write_oa_question_operator_list_answers_arguments, _args, 1)
+        _service_decode(_read_oa_question_operator_list_answers_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/operator@1", "ListAnswers", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/operator@1", "ListAnswers")
+        _result = _service_decode(_read_oa_question_operator_list_answers_result, _payload, 1)
+        return _result.value
+
+
+class ChoiceApplication:
+    """Caller-bound ordinary application choices with explicit pending and replay
+    deadlines, verified attribution and isolated bounded retention. The
+    application owns ordinary presentation and may answer or dismiss its own
+    occurrence through this service. Account-wide answering uses opt-in
+    operator@1 methods. An enrolled assistant answers only choices the
+    application shared through ShareChoice, and only their shared options
+    (responder@1 ListChoices, AnswerChoice); exact ordinary delegation is a
+    separate future profile. Legacy application@1 wire and lifetime behavior
+    remains unchanged."""
+
+    def ask(self, request: ChoiceRequest) -> ChoiceObservation:
+        """Admit or replay one caller-scoped ordinary choice. No automatic retry.
+        Reuse the entire reference and unchanged request after an uncertain
+        reply. A missing catalogue entry is irrelevant: application text and
+        offered IDs are explicit."""
+        raise NotImplementedError
+
+    def observe(self, request_ref: RequestRef, wait_ms: int) -> ChoiceObservation:
+        """Observe only this caller's full reference, optionally waiting 0..30000
+        milliseconds. Wait cancellation or timeout changes no decision. Recheck
+        pending/replay deadlines and binding after waking. SDKs never
+        manufacture a fresh deadline on retry."""
+        raise NotImplementedError
+
+    def answer(self, request_ref: RequestRef, option: str, if_pending: bool) -> ChoiceDecision:
+        """Record an offered option for this proven caller's own ordinary full
+        reference. Requester scope and reference are looked up inside the atomic
+        edit after binding recheck; no operator grant or ask-admission policy is
+        required. if_pending conflicts with every terminal decision; false
+        explicitly reconciles the same recorded answer with its original actor
+        and time. No automatic retry, human-presence claim or permission effect.
+        An older service returns unknown_method."""
+        raise NotImplementedError
+
+    def dismiss(self, request_ref: RequestRef) -> ChoiceDecision:
+        """Dismiss only this proven caller's own ordinary full reference,
+        rechecking binding and ownership inside the atomic edit. The same
+        dismissal replays with its original actor and time; another terminal
+        decision conflicts. No operator grant or ask-admission policy is
+        required. Expired choices cannot be changed. An older service returns
+        unknown_method."""
+        raise NotImplementedError
+
+    def share_choice(self, request: ChoiceRequest, assistant_options: list[str]) -> ChoiceObservation:
+        """Admit or replay one caller-scoped ordinary choice as Ask does, sharing
+        it with an assistant the person enrolled. assistant_options lists 1..3
+        distinct offered option IDs the assistant may choose; every other option
+        and dismissal stay with the person and the application. The request and
+        assistant_options together are the immutable content of the reference:
+        Ask and ShareChoice under one reference, or another option list,
+        conflict. Sharing conveys no OA permission. An older service returns
+        unknown_method; a client then decides explicitly whether to Ask
+        unshared."""
+        raise NotImplementedError
+
+    def acknowledge(self, request_ref: RequestRef, answer: ChoiceAnswer) -> ChoiceAcknowledgement:
+        """Acknowledge the exact recorded answer only once the caller no longer
+        requires full service answer replay and has retained the answer/result
+        required by its own recovery guarantees. Ack relinquishes full service
+        replay and proves no application effect. Crash or relaunch recovery that
+        still needs the answer must durably retain it or leave the occurrence
+        unacknowledged. A one-shot caller with a completed durable result and no
+        same-intent recovery after restart needs no separate answer receipt. For
+        any explicit retry after an uncertain Ack reply, retain and use the
+        exact recorded answer. Replaces the full record with a small immutable
+        fingerprint/decision tombstone until replay_until_ms. The same
+        acknowledgement safely replays after a lost reply. Later Ask/Observe
+        reports gone; expiration never creates a fresh occurrence."""
+        raise NotImplementedError
+
+
+class ChoiceApplicationClient(ChoiceApplication):
+    """Calls abstraction.asks/application@2 through a transport that exchanges frames."""
+
+    def __init__(self, transport):
+        self._transport = transport
+
+    def ask(self, request: ChoiceRequest) -> ChoiceObservation:
+        _service_check("ChoiceRequest", request)
+        _args = _ChoiceApplicationAskArguments()
+        _args.request = request
+        _arguments = _service_encode(_write_oa_choice_application_ask_arguments, _args, 1)
+        _service_decode(_read_oa_choice_application_ask_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/application@2", "Ask", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/application@2", "Ask")
+        _result = _service_decode(_read_oa_choice_application_ask_result, _payload, 1)
+        return _result.value
+
+    def observe(self, request_ref: RequestRef, wait_ms: int) -> ChoiceObservation:
+        _service_check("RequestRef", request_ref)
+        _service_check("i64", wait_ms)
+        _args = _ChoiceApplicationObserveArguments()
+        _args.request_ref = request_ref
+        _args.wait_ms = wait_ms
+        _arguments = _service_encode(_write_oa_choice_application_observe_arguments, _args, 1)
+        _service_decode(_read_oa_choice_application_observe_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/application@2", "Observe", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/application@2", "Observe")
+        _result = _service_decode(_read_oa_choice_application_observe_result, _payload, 1)
+        return _result.value
+
+    def answer(self, request_ref: RequestRef, option: str, if_pending: bool) -> ChoiceDecision:
+        _service_check("RequestRef", request_ref)
+        _service_check("string", option)
+        _service_check("bool", if_pending)
+        _args = _ChoiceApplicationAnswerArguments()
+        _args.request_ref = request_ref
+        _args.option = option
+        _args.if_pending = if_pending
+        _arguments = _service_encode(_write_oa_choice_application_answer_arguments, _args, 1)
+        _service_decode(_read_oa_choice_application_answer_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/application@2", "Answer", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/application@2", "Answer")
+        _result = _service_decode(_read_oa_choice_application_answer_result, _payload, 1)
+        return _result.value
+
+    def dismiss(self, request_ref: RequestRef) -> ChoiceDecision:
+        _service_check("RequestRef", request_ref)
+        _args = _ChoiceApplicationDismissArguments()
+        _args.request_ref = request_ref
+        _arguments = _service_encode(_write_oa_choice_application_dismiss_arguments, _args, 1)
+        _service_decode(_read_oa_choice_application_dismiss_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/application@2", "Dismiss", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/application@2", "Dismiss")
+        _result = _service_decode(_read_oa_choice_application_dismiss_result, _payload, 1)
+        return _result.value
+
+    def share_choice(self, request: ChoiceRequest, assistant_options: list[str]) -> ChoiceObservation:
+        _service_check("ChoiceRequest", request)
+        _service_check("list<string>", assistant_options)
+        _args = _ChoiceApplicationShareChoiceArguments()
+        _args.request = request
+        _args.assistant_options = assistant_options
+        _arguments = _service_encode(_write_oa_choice_application_share_choice_arguments, _args, 1)
+        _service_decode(_read_oa_choice_application_share_choice_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/application@2", "ShareChoice", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/application@2", "ShareChoice")
+        _result = _service_decode(_read_oa_choice_application_share_choice_result, _payload, 1)
+        return _result.value
+
+    def acknowledge(self, request_ref: RequestRef, answer: ChoiceAnswer) -> ChoiceAcknowledgement:
+        _service_check("RequestRef", request_ref)
+        _service_check("ChoiceAnswer", answer)
+        _args = _ChoiceApplicationAcknowledgeArguments()
+        _args.request_ref = request_ref
+        _args.answer = answer
+        _arguments = _service_encode(_write_oa_choice_application_acknowledge_arguments, _args, 1)
+        _service_decode(_read_oa_choice_application_acknowledge_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/application@2", "Acknowledge", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/application@2", "Acknowledge")
+        _result = _service_decode(_read_oa_choice_application_acknowledge_result, _payload, 1)
+        return _result.value
+
+
+class QuestionResponder:
+    """Narrow delegated first-use answering, and answering of ordinary choices
+    applications share with an assistant. The host derives question provenance
+    and the target from its own Book, binds the responder from native
+    same-account Program proof, and consults the current rights policy. It
+    accepts no authority, target, program, resource or expiry claim from the
+    caller. An operator remains separately privileged."""
+
+    def list_answerable(self, cursor: str, limit: int) -> OperatorPage:
+        """List at most 1..64 pending runtime first-use questions this proven
+        caller may currently answer: routine ones under its enrollment
+        (question.answer on apps, ASK-R5), and routine ones an exact
+        option-specific responder grant names (ASK-R3). A question that is not
+        routine is never listed (ASK-R6). A returned record contains only the
+        options this caller may answer. Cursors bind caller subject, host epoch
+        and Book revision; gap requires a restart. Recheck grants before
+        returning a page. No general question history is exposed."""
+        raise NotImplementedError
+
+    def answer(self, id: str, option: str) -> ResponderDecision:
+        """Answer a routine runtime first-use question only when this caller holds
+        a current enrollment (ASK-R5) or a current exact, expiring,
+        option-specific responder grant (ASK-R3), is no party to it and is no
+        script host (ASK-R7). Every other question is refused to every answerer
+        (ASK-R6). An allow under an enrollment lasts until the enrollment ends
+        (ASK-R4). Recheck the grant under the Book edit lock and before any
+        target rule write. Same-ID/option replay preserves the answer and never
+        writes policy; a different delegated choice conflicts, while a choice
+        without a grant is forbidden. Refuse stale, foreign, forged or
+        out-of-scope questions. A first allow creates a bounded target
+        permission when its guarded policy edit applies; refusal writes no
+        target rule."""
+        raise NotImplementedError
+
+    def list_choices(self, cursor: str, limit: int) -> AnswerableChoicePage:
+        """List at most 1..64 pending ordinary choices their applications shared
+        with an assistant, which this proven caller may currently answer under
+        its enrollment (ASK-R9). Each carries only its shared options. A choice
+        whose requester, publisher or bound peer is this caller, or a caller the
+        host refuses, is never listed. Cursors bind caller subject, host epoch
+        and ordinary revision; gap requires a restart. Recheck the answerer
+        before returning a page."""
+        raise NotImplementedError
+
+    def request_answering(self) -> _dependency_rights.Decision:
+        """Ask for the right to answer for the person: the enrollment,
+        abstraction.asks/question.answer on apps (ASK-R10). The receiving
+        account and program are bound from the peer; a script host, an operator
+        program or another account reads forbidden. A current enrollment reads
+        permitted. Otherwise the decision is not_granted and the runtime admits
+        its ordinary first-use question for that right, which the person answers
+        in the native permission prompt and an answerer never can; an Allow
+        writes the same enrollment the operator UI writes. A refused Answer or
+        AnswerChoice for want of an enrollment asks the same way. An earlier
+        responder@1 service answers unknown_method."""
+        raise NotImplementedError
+
+    def answer_choice(self, id: str, option: str) -> ChoiceDecision:
+        """Record a shared option for a pending shared ordinary choice under the
+        caller's current enrollment (ASK-R9). The check is repeated inside the
+        Book edit. The same answerer repeating the same option replays answered
+        with the original actor and time; every other terminal state conflicts.
+        An unshared choice or option is forbidden. There is no responder
+        dismissal. An answer supplies application intent and no OA permission or
+        policy effect."""
+        raise NotImplementedError
+
+
+class QuestionResponderClient(QuestionResponder):
+    """Calls abstraction.asks/responder@1 through a transport that exchanges frames."""
+
+    def __init__(self, transport):
+        self._transport = transport
+
+    def list_answerable(self, cursor: str, limit: int) -> OperatorPage:
+        _service_check("string", cursor)
+        _service_check("i64", limit)
+        _args = _QuestionResponderListAnswerableArguments()
+        _args.cursor = cursor
+        _args.limit = limit
+        _arguments = _service_encode(_write_oa_question_responder_list_answerable_arguments, _args, 1)
+        _service_decode(_read_oa_question_responder_list_answerable_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/responder@1", "ListAnswerable", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/responder@1", "ListAnswerable")
+        _result = _service_decode(_read_oa_question_responder_list_answerable_result, _payload, 1)
+        return _result.value
+
+    def answer(self, id: str, option: str) -> ResponderDecision:
+        _service_check("string", id)
+        _service_check("string", option)
+        _args = _QuestionResponderAnswerArguments()
+        _args.id = id
+        _args.option = option
+        _arguments = _service_encode(_write_oa_question_responder_answer_arguments, _args, 1)
+        _service_decode(_read_oa_question_responder_answer_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/responder@1", "Answer", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/responder@1", "Answer")
+        _result = _service_decode(_read_oa_question_responder_answer_result, _payload, 1)
+        return _result.value
+
+    def list_choices(self, cursor: str, limit: int) -> AnswerableChoicePage:
+        _service_check("string", cursor)
+        _service_check("i64", limit)
+        _args = _QuestionResponderListChoicesArguments()
+        _args.cursor = cursor
+        _args.limit = limit
+        _arguments = _service_encode(_write_oa_question_responder_list_choices_arguments, _args, 1)
+        _service_decode(_read_oa_question_responder_list_choices_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/responder@1", "ListChoices", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/responder@1", "ListChoices")
+        _result = _service_decode(_read_oa_question_responder_list_choices_result, _payload, 1)
+        return _result.value
+
+    def request_answering(self) -> _dependency_rights.Decision:
+        _args = _QuestionResponderRequestAnsweringArguments()
+        _arguments = _service_encode(_write_oa_question_responder_request_answering_arguments, _args, 1)
+        _service_decode(_read_oa_question_responder_request_answering_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/responder@1", "RequestAnswering", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/responder@1", "RequestAnswering")
+        _result = _service_decode(_read_oa_question_responder_request_answering_result, _payload, 1)
+        return _result.value
+
+    def answer_choice(self, id: str, option: str) -> ChoiceDecision:
+        _service_check("string", id)
+        _service_check("string", option)
+        _args = _QuestionResponderAnswerChoiceArguments()
+        _args.id = id
+        _args.option = option
+        _arguments = _service_encode(_write_oa_question_responder_answer_choice_arguments, _args, 1)
+        _service_decode(_read_oa_question_responder_answer_choice_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/responder@1", "AnswerChoice", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/responder@1", "AnswerChoice")
+        _result = _service_decode(_read_oa_question_responder_answer_choice_result, _payload, 1)
+        return _result.value
+
+
+class PermissionApplication:
+    """Native caller-bound OA permission requests under compiled served definitions
+    and supported first-use selectors, current explicit-block checks and Book
+    quota/replay/refusal pacing. This capability-owned consent admission
+    requires no ordinary question.ask permit. Trusted service missing-permit
+    admission remains separate. Neither admission nor application prose grants
+    Rights authority. This profile exposes no application answering or operator
+    methods."""
+
+    def request(self, request: PermissionIntent) -> PermissionObservation:
+        raise NotImplementedError
+
+    def observe(self, request_key: str, wait_ms: int) -> PermissionObservation:
+        raise NotImplementedError
+
+
+class PermissionApplicationClient(PermissionApplication):
+    """Calls abstraction.asks/permission@1 through a transport that exchanges frames."""
+
+    def __init__(self, transport):
+        self._transport = transport
+
+    def request(self, request: PermissionIntent) -> PermissionObservation:
+        _service_check("PermissionIntent", request)
+        _args = _PermissionApplicationRequestArguments()
+        _args.request = request
+        _arguments = _service_encode(_write_oa_permission_application_request_arguments, _args, 1)
+        _service_decode(_read_oa_permission_application_request_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/permission@1", "Request", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/permission@1", "Request")
+        _result = _service_decode(_read_oa_permission_application_request_result, _payload, 1)
+        return _result.value
+
+    def observe(self, request_key: str, wait_ms: int) -> PermissionObservation:
+        _service_check("string", request_key)
+        _service_check("i64", wait_ms)
+        _args = _PermissionApplicationObserveArguments()
+        _args.request_key = request_key
+        _args.wait_ms = wait_ms
+        _arguments = _service_encode(_write_oa_permission_application_observe_arguments, _args, 1)
+        _service_decode(_read_oa_permission_application_observe_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/permission@1", "Observe", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/permission@1", "Observe")
+        _result = _service_decode(_read_oa_permission_application_observe_result, _payload, 1)
+        return _result.value
+
+
+class PermissionOperator:
+    """Explicitly authorized operator reading and conditional answering of
+    immutable typed OA permission occurrences. This slice grants no delegated
+    responder authority. Rights operator@2 completes or undoes the retained
+    effect by occurrence ID; an answer and its effect remain separate commits."""
+
+    def list_permissions(self, cursor: str, limit: int) -> OperatorPage:
+        raise NotImplementedError
+
+    def read_permission_details(self, id: str) -> TypedPermissionDetails:
+        raise NotImplementedError
+
+    def answer_permission_if_pending(self, id: str, option: str) -> OperatorDecision:
+        raise NotImplementedError
+
+
+class PermissionOperatorClient(PermissionOperator):
+    """Calls abstraction.asks/permission-operator@1 through a transport that exchanges frames."""
+
+    def __init__(self, transport):
+        self._transport = transport
+
+    def list_permissions(self, cursor: str, limit: int) -> OperatorPage:
+        _service_check("string", cursor)
+        _service_check("i64", limit)
+        _args = _PermissionOperatorListPermissionsArguments()
+        _args.cursor = cursor
+        _args.limit = limit
+        _arguments = _service_encode(_write_oa_permission_operator_list_permissions_arguments, _args, 1)
+        _service_decode(_read_oa_permission_operator_list_permissions_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/permission-operator@1", "ListPermissions", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/permission-operator@1", "ListPermissions")
+        _result = _service_decode(_read_oa_permission_operator_list_permissions_result, _payload, 1)
+        return _result.value
+
+    def read_permission_details(self, id: str) -> TypedPermissionDetails:
+        _service_check("string", id)
+        _args = _PermissionOperatorReadPermissionDetailsArguments()
+        _args.id = id
+        _arguments = _service_encode(_write_oa_permission_operator_read_permission_details_arguments, _args, 1)
+        _service_decode(_read_oa_permission_operator_read_permission_details_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/permission-operator@1", "ReadPermissionDetails", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/permission-operator@1", "ReadPermissionDetails")
+        _result = _service_decode(_read_oa_permission_operator_read_permission_details_result, _payload, 1)
+        return _result.value
+
+    def answer_permission_if_pending(self, id: str, option: str) -> OperatorDecision:
+        _service_check("string", id)
+        _service_check("string", option)
+        _args = _PermissionOperatorAnswerPermissionIfPendingArguments()
+        _args.id = id
+        _args.option = option
+        _arguments = _service_encode(_write_oa_permission_operator_answer_permission_if_pending_arguments, _args, 1)
+        _service_decode(_read_oa_permission_operator_answer_permission_if_pending_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/permission-operator@1", "AnswerPermissionIfPending", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/permission-operator@1", "AnswerPermissionIfPending")
+        _result = _service_decode(_read_oa_permission_operator_answer_permission_if_pending_result, _payload, 1)
+        return _result.value
+
+
+class NotificationApplication:
+    """Caller-bound application notifications whose actions the service holds after
+    the poster exits (ASK-N1..N7). Admission is decided by
+    abstraction.asks/notification.post on account; a live explicit block
+    suppresses. The session presenter shows posted notifications natively
+    through notification-operator@1. A notification grants no authority and
+    collects no text."""
+
+    def post(self, request: NotificationRequest) -> NotificationObservation:
+        """Admit or replay one caller-scoped notification (ASK-N1). No automatic
+        retry: reuse the entire reference and unchanged request after an
+        uncertain reply. A blocked program receives suppressed; rate, live and
+        capacity bounds return exhausted. Neither stores anything."""
+        raise NotImplementedError
+
+    def observe(self, request_ref: RequestRef, wait_ms: int) -> NotificationObservation:
+        """Observe only this caller's full reference, optionally waiting 0..30000
+        milliseconds for an outcome. Waiting changes nothing. Recheck deadlines
+        and binding after waking."""
+        raise NotImplementedError
+
+    def withdraw(self, request_ref: RequestRef) -> NotificationObservation:
+        """Withdraw this proven caller's own scheduled or posted notification. A
+        presenter removes its native item. The same withdrawal replays; another
+        terminal outcome is returned unchanged."""
+        raise NotImplementedError
+
+    def acknowledge(self, request_ref: RequestRef, result: NotificationResult) -> ChoiceAcknowledgement:
+        """Acknowledge the exact recorded result once the caller no longer requires
+        service replay (ASK-N5). Replaces the record with a small fingerprint
+        tombstone until replay_until_ms; later Post/Observe report gone. The
+        same acknowledgement replays after a lost reply."""
+        raise NotImplementedError
+
+
+class NotificationApplicationClient(NotificationApplication):
+    """Calls abstraction.asks/notification@1 through a transport that exchanges frames."""
+
+    def __init__(self, transport):
+        self._transport = transport
+
+    def post(self, request: NotificationRequest) -> NotificationObservation:
+        _service_check("NotificationRequest", request)
+        _args = _NotificationApplicationPostArguments()
+        _args.request = request
+        _arguments = _service_encode(_write_oa_notification_application_post_arguments, _args, 1)
+        _service_decode(_read_oa_notification_application_post_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/notification@1", "Post", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/notification@1", "Post")
+        _result = _service_decode(_read_oa_notification_application_post_result, _payload, 1)
+        return _result.value
+
+    def observe(self, request_ref: RequestRef, wait_ms: int) -> NotificationObservation:
+        _service_check("RequestRef", request_ref)
+        _service_check("i64", wait_ms)
+        _args = _NotificationApplicationObserveArguments()
+        _args.request_ref = request_ref
+        _args.wait_ms = wait_ms
+        _arguments = _service_encode(_write_oa_notification_application_observe_arguments, _args, 1)
+        _service_decode(_read_oa_notification_application_observe_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/notification@1", "Observe", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/notification@1", "Observe")
+        _result = _service_decode(_read_oa_notification_application_observe_result, _payload, 1)
+        return _result.value
+
+    def withdraw(self, request_ref: RequestRef) -> NotificationObservation:
+        _service_check("RequestRef", request_ref)
+        _args = _NotificationApplicationWithdrawArguments()
+        _args.request_ref = request_ref
+        _arguments = _service_encode(_write_oa_notification_application_withdraw_arguments, _args, 1)
+        _service_decode(_read_oa_notification_application_withdraw_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/notification@1", "Withdraw", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/notification@1", "Withdraw")
+        _result = _service_decode(_read_oa_notification_application_withdraw_result, _payload, 1)
+        return _result.value
+
+    def acknowledge(self, request_ref: RequestRef, result: NotificationResult) -> ChoiceAcknowledgement:
+        _service_check("RequestRef", request_ref)
+        _service_check("NotificationResult", result)
+        _args = _NotificationApplicationAcknowledgeArguments()
+        _args.request_ref = request_ref
+        _args.result = result
+        _arguments = _service_encode(_write_oa_notification_application_acknowledge_arguments, _args, 1)
+        _service_decode(_read_oa_notification_application_acknowledge_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/notification@1", "Acknowledge", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/notification@1", "Acknowledge")
+        _result = _service_decode(_read_oa_notification_application_acknowledge_result, _payload, 1)
+        return _result.value
+
+
+class NotificationOperator:
+    """Explicitly authorized presentation, action recording, dismissal and audit of
+    application notifications. The session presenter and the Panel are its
+    clients. A recorded action is application intent only."""
+
+    def list_notifications(self, cursor: str, limit: int) -> NotificationPage:
+        """List retained notification occurrences for an explicitly authorized
+        operator, each with a presentation token. Authorization is rechecked
+        before the page is returned."""
+        raise NotImplementedError
+
+    def read_notification(self, id: str) -> NotificationRead:
+        """Read one occurrence with its presentation token."""
+        raise NotImplementedError
+
+    def act(self, id: str, action: str, presentation: str) -> NotificationDecision:
+        """Record that the person chose one offered action on a posted notification
+        (ASK-N4). Inside the atomic edit the service rechecks operator
+        authorization, the presentation token, state posted, service time before
+        expires_ms, the offered action and the live block on the poster. The
+        first recorded action wins; the same action replays; any failed check
+        records nothing."""
+        raise NotImplementedError
+
+    def dismiss(self, id: str) -> NotificationDecision:
+        """Record that the person dismissed one scheduled or posted notification
+        without an action. The same dismissal replays; another terminal outcome
+        conflicts."""
+        raise NotImplementedError
+
+    def withdraw_program(self, program: str) -> NotificationDecision:
+        """Withdraw every scheduled and posted notification of one bound program,
+        for example after the person turned its notifications off. count reports
+        how many changed."""
+        raise NotImplementedError
+
+    def list_notifiers(self, cursor: str, limit: int) -> NotifierPage:
+        """List per-program post counts for the last seven days under the same page
+        rules (ASK-N6)."""
+        raise NotImplementedError
+
+
+class NotificationOperatorClient(NotificationOperator):
+    """Calls abstraction.asks/notification-operator@1 through a transport that exchanges frames."""
+
+    def __init__(self, transport):
+        self._transport = transport
+
+    def list_notifications(self, cursor: str, limit: int) -> NotificationPage:
+        _service_check("string", cursor)
+        _service_check("i64", limit)
+        _args = _NotificationOperatorListNotificationsArguments()
+        _args.cursor = cursor
+        _args.limit = limit
+        _arguments = _service_encode(_write_oa_notification_operator_list_notifications_arguments, _args, 1)
+        _service_decode(_read_oa_notification_operator_list_notifications_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/notification-operator@1", "ListNotifications", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/notification-operator@1", "ListNotifications")
+        _result = _service_decode(_read_oa_notification_operator_list_notifications_result, _payload, 1)
+        return _result.value
+
+    def read_notification(self, id: str) -> NotificationRead:
+        _service_check("string", id)
+        _args = _NotificationOperatorReadNotificationArguments()
+        _args.id = id
+        _arguments = _service_encode(_write_oa_notification_operator_read_notification_arguments, _args, 1)
+        _service_decode(_read_oa_notification_operator_read_notification_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/notification-operator@1", "ReadNotification", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/notification-operator@1", "ReadNotification")
+        _result = _service_decode(_read_oa_notification_operator_read_notification_result, _payload, 1)
+        return _result.value
+
+    def act(self, id: str, action: str, presentation: str) -> NotificationDecision:
+        _service_check("string", id)
+        _service_check("string", action)
+        _service_check("string", presentation)
+        _args = _NotificationOperatorActArguments()
+        _args.id = id
+        _args.action = action
+        _args.presentation = presentation
+        _arguments = _service_encode(_write_oa_notification_operator_act_arguments, _args, 1)
+        _service_decode(_read_oa_notification_operator_act_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/notification-operator@1", "Act", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/notification-operator@1", "Act")
+        _result = _service_decode(_read_oa_notification_operator_act_result, _payload, 1)
+        return _result.value
+
+    def dismiss(self, id: str) -> NotificationDecision:
+        _service_check("string", id)
+        _args = _NotificationOperatorDismissArguments()
+        _args.id = id
+        _arguments = _service_encode(_write_oa_notification_operator_dismiss_arguments, _args, 1)
+        _service_decode(_read_oa_notification_operator_dismiss_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/notification-operator@1", "Dismiss", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/notification-operator@1", "Dismiss")
+        _result = _service_decode(_read_oa_notification_operator_dismiss_result, _payload, 1)
+        return _result.value
+
+    def withdraw_program(self, program: str) -> NotificationDecision:
+        _service_check("string", program)
+        _args = _NotificationOperatorWithdrawProgramArguments()
+        _args.program = program
+        _arguments = _service_encode(_write_oa_notification_operator_withdraw_program_arguments, _args, 1)
+        _service_decode(_read_oa_notification_operator_withdraw_program_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/notification-operator@1", "WithdrawProgram", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/notification-operator@1", "WithdrawProgram")
+        _result = _service_decode(_read_oa_notification_operator_withdraw_program_result, _payload, 1)
+        return _result.value
+
+    def list_notifiers(self, cursor: str, limit: int) -> NotifierPage:
+        _service_check("string", cursor)
+        _service_check("i64", limit)
+        _args = _NotificationOperatorListNotifiersArguments()
+        _args.cursor = cursor
+        _args.limit = limit
+        _arguments = _service_encode(_write_oa_notification_operator_list_notifiers_arguments, _args, 1)
+        _service_decode(_read_oa_notification_operator_list_notifiers_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/notification-operator@1", "ListNotifiers", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/notification-operator@1", "ListNotifiers")
+        _result = _service_decode(_read_oa_notification_operator_list_notifiers_result, _payload, 1)
+        return _result.value
+
+
+def _write_oa_imported0(out, v, depth):
+    try:
+        out += _dependency_rights._encode_permission_selection_at(v, depth)
+    except _dependency_rights.Refusal as e:
+        raise Refusal(e.word, e.offset) from e
+
+
+def _read_oa_imported0(r):
+    try:
+        v, n = _dependency_rights._decode_permission_selection_at(r.buf[r.pos:], r.depth, r.limit)
+    except _dependency_rights.Refusal as e:
+        raise Refusal(e.word, r.pos + e.offset) from e
+    r.pos += n
+    return v
+
+
+def _write_oa_imported1(out, v, depth):
+    try:
+        out += _dependency_rights._encode_resource_selector_at(v, depth)
+    except _dependency_rights.Refusal as e:
+        raise Refusal(e.word, e.offset) from e
+
+
+def _read_oa_imported1(r):
+    try:
+        v, n = _dependency_rights._decode_resource_selector_at(r.buf[r.pos:], r.depth, r.limit)
+    except _dependency_rights.Refusal as e:
+        raise Refusal(e.word, r.pos + e.offset) from e
+    r.pos += n
+    return v
+
+
+def _write_oa_imported2(out, v, depth):
+    try:
+        out += _dependency_rights._encode_permission_effect_at(v, depth)
+    except _dependency_rights.Refusal as e:
+        raise Refusal(e.word, e.offset) from e
+
+
+def _read_oa_imported2(r):
+    try:
+        v, n = _dependency_rights._decode_permission_effect_at(r.buf[r.pos:], r.depth, r.limit)
+    except _dependency_rights.Refusal as e:
+        raise Refusal(e.word, r.pos + e.offset) from e
+    r.pos += n
+    return v
+
+
+def _write_oa_imported3(out, v, depth):
+    try:
+        out += _dependency_rights._encode_decision_at(v, depth)
+    except _dependency_rights.Refusal as e:
+        raise Refusal(e.word, e.offset) from e
+
+
+def _read_oa_imported3(r):
+    try:
+        v, n = _dependency_rights._decode_decision_at(r.buf[r.pos:], r.depth, r.limit)
+    except _dependency_rights.Refusal as e:
+        raise Refusal(e.word, r.pos + e.offset) from e
+    r.pos += n
+    return v
+
+
+_NAMED_IMPORTED = {}
+
+
+def _check_oa_imported0(v, depth, limit):
+    try:
+        _dependency_rights._check_permission_selection(v, depth, limit)
+    except _dependency_rights.Refusal as e:
+        raise Refusal(e.word, e.offset) from e
+
+
+_NAMED_IMPORTED["OAImported0"] = (_Imported0, _check_oa_imported0)
+
+
+def _check_oa_imported1(v, depth, limit):
+    try:
+        _dependency_rights._check_resource_selector(v, depth, limit)
+    except _dependency_rights.Refusal as e:
+        raise Refusal(e.word, e.offset) from e
+
+
+_NAMED_IMPORTED["OAImported1"] = (_Imported1, _check_oa_imported1)
+
+
+def _check_oa_imported2(v, depth, limit):
+    try:
+        _dependency_rights._check_permission_effect(v, depth, limit)
+    except _dependency_rights.Refusal as e:
+        raise Refusal(e.word, e.offset) from e
+
+
+_NAMED_IMPORTED["OAImported2"] = (_Imported2, _check_oa_imported2)
+
+
+def _check_oa_imported3(v, depth, limit):
+    try:
+        _dependency_rights._check_decision(v, depth, limit)
+    except _dependency_rights.Refusal as e:
+        raise Refusal(e.word, e.offset) from e
+
+
+_NAMED_IMPORTED["OAImported3"] = (_Imported3, _check_oa_imported3)
+
+_NAMED_RECORDS = {
+    "Question": (Question, [("asker", "string", "never"), ("key", "string", "never"), ("slots", "map<string,string>", "zero"), ]),
+    "Request": (Request, [("op", "string", "never"), ("ask", "Question", "absent"), ("wait", "bool", "zero"), ("id", "string", "absent"), ("option", "string", "absent"), ("admin", "string", "absent"), ]),
+    "Answer": (Answer, [("id", "string", "never"), ("pending", "bool", "zero"), ("option", "string", "absent"), ("yes", "bool", "zero"), ("kept", "bool", "zero"), ]),
+    "RecordMetadata": (RecordMetadata, [("id", "string", "never"), ("asker", "string", "never"), ("key", "string", "never"), ("about", "string", "absent"), ("text", "string", "never"), ("options", "list<string>", "never"), ("asked", "string", "never"), ("option", "string", "absent"), ("answered", "string", "absent"), ("kept", "bool", "zero"), ("yes", "bool", "zero"), ]),
+    "ResponseMetadata": (ResponseMetadata, [("code", "string", "absent"), ("error", "string", "absent"), ("answer", "Answer", "absent"), ("records", "list<RecordMetadata>", "zero"), ]),
+    "ApplicationQuestion": (ApplicationQuestion, [("request_key", "string", "never"), ("key", "string", "never"), ("slots", "map<string,string>", "never"), ]),
+    "QuestionObservation": (QuestionObservation, [("outcome", "enum", "never"), ("answer", "Answer", "absent"), ]),
+    "OperatorPage": (OperatorPage, [("outcome", "enum", "never"), ("records", "list<RecordMetadata>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
+    "OperatorDecision": (OperatorDecision, [("outcome", "enum", "never"), ("record", "RecordMetadata", "absent"), ]),
+    "OperatorRetirement": (OperatorRetirement, [("outcome", "enum", "never"), ("record", "RecordMetadata", "absent"), ]),
+    "OperatorQuestion": (OperatorQuestion, [("outcome", "enum", "never"), ("record", "RecordMetadata", "absent"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ("answered_by", "enum", "absent"), ("program_description", "string", "absent"), ("program_original_name", "string", "absent"), ]),
+    "AttributedQuestion": (AttributedQuestion, [("question", "OperatorQuestion", "never"), ("answerer", "string", "absent"), ]),
+    "PermissionTarget": (PermissionTarget, [("account", "string", "never"), ("program", "string", "never"), ("action", "string", "never"), ("resource", "string", "never"), ]),
+    "PermissionRequest": (PermissionRequest, [("targets", "list<PermissionTarget>", "never"), ]),
+    "QuestionDetails": (QuestionDetails, [("question", "AttributedQuestion", "never"), ("permission", "PermissionRequest", "absent"), ]),
+    "QuestionAsker": (QuestionAsker, [("details", "QuestionDetails", "never"), ("program", "string", "absent"), ]),
+    "RequestRef": (RequestRef, [("key", "string", "never"), ("replay_until_ms", "i64", "never"), ]),
+    "ChoiceOption": (ChoiceOption, [("id", "string", "never"), ("label", "string", "never"), ]),
+    "ChoiceRequest": (ChoiceRequest, [("request_ref", "RequestRef", "never"), ("title", "string", "never"), ("options", "list<ChoiceOption>", "never"), ("pending_until_ms", "i64", "never"), ]),
+    "ChoiceAnswer": (ChoiceAnswer, [("id", "string", "never"), ("option", "string", "absent"), ("answered_ms", "i64", "never"), ("answered_by", "string", "never"), ]),
+    "ChoiceObservation": (ChoiceObservation, [("outcome", "enum", "never"), ("id", "string", "absent"), ("answer", "ChoiceAnswer", "absent"), ]),
+    "ChoiceAcknowledgement": (ChoiceAcknowledgement, [("outcome", "enum", "never"), ]),
+    "ChoiceRecord": (ChoiceRecord, [("id", "string", "never"), ("asker", "string", "never"), ("request", "ChoiceRequest", "never"), ("state", "enum", "never"), ("asked_ms", "i64", "never"), ("answer", "ChoiceAnswer", "absent"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ("program_description", "string", "absent"), ("program_original_name", "string", "absent"), ]),
+    "ChoicePage": (ChoicePage, [("outcome", "enum", "never"), ("records", "list<ChoiceRecord>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
+    "ChoiceRead": (ChoiceRead, [("outcome", "enum", "never"), ("record", "ChoiceRecord", "absent"), ]),
+    "ChoiceDecision": (ChoiceDecision, [("outcome", "enum", "never"), ("record", "ChoiceRecord", "absent"), ]),
+    "ChoiceDetails": (ChoiceDetails, [("choice", "ChoiceRead", "never"), ("asker_program", "string", "absent"), ("assistant_options", "list<string>", "never"), ("answered_via", "enum", "absent"), ]),
+    "AnswerEntry": (AnswerEntry, [("id", "string", "never"), ("kind", "enum", "never"), ("key", "string", "never"), ("asker", "string", "never"), ("asker_program", "string", "absent"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ("about", "string", "never"), ("title", "string", "never"), ("option", "string", "never"), ("label", "string", "never"), ("answered_by", "enum", "never"), ("answerer", "string", "absent"), ("answered_ms", "i64", "never"), ]),
+    "AnswerEntryPage": (AnswerEntryPage, [("outcome", "enum", "never"), ("answers", "list<AnswerEntry>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ("complete_since_ms", "i64", "never"), ]),
+    "AnswerableChoice": (AnswerableChoice, [("id", "string", "never"), ("asker", "string", "never"), ("title", "string", "never"), ("options", "list<ChoiceOption>", "never"), ("pending_until_ms", "i64", "never"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ]),
+    "AnswerableChoicePage": (AnswerableChoicePage, [("outcome", "enum", "never"), ("choices", "list<AnswerableChoice>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
+    "ResponderDecision": (ResponderDecision, [("outcome", "enum", "never"), ("record", "RecordMetadata", "absent"), ("effect", "enum", "never"), ("target_outcome", "string", "absent"), ]),
+    "PermissionIntent": (PermissionIntent, [("request_key", "string", "never"), ("selection", "OAImported0", "absent"), ("bundle_ref", "string", "absent"), ("bundle_selector", "OAImported1", "absent"), ("purpose", "string", "absent"), ]),
+    "PermissionObservation": (PermissionObservation, [("outcome", "enum", "never"), ("answer", "Answer", "absent"), ("policy_revision", "string", "never"), ]),
+    "TypedPermissionDetails": (TypedPermissionDetails, [("question", "AttributedQuestion", "never"), ("effect", "OAImported2", "absent"), ("effect_digest", "string", "never"), ("origin", "string", "never"), ("purpose", "string", "never"), ("display", "PermissionDisplay", "absent"), ]),
+    "PermissionDisplaySelection": (PermissionDisplaySelection, [("operation", "string", "never"), ("target", "string", "never"), ("collection", "string", "never"), ("all_effect", "string", "never"), ("disclosure", "string", "never"), ]),
+    "PermissionDisplay": (PermissionDisplay, [("selections", "list<PermissionDisplaySelection>", "never"), ("bundle_label", "string", "never"), ("bundle_disclosure", "string", "never"), ("requires_os_authorization", "bool", "never"), ]),
+    "NotificationAction": (NotificationAction, [("id", "string", "never"), ("title", "string", "never"), ("activation", "enum", "never"), ]),
+    "NotificationRequest": (NotificationRequest, [("request_ref", "RequestRef", "never"), ("title", "string", "never"), ("body", "string", "absent"), ("actions", "list<NotificationAction>", "never"), ("expires_ms", "i64", "never"), ("operation_id", "string", "absent"), ("tag", "string", "absent"), ("delivery", "enum", "never"), ]),
+    "NotificationResult": (NotificationResult, [("id", "string", "never"), ("state", "enum", "never"), ("action", "string", "absent"), ("decided_ms", "i64", "never"), ("decided_by", "string", "absent"), ]),
+    "NotificationObservation": (NotificationObservation, [("outcome", "enum", "never"), ("id", "string", "absent"), ("result", "NotificationResult", "absent"), ]),
+    "NotificationRecord": (NotificationRecord, [("id", "string", "never"), ("asker", "string", "never"), ("program", "string", "never"), ("request", "NotificationRequest", "never"), ("state", "enum", "never"), ("admitted_ms", "i64", "never"), ("posted_ms", "i64", "zero"), ("result", "NotificationResult", "absent"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ("program_description", "string", "absent"), ("program_original_name", "string", "absent"), ("presentation", "string", "absent"), ]),
+    "NotificationPage": (NotificationPage, [("outcome", "enum", "never"), ("records", "list<NotificationRecord>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
+    "NotificationRead": (NotificationRead, [("outcome", "enum", "never"), ("record", "NotificationRecord", "absent"), ]),
+    "NotificationDecision": (NotificationDecision, [("outcome", "enum", "never"), ("record", "NotificationRecord", "absent"), ("count", "i64", "zero"), ]),
+    "NotifierDay": (NotifierDay, [("day_ms", "i64", "never"), ("posts", "i64", "never"), ]),
+    "NotifierCount": (NotifierCount, [("program", "string", "never"), ("asker", "string", "never"), ("days", "list<NotifierDay>", "never"), ("last_posted_ms", "i64", "never"), ]),
+    "NotifierPage": (NotifierPage, [("outcome", "enum", "never"), ("notifiers", "list<NotifierCount>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
+}
+
+
+def _named_check(kind, value, depth=0, limit=_DEPTH_LIMIT):
+    # Python coercions must not silently change typed service arguments.
+    if depth >= limit and (kind.startswith(("list<", "map<")) or kind in _NAMED_RECORDS):
+        raise Refusal("depth_exceeded", 0)
+    if kind == "binary":
+        valid = type(value) is bytes
+    elif kind == "string":
+        valid = type(value) is str
+    elif kind == "enum":
+        valid = value is None or isinstance(value, str)
+    elif kind in ("i32", "i64"):
+        valid = type(value) is int
+        if valid:
+            limit = 1 << (31 if kind == "i32" else 63)
+            if not -limit <= value < limit:
+                raise Refusal("number_spelling", 0)
+    elif kind == "bool":
+        valid = type(value) is bool
+    elif kind == "json":
+        valid = isinstance(value, (str, bytes, bytearray, memoryview))
+    elif kind.startswith("list<"):
+        valid = type(value) is list
+        if valid:
+            for item in value:
+                _named_check(kind[5:-1], item, depth + 1, limit)
+    elif kind.startswith("map<string,"):
+        valid = type(value) is dict
+        if valid:
+            for key, item in value.items():
+                _named_check("string", key, depth + 1, limit)
+                _named_check(kind[11:-1], item, depth + 1, limit)
+    elif kind in _NAMED_IMPORTED:
+        cls, check = _NAMED_IMPORTED[kind]
+        valid = isinstance(value, cls)
+        if valid:
+            check(value, depth, limit)
+    else:
+        cls, fields = _NAMED_RECORDS[kind]
+        valid = isinstance(value, cls)
+        if valid:
+            for name, field_kind, omit in fields:
+                if not hasattr(value, name):
+                    raise Refusal("missing_field", 0)
+                item = getattr(value, name)
+                if omit == "absent" and item is None:
+                    continue
+                _named_check(field_kind, item, depth + 1, limit)
+    if not valid:
+        raise Refusal("wrong_type", 0)
+
+
+def _check_question(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("Question", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_request(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("Request", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_answer(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("Answer", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_record_metadata(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("RecordMetadata", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_response_metadata(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ResponseMetadata", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_application_question(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ApplicationQuestion", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_question_observation(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("QuestionObservation", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_operator_page(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("OperatorPage", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_operator_decision(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("OperatorDecision", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_operator_retirement(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("OperatorRetirement", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_operator_question(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("OperatorQuestion", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_attributed_question(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("AttributedQuestion", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_permission_target(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("PermissionTarget", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_permission_request(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("PermissionRequest", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_question_details(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("QuestionDetails", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_question_asker(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("QuestionAsker", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_request_ref(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("RequestRef", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_choice_option(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ChoiceOption", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_choice_request(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ChoiceRequest", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_choice_answer(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ChoiceAnswer", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_choice_observation(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ChoiceObservation", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_choice_acknowledgement(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ChoiceAcknowledgement", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_choice_record(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ChoiceRecord", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_choice_page(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ChoicePage", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_choice_read(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ChoiceRead", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_choice_decision(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ChoiceDecision", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_choice_details(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ChoiceDetails", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_answer_entry(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("AnswerEntry", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_answer_entry_page(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("AnswerEntryPage", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_answerable_choice(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("AnswerableChoice", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_answerable_choice_page(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("AnswerableChoicePage", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_responder_decision(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("ResponderDecision", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_permission_intent(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("PermissionIntent", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_permission_observation(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("PermissionObservation", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_typed_permission_details(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("TypedPermissionDetails", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_permission_display_selection(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("PermissionDisplaySelection", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_permission_display(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("PermissionDisplay", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_notification_action(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("NotificationAction", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_notification_request(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("NotificationRequest", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_notification_result(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("NotificationResult", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_notification_observation(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("NotificationObservation", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_notification_record(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("NotificationRecord", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_notification_page(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("NotificationPage", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_notification_read(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("NotificationRead", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_notification_decision(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("NotificationDecision", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_notifier_day(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("NotifierDay", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_notifier_count(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("NotifierCount", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_notifier_page(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("NotifierPage", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _decode_question_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_question(r)
+    return v, r.pos
+
+
+def _encode_question_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_question(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_question(out, v, depth)
+    _decode_question_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_question(v):
+    return _encode_question_at(v, 0) + "\n".encode()
+
+
+def decode_question(data):
+    v, n = _decode_question_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_request_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_request(r)
+    return v, r.pos
+
+
+def _encode_request_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_request(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_request(out, v, depth)
+    _decode_request_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_request(v):
+    return _encode_request_at(v, 0) + "\n".encode()
+
+
+def decode_request(data):
+    v, n = _decode_request_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_answer_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_answer(r)
+    return v, r.pos
+
+
+def _encode_answer_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_answer(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_answer(out, v, depth)
+    _decode_answer_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_answer(v):
+    return _encode_answer_at(v, 0) + "\n".encode()
+
+
+def decode_answer(data):
+    v, n = _decode_answer_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_record_metadata_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_record_metadata(r)
+    return v, r.pos
+
+
+def _encode_record_metadata_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_record_metadata(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_record_metadata(out, v, depth)
+    _decode_record_metadata_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_record_metadata(v):
+    return _encode_record_metadata_at(v, 0) + "\n".encode()
+
+
+def decode_record_metadata(data):
+    v, n = _decode_record_metadata_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_response_metadata_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_response_metadata(r)
+    return v, r.pos
+
+
+def _encode_response_metadata_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_response_metadata(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_response_metadata(out, v, depth)
+    _decode_response_metadata_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_response_metadata(v):
+    return _encode_response_metadata_at(v, 0) + "\n".encode()
+
+
+def decode_response_metadata(data):
+    v, n = _decode_response_metadata_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_application_question_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_application_question(r)
+    return v, r.pos
+
+
+def _encode_application_question_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_application_question(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_application_question(out, v, depth)
+    _decode_application_question_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_application_question(v):
+    return _encode_application_question_at(v, 0) + "\n".encode()
+
+
+def decode_application_question(data):
+    v, n = _decode_application_question_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_question_observation_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_question_observation(r)
+    return v, r.pos
+
+
+def _encode_question_observation_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_question_observation(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_question_observation(out, v, depth)
+    _decode_question_observation_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_question_observation(v):
+    return _encode_question_observation_at(v, 0) + "\n".encode()
+
+
+def decode_question_observation(data):
+    v, n = _decode_question_observation_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_operator_page_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_operator_page(r)
+    return v, r.pos
+
+
+def _encode_operator_page_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_operator_page(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_operator_page(out, v, depth)
+    _decode_operator_page_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_operator_page(v):
+    return _encode_operator_page_at(v, 0) + "\n".encode()
+
+
+def decode_operator_page(data):
+    v, n = _decode_operator_page_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_operator_decision_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_operator_decision(r)
+    return v, r.pos
+
+
+def _encode_operator_decision_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_operator_decision(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_operator_decision(out, v, depth)
+    _decode_operator_decision_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_operator_decision(v):
+    return _encode_operator_decision_at(v, 0) + "\n".encode()
+
+
+def decode_operator_decision(data):
+    v, n = _decode_operator_decision_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_operator_retirement_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_operator_retirement(r)
+    return v, r.pos
+
+
+def _encode_operator_retirement_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_operator_retirement(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_operator_retirement(out, v, depth)
+    _decode_operator_retirement_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_operator_retirement(v):
+    return _encode_operator_retirement_at(v, 0) + "\n".encode()
+
+
+def decode_operator_retirement(data):
+    v, n = _decode_operator_retirement_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_operator_question_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_operator_question(r)
+    return v, r.pos
+
+
+def _encode_operator_question_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_operator_question(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_operator_question(out, v, depth)
+    _decode_operator_question_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_operator_question(v):
+    return _encode_operator_question_at(v, 0) + "\n".encode()
+
+
+def decode_operator_question(data):
+    v, n = _decode_operator_question_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_attributed_question_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_attributed_question(r)
+    return v, r.pos
+
+
+def _encode_attributed_question_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_attributed_question(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_attributed_question(out, v, depth)
+    _decode_attributed_question_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_attributed_question(v):
+    return _encode_attributed_question_at(v, 0) + "\n".encode()
+
+
+def decode_attributed_question(data):
+    v, n = _decode_attributed_question_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_permission_target_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_permission_target(r)
+    return v, r.pos
+
+
+def _encode_permission_target_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_permission_target(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_permission_target(out, v, depth)
+    _decode_permission_target_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_permission_target(v):
+    return _encode_permission_target_at(v, 0) + "\n".encode()
+
+
+def decode_permission_target(data):
+    v, n = _decode_permission_target_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_permission_request_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_permission_request(r)
+    return v, r.pos
+
+
+def _encode_permission_request_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_permission_request(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_permission_request(out, v, depth)
+    _decode_permission_request_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_permission_request(v):
+    return _encode_permission_request_at(v, 0) + "\n".encode()
+
+
+def decode_permission_request(data):
+    v, n = _decode_permission_request_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_question_details_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_question_details(r)
+    return v, r.pos
+
+
+def _encode_question_details_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_question_details(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_question_details(out, v, depth)
+    _decode_question_details_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_question_details(v):
+    return _encode_question_details_at(v, 0) + "\n".encode()
+
+
+def decode_question_details(data):
+    v, n = _decode_question_details_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_question_asker_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_question_asker(r)
+    return v, r.pos
+
+
+def _encode_question_asker_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_question_asker(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_question_asker(out, v, depth)
+    _decode_question_asker_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_question_asker(v):
+    return _encode_question_asker_at(v, 0) + "\n".encode()
+
+
+def decode_question_asker(data):
+    v, n = _decode_question_asker_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_request_ref_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_request_ref(r)
+    return v, r.pos
+
+
+def _encode_request_ref_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_request_ref(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_request_ref(out, v, depth)
+    _decode_request_ref_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_request_ref(v):
+    return _encode_request_ref_at(v, 0) + "\n".encode()
+
+
+def decode_request_ref(data):
+    v, n = _decode_request_ref_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_choice_option_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_choice_option(r)
+    return v, r.pos
+
+
+def _encode_choice_option_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_choice_option(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_choice_option(out, v, depth)
+    _decode_choice_option_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_choice_option(v):
+    return _encode_choice_option_at(v, 0) + "\n".encode()
+
+
+def decode_choice_option(data):
+    v, n = _decode_choice_option_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_choice_request_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_choice_request(r)
+    return v, r.pos
+
+
+def _encode_choice_request_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_choice_request(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_choice_request(out, v, depth)
+    _decode_choice_request_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_choice_request(v):
+    return _encode_choice_request_at(v, 0) + "\n".encode()
+
+
+def decode_choice_request(data):
+    v, n = _decode_choice_request_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_choice_answer_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_choice_answer(r)
+    return v, r.pos
+
+
+def _encode_choice_answer_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_choice_answer(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_choice_answer(out, v, depth)
+    _decode_choice_answer_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_choice_answer(v):
+    return _encode_choice_answer_at(v, 0) + "\n".encode()
+
+
+def decode_choice_answer(data):
+    v, n = _decode_choice_answer_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_choice_observation_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_choice_observation(r)
+    return v, r.pos
+
+
+def _encode_choice_observation_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_choice_observation(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_choice_observation(out, v, depth)
+    _decode_choice_observation_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_choice_observation(v):
+    return _encode_choice_observation_at(v, 0) + "\n".encode()
+
+
+def decode_choice_observation(data):
+    v, n = _decode_choice_observation_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_choice_acknowledgement_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_choice_acknowledgement(r)
+    return v, r.pos
+
+
+def _encode_choice_acknowledgement_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_choice_acknowledgement(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_choice_acknowledgement(out, v, depth)
+    _decode_choice_acknowledgement_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_choice_acknowledgement(v):
+    return _encode_choice_acknowledgement_at(v, 0) + "\n".encode()
+
+
+def decode_choice_acknowledgement(data):
+    v, n = _decode_choice_acknowledgement_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_choice_record_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_choice_record(r)
+    return v, r.pos
+
+
+def _encode_choice_record_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_choice_record(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_choice_record(out, v, depth)
+    _decode_choice_record_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_choice_record(v):
+    return _encode_choice_record_at(v, 0) + "\n".encode()
+
+
+def decode_choice_record(data):
+    v, n = _decode_choice_record_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_choice_page_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_choice_page(r)
+    return v, r.pos
+
+
+def _encode_choice_page_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_choice_page(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_choice_page(out, v, depth)
+    _decode_choice_page_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_choice_page(v):
+    return _encode_choice_page_at(v, 0) + "\n".encode()
+
+
+def decode_choice_page(data):
+    v, n = _decode_choice_page_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_choice_read_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_choice_read(r)
+    return v, r.pos
+
+
+def _encode_choice_read_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_choice_read(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_choice_read(out, v, depth)
+    _decode_choice_read_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_choice_read(v):
+    return _encode_choice_read_at(v, 0) + "\n".encode()
+
+
+def decode_choice_read(data):
+    v, n = _decode_choice_read_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_choice_decision_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_choice_decision(r)
+    return v, r.pos
+
+
+def _encode_choice_decision_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_choice_decision(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_choice_decision(out, v, depth)
+    _decode_choice_decision_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_choice_decision(v):
+    return _encode_choice_decision_at(v, 0) + "\n".encode()
+
+
+def decode_choice_decision(data):
+    v, n = _decode_choice_decision_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_choice_details_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_choice_details(r)
+    return v, r.pos
+
+
+def _encode_choice_details_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_choice_details(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_choice_details(out, v, depth)
+    _decode_choice_details_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_choice_details(v):
+    return _encode_choice_details_at(v, 0) + "\n".encode()
+
+
+def decode_choice_details(data):
+    v, n = _decode_choice_details_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_answer_entry_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_answer_entry(r)
+    return v, r.pos
+
+
+def _encode_answer_entry_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_answer_entry(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_answer_entry(out, v, depth)
+    _decode_answer_entry_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_answer_entry(v):
+    return _encode_answer_entry_at(v, 0) + "\n".encode()
+
+
+def decode_answer_entry(data):
+    v, n = _decode_answer_entry_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_answer_entry_page_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_answer_entry_page(r)
+    return v, r.pos
+
+
+def _encode_answer_entry_page_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_answer_entry_page(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_answer_entry_page(out, v, depth)
+    _decode_answer_entry_page_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_answer_entry_page(v):
+    return _encode_answer_entry_page_at(v, 0) + "\n".encode()
+
+
+def decode_answer_entry_page(data):
+    v, n = _decode_answer_entry_page_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_answerable_choice_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_answerable_choice(r)
+    return v, r.pos
+
+
+def _encode_answerable_choice_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_answerable_choice(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_answerable_choice(out, v, depth)
+    _decode_answerable_choice_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_answerable_choice(v):
+    return _encode_answerable_choice_at(v, 0) + "\n".encode()
+
+
+def decode_answerable_choice(data):
+    v, n = _decode_answerable_choice_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_answerable_choice_page_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_answerable_choice_page(r)
+    return v, r.pos
+
+
+def _encode_answerable_choice_page_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_answerable_choice_page(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_answerable_choice_page(out, v, depth)
+    _decode_answerable_choice_page_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_answerable_choice_page(v):
+    return _encode_answerable_choice_page_at(v, 0) + "\n".encode()
+
+
+def decode_answerable_choice_page(data):
+    v, n = _decode_answerable_choice_page_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_responder_decision_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_responder_decision(r)
+    return v, r.pos
+
+
+def _encode_responder_decision_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_responder_decision(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_responder_decision(out, v, depth)
+    _decode_responder_decision_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_responder_decision(v):
+    return _encode_responder_decision_at(v, 0) + "\n".encode()
+
+
+def decode_responder_decision(data):
+    v, n = _decode_responder_decision_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_permission_intent_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_permission_intent(r)
+    return v, r.pos
+
+
+def _encode_permission_intent_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_permission_intent(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_permission_intent(out, v, depth)
+    _decode_permission_intent_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_permission_intent(v):
+    return _encode_permission_intent_at(v, 0) + "\n".encode()
+
+
+def decode_permission_intent(data):
+    v, n = _decode_permission_intent_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_permission_observation_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_permission_observation(r)
+    return v, r.pos
+
+
+def _encode_permission_observation_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_permission_observation(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_permission_observation(out, v, depth)
+    _decode_permission_observation_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_permission_observation(v):
+    return _encode_permission_observation_at(v, 0) + "\n".encode()
+
+
+def decode_permission_observation(data):
+    v, n = _decode_permission_observation_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_typed_permission_details_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_typed_permission_details(r)
+    return v, r.pos
+
+
+def _encode_typed_permission_details_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_typed_permission_details(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_typed_permission_details(out, v, depth)
+    _decode_typed_permission_details_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_typed_permission_details(v):
+    return _encode_typed_permission_details_at(v, 0) + "\n".encode()
+
+
+def decode_typed_permission_details(data):
+    v, n = _decode_typed_permission_details_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_permission_display_selection_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_permission_display_selection(r)
+    return v, r.pos
+
+
+def _encode_permission_display_selection_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_permission_display_selection(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_permission_display_selection(out, v, depth)
+    _decode_permission_display_selection_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_permission_display_selection(v):
+    return _encode_permission_display_selection_at(v, 0) + "\n".encode()
+
+
+def decode_permission_display_selection(data):
+    v, n = _decode_permission_display_selection_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_permission_display_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_permission_display(r)
+    return v, r.pos
+
+
+def _encode_permission_display_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_permission_display(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_permission_display(out, v, depth)
+    _decode_permission_display_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_permission_display(v):
+    return _encode_permission_display_at(v, 0) + "\n".encode()
+
+
+def decode_permission_display(data):
+    v, n = _decode_permission_display_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_notification_action_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_notification_action(r)
+    return v, r.pos
+
+
+def _encode_notification_action_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_notification_action(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_notification_action(out, v, depth)
+    _decode_notification_action_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_notification_action(v):
+    return _encode_notification_action_at(v, 0) + "\n".encode()
+
+
+def decode_notification_action(data):
+    v, n = _decode_notification_action_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_notification_request_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_notification_request(r)
+    return v, r.pos
+
+
+def _encode_notification_request_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_notification_request(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_notification_request(out, v, depth)
+    _decode_notification_request_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_notification_request(v):
+    return _encode_notification_request_at(v, 0) + "\n".encode()
+
+
+def decode_notification_request(data):
+    v, n = _decode_notification_request_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_notification_result_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_notification_result(r)
+    return v, r.pos
+
+
+def _encode_notification_result_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_notification_result(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_notification_result(out, v, depth)
+    _decode_notification_result_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_notification_result(v):
+    return _encode_notification_result_at(v, 0) + "\n".encode()
+
+
+def decode_notification_result(data):
+    v, n = _decode_notification_result_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_notification_observation_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_notification_observation(r)
+    return v, r.pos
+
+
+def _encode_notification_observation_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_notification_observation(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_notification_observation(out, v, depth)
+    _decode_notification_observation_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_notification_observation(v):
+    return _encode_notification_observation_at(v, 0) + "\n".encode()
+
+
+def decode_notification_observation(data):
+    v, n = _decode_notification_observation_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_notification_record_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_notification_record(r)
+    return v, r.pos
+
+
+def _encode_notification_record_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_notification_record(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_notification_record(out, v, depth)
+    _decode_notification_record_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_notification_record(v):
+    return _encode_notification_record_at(v, 0) + "\n".encode()
+
+
+def decode_notification_record(data):
+    v, n = _decode_notification_record_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_notification_page_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_notification_page(r)
+    return v, r.pos
+
+
+def _encode_notification_page_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_notification_page(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_notification_page(out, v, depth)
+    _decode_notification_page_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_notification_page(v):
+    return _encode_notification_page_at(v, 0) + "\n".encode()
+
+
+def decode_notification_page(data):
+    v, n = _decode_notification_page_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_notification_read_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_notification_read(r)
+    return v, r.pos
+
+
+def _encode_notification_read_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_notification_read(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_notification_read(out, v, depth)
+    _decode_notification_read_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_notification_read(v):
+    return _encode_notification_read_at(v, 0) + "\n".encode()
+
+
+def decode_notification_read(data):
+    v, n = _decode_notification_read_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_notification_decision_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_notification_decision(r)
+    return v, r.pos
+
+
+def _encode_notification_decision_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_notification_decision(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_notification_decision(out, v, depth)
+    _decode_notification_decision_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_notification_decision(v):
+    return _encode_notification_decision_at(v, 0) + "\n".encode()
+
+
+def decode_notification_decision(data):
+    v, n = _decode_notification_decision_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_notifier_day_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_notifier_day(r)
+    return v, r.pos
+
+
+def _encode_notifier_day_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_notifier_day(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_notifier_day(out, v, depth)
+    _decode_notifier_day_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_notifier_day(v):
+    return _encode_notifier_day_at(v, 0) + "\n".encode()
+
+
+def decode_notifier_day(data):
+    v, n = _decode_notifier_day_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_notifier_count_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_notifier_count(r)
+    return v, r.pos
+
+
+def _encode_notifier_count_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_notifier_count(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_notifier_count(out, v, depth)
+    _decode_notifier_count_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_notifier_count(v):
+    return _encode_notifier_count_at(v, 0) + "\n".encode()
+
+
+def decode_notifier_count(data):
+    v, n = _decode_notifier_count_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_notifier_page_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_notifier_page(r)
+    return v, r.pos
+
+
+def _encode_notifier_page_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_notifier_page(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_notifier_page(out, v, depth)
+    _decode_notifier_page_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_notifier_page(v):
+    return _encode_notifier_page_at(v, 0) + "\n".encode()
+
+
+def decode_notifier_page(data):
+    v, n = _decode_notifier_page_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v

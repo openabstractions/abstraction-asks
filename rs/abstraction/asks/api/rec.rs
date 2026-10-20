@@ -36,6 +36,24 @@ fn pad(out: &mut Vec<u8>, depth: i32) {
     }
 }
 
+fn strs(out: &mut Vec<u8>, v: &[String], depth: i32) {
+    if v.is_empty() {
+        out.extend_from_slice(b"[]");
+        return;
+    }
+    out.extend_from_slice(b"[\n");
+    for (i, s) in v.iter().enumerate() {
+        pad(out, depth + 1);
+        esc(out, s);
+        if i + 1 < v.len() {
+            out.push(b',');
+        }
+        out.push(b'\n');
+    }
+    pad(out, depth);
+    out.push(b']');
+}
+
 fn ws(c: u8) -> bool {
     c == b' ' || c == b'\t' || c == b'\n' || c == b'\r'
 }
@@ -66,6 +84,24 @@ fn strmap(out: &mut Vec<u8>, m: &BTreeMap<String, String>, depth: i32) {
     }
     pad(out, depth);
     out.push(b'}');
+}
+
+fn enc_list<T>(out: &mut Vec<u8>, v: &[T], depth: i32, enc: fn(&mut Vec<u8>, &T, i32)) {
+    if v.is_empty() {
+        out.extend_from_slice(b"[]");
+        return;
+    }
+    out.extend_from_slice(b"[\n");
+    for (i, x) in v.iter().enumerate() {
+        pad(out, depth + 1);
+        enc(out, x, depth + 1);
+        if i + 1 < v.len() {
+            out.push(b',');
+        }
+        out.push(b'\n');
+    }
+    pad(out, depth);
+    out.push(b']');
 }
 
 /// The closed vocabulary ObservationOutcome. A reader refuses a name it does not list.
@@ -304,6 +340,900 @@ impl PartialEq<&str> for OperatorRetirementOutcome {
     }
 }
 
+/// The closed vocabulary OperatorQuestionOutcome. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum OperatorQuestionOutcome {
+    Found,
+    Unknown,
+    Invalid,
+    Forbidden,
+    Unavailable,
+}
+
+impl OperatorQuestionOutcome {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 5] = [Self::Found, Self::Unknown, Self::Invalid, Self::Forbidden, Self::Unavailable];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Found => "found",
+            Self::Unknown => "unknown",
+            Self::Invalid => "invalid",
+            Self::Forbidden => "forbidden",
+            Self::Unavailable => "unavailable",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "found" => Some(Self::Found),
+            "unknown" => Some(Self::Unknown),
+            "invalid" => Some(Self::Invalid),
+            "forbidden" => Some(Self::Forbidden),
+            "unavailable" => Some(Self::Unavailable),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for OperatorQuestionOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for OperatorQuestionOutcome {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for OperatorQuestionOutcome {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary Answerer. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum Answerer {
+    Operator,
+    Responder,
+}
+
+impl Answerer {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 2] = [Self::Operator, Self::Responder];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Operator => "operator",
+            Self::Responder => "responder",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "operator" => Some(Self::Operator),
+            "responder" => Some(Self::Responder),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for Answerer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for Answerer {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for Answerer {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary ChoiceState. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ChoiceState {
+    Pending,
+    Answered,
+    Dismissed,
+    Expired,
+}
+
+impl ChoiceState {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 4] = [Self::Pending, Self::Answered, Self::Dismissed, Self::Expired];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Answered => "answered",
+            Self::Dismissed => "dismissed",
+            Self::Expired => "expired",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "pending" => Some(Self::Pending),
+            "answered" => Some(Self::Answered),
+            "dismissed" => Some(Self::Dismissed),
+            "expired" => Some(Self::Expired),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for ChoiceState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for ChoiceState {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for ChoiceState {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary ChoiceOutcome. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ChoiceOutcome {
+    Pending,
+    Answered,
+    Dismissed,
+    Expired,
+    Gone,
+    Unknown,
+    Conflict,
+    Invalid,
+    Exhausted,
+    Forbidden,
+    Unavailable,
+}
+
+impl ChoiceOutcome {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 11] = [Self::Pending, Self::Answered, Self::Dismissed, Self::Expired, Self::Gone, Self::Unknown, Self::Conflict, Self::Invalid, Self::Exhausted, Self::Forbidden, Self::Unavailable];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Answered => "answered",
+            Self::Dismissed => "dismissed",
+            Self::Expired => "expired",
+            Self::Gone => "gone",
+            Self::Unknown => "unknown",
+            Self::Conflict => "conflict",
+            Self::Invalid => "invalid",
+            Self::Exhausted => "exhausted",
+            Self::Forbidden => "forbidden",
+            Self::Unavailable => "unavailable",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "pending" => Some(Self::Pending),
+            "answered" => Some(Self::Answered),
+            "dismissed" => Some(Self::Dismissed),
+            "expired" => Some(Self::Expired),
+            "gone" => Some(Self::Gone),
+            "unknown" => Some(Self::Unknown),
+            "conflict" => Some(Self::Conflict),
+            "invalid" => Some(Self::Invalid),
+            "exhausted" => Some(Self::Exhausted),
+            "forbidden" => Some(Self::Forbidden),
+            "unavailable" => Some(Self::Unavailable),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for ChoiceOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for ChoiceOutcome {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for ChoiceOutcome {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary ChoiceAckOutcome. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ChoiceAckOutcome {
+    Acknowledged,
+    Conflict,
+    Unknown,
+    Expired,
+    Invalid,
+    Forbidden,
+    Unavailable,
+}
+
+impl ChoiceAckOutcome {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 7] = [Self::Acknowledged, Self::Conflict, Self::Unknown, Self::Expired, Self::Invalid, Self::Forbidden, Self::Unavailable];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Acknowledged => "acknowledged",
+            Self::Conflict => "conflict",
+            Self::Unknown => "unknown",
+            Self::Expired => "expired",
+            Self::Invalid => "invalid",
+            Self::Forbidden => "forbidden",
+            Self::Unavailable => "unavailable",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "acknowledged" => Some(Self::Acknowledged),
+            "conflict" => Some(Self::Conflict),
+            "unknown" => Some(Self::Unknown),
+            "expired" => Some(Self::Expired),
+            "invalid" => Some(Self::Invalid),
+            "forbidden" => Some(Self::Forbidden),
+            "unavailable" => Some(Self::Unavailable),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for ChoiceAckOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for ChoiceAckOutcome {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for ChoiceAckOutcome {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary ChoiceDecisionOutcome. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ChoiceDecisionOutcome {
+    Answered,
+    Dismissed,
+    Expired,
+    Gone,
+    Unknown,
+    Conflict,
+    Invalid,
+    Forbidden,
+    Unavailable,
+}
+
+impl ChoiceDecisionOutcome {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 9] = [Self::Answered, Self::Dismissed, Self::Expired, Self::Gone, Self::Unknown, Self::Conflict, Self::Invalid, Self::Forbidden, Self::Unavailable];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Answered => "answered",
+            Self::Dismissed => "dismissed",
+            Self::Expired => "expired",
+            Self::Gone => "gone",
+            Self::Unknown => "unknown",
+            Self::Conflict => "conflict",
+            Self::Invalid => "invalid",
+            Self::Forbidden => "forbidden",
+            Self::Unavailable => "unavailable",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "answered" => Some(Self::Answered),
+            "dismissed" => Some(Self::Dismissed),
+            "expired" => Some(Self::Expired),
+            "gone" => Some(Self::Gone),
+            "unknown" => Some(Self::Unknown),
+            "conflict" => Some(Self::Conflict),
+            "invalid" => Some(Self::Invalid),
+            "forbidden" => Some(Self::Forbidden),
+            "unavailable" => Some(Self::Unavailable),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for ChoiceDecisionOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for ChoiceDecisionOutcome {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for ChoiceDecisionOutcome {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary ChoiceRoute. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ChoiceRoute {
+    Requester,
+    Operator,
+    Responder,
+}
+
+impl ChoiceRoute {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 3] = [Self::Requester, Self::Operator, Self::Responder];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Requester => "requester",
+            Self::Operator => "operator",
+            Self::Responder => "responder",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "requester" => Some(Self::Requester),
+            "operator" => Some(Self::Operator),
+            "responder" => Some(Self::Responder),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for ChoiceRoute {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for ChoiceRoute {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for ChoiceRoute {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary AnswerKind. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum AnswerKind {
+    Question,
+    Choice,
+}
+
+impl AnswerKind {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 2] = [Self::Question, Self::Choice];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Question => "question",
+            Self::Choice => "choice",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "question" => Some(Self::Question),
+            "choice" => Some(Self::Choice),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for AnswerKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for AnswerKind {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for AnswerKind {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary ResponderEffectOutcome. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ResponderEffectOutcome {
+    None,
+    Applied,
+    Conflict,
+    Forbidden,
+    Unavailable,
+}
+
+impl ResponderEffectOutcome {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 5] = [Self::None, Self::Applied, Self::Conflict, Self::Forbidden, Self::Unavailable];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Applied => "applied",
+            Self::Conflict => "conflict",
+            Self::Forbidden => "forbidden",
+            Self::Unavailable => "unavailable",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "none" => Some(Self::None),
+            "applied" => Some(Self::Applied),
+            "conflict" => Some(Self::Conflict),
+            "forbidden" => Some(Self::Forbidden),
+            "unavailable" => Some(Self::Unavailable),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for ResponderEffectOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for ResponderEffectOutcome {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for ResponderEffectOutcome {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary PermissionOutcome. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum PermissionOutcome {
+    Pending,
+    Answered,
+    Unknown,
+    Gone,
+    Invalid,
+    Conflict,
+    Forbidden,
+    Unavailable,
+    Permitted,
+    Denied,
+}
+
+impl PermissionOutcome {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 10] = [Self::Pending, Self::Answered, Self::Unknown, Self::Gone, Self::Invalid, Self::Conflict, Self::Forbidden, Self::Unavailable, Self::Permitted, Self::Denied];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Answered => "answered",
+            Self::Unknown => "unknown",
+            Self::Gone => "gone",
+            Self::Invalid => "invalid",
+            Self::Conflict => "conflict",
+            Self::Forbidden => "forbidden",
+            Self::Unavailable => "unavailable",
+            Self::Permitted => "permitted",
+            Self::Denied => "denied",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "pending" => Some(Self::Pending),
+            "answered" => Some(Self::Answered),
+            "unknown" => Some(Self::Unknown),
+            "gone" => Some(Self::Gone),
+            "invalid" => Some(Self::Invalid),
+            "conflict" => Some(Self::Conflict),
+            "forbidden" => Some(Self::Forbidden),
+            "unavailable" => Some(Self::Unavailable),
+            "permitted" => Some(Self::Permitted),
+            "denied" => Some(Self::Denied),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for PermissionOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for PermissionOutcome {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for PermissionOutcome {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary NotificationActivation. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum NotificationActivation {
+    App,
+    OpenActivity,
+}
+
+impl NotificationActivation {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 2] = [Self::App, Self::OpenActivity];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::App => "app",
+            Self::OpenActivity => "open_activity",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "app" => Some(Self::App),
+            "open_activity" => Some(Self::OpenActivity),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for NotificationActivation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for NotificationActivation {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for NotificationActivation {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary NotificationDelivery. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum NotificationDelivery {
+    Now,
+    OperationEnd,
+}
+
+impl NotificationDelivery {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 2] = [Self::Now, Self::OperationEnd];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Now => "now",
+            Self::OperationEnd => "operation_end",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "now" => Some(Self::Now),
+            "operation_end" => Some(Self::OperationEnd),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for NotificationDelivery {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for NotificationDelivery {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for NotificationDelivery {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary NotificationState. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum NotificationState {
+    Scheduled,
+    Posted,
+    Acted,
+    Dismissed,
+    Withdrawn,
+    Expired,
+}
+
+impl NotificationState {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 6] = [Self::Scheduled, Self::Posted, Self::Acted, Self::Dismissed, Self::Withdrawn, Self::Expired];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Scheduled => "scheduled",
+            Self::Posted => "posted",
+            Self::Acted => "acted",
+            Self::Dismissed => "dismissed",
+            Self::Withdrawn => "withdrawn",
+            Self::Expired => "expired",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "scheduled" => Some(Self::Scheduled),
+            "posted" => Some(Self::Posted),
+            "acted" => Some(Self::Acted),
+            "dismissed" => Some(Self::Dismissed),
+            "withdrawn" => Some(Self::Withdrawn),
+            "expired" => Some(Self::Expired),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for NotificationState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for NotificationState {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for NotificationState {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary NotificationOutcome. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum NotificationOutcome {
+    Scheduled,
+    Posted,
+    Acted,
+    Dismissed,
+    Withdrawn,
+    Expired,
+    Gone,
+    Unknown,
+    Conflict,
+    Invalid,
+    Suppressed,
+    Exhausted,
+    Forbidden,
+    Unavailable,
+}
+
+impl NotificationOutcome {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 14] = [Self::Scheduled, Self::Posted, Self::Acted, Self::Dismissed, Self::Withdrawn, Self::Expired, Self::Gone, Self::Unknown, Self::Conflict, Self::Invalid, Self::Suppressed, Self::Exhausted, Self::Forbidden, Self::Unavailable];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Scheduled => "scheduled",
+            Self::Posted => "posted",
+            Self::Acted => "acted",
+            Self::Dismissed => "dismissed",
+            Self::Withdrawn => "withdrawn",
+            Self::Expired => "expired",
+            Self::Gone => "gone",
+            Self::Unknown => "unknown",
+            Self::Conflict => "conflict",
+            Self::Invalid => "invalid",
+            Self::Suppressed => "suppressed",
+            Self::Exhausted => "exhausted",
+            Self::Forbidden => "forbidden",
+            Self::Unavailable => "unavailable",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "scheduled" => Some(Self::Scheduled),
+            "posted" => Some(Self::Posted),
+            "acted" => Some(Self::Acted),
+            "dismissed" => Some(Self::Dismissed),
+            "withdrawn" => Some(Self::Withdrawn),
+            "expired" => Some(Self::Expired),
+            "gone" => Some(Self::Gone),
+            "unknown" => Some(Self::Unknown),
+            "conflict" => Some(Self::Conflict),
+            "invalid" => Some(Self::Invalid),
+            "suppressed" => Some(Self::Suppressed),
+            "exhausted" => Some(Self::Exhausted),
+            "forbidden" => Some(Self::Forbidden),
+            "unavailable" => Some(Self::Unavailable),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for NotificationOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for NotificationOutcome {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for NotificationOutcome {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
+/// The closed vocabulary NotificationDecisionOutcome. A reader refuses a name it does not list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum NotificationDecisionOutcome {
+    Acted,
+    Dismissed,
+    Withdrawn,
+    Expired,
+    Gone,
+    Unknown,
+    Conflict,
+    Stale,
+    Invalid,
+    Forbidden,
+    Unavailable,
+}
+
+impl NotificationDecisionOutcome {
+    /// Every member, in declaration order.
+    pub const ALL: [Self; 11] = [Self::Acted, Self::Dismissed, Self::Withdrawn, Self::Expired, Self::Gone, Self::Unknown, Self::Conflict, Self::Stale, Self::Invalid, Self::Forbidden, Self::Unavailable];
+
+    /// The member's name on the wire.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Acted => "acted",
+            Self::Dismissed => "dismissed",
+            Self::Withdrawn => "withdrawn",
+            Self::Expired => "expired",
+            Self::Gone => "gone",
+            Self::Unknown => "unknown",
+            Self::Conflict => "conflict",
+            Self::Stale => "stale",
+            Self::Invalid => "invalid",
+            Self::Forbidden => "forbidden",
+            Self::Unavailable => "unavailable",
+        }
+    }
+
+    /// The member a wire name spells, or `None` for a name this vocabulary refuses.
+    pub fn from_wire(name: &str) -> Option<Self> {
+        match name {
+            "acted" => Some(Self::Acted),
+            "dismissed" => Some(Self::Dismissed),
+            "withdrawn" => Some(Self::Withdrawn),
+            "expired" => Some(Self::Expired),
+            "gone" => Some(Self::Gone),
+            "unknown" => Some(Self::Unknown),
+            "conflict" => Some(Self::Conflict),
+            "stale" => Some(Self::Stale),
+            "invalid" => Some(Self::Invalid),
+            "forbidden" => Some(Self::Forbidden),
+            "unavailable" => Some(Self::Unavailable),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for NotificationDecisionOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq<str> for NotificationDecisionOutcome {
+    fn eq(&self, other: &str) -> bool {
+        self.as_str() == other
+    }
+}
+
+impl PartialEq<&str> for NotificationDecisionOutcome {
+    fn eq(&self, other: &&str) -> bool {
+        self.as_str() == *other
+    }
+}
+
 /// Names of the open vocabulary ServiceErrorCode. A reader keeps a name it has never heard
 /// of, so fields carry `String` and a match needs an arm for the rest.
 pub mod service_error_code {
@@ -321,7 +1251,7 @@ pub const OPERATIONS: [&str; 5] = ["ask", "pending", "answered", "answer", "forg
 
 pub const REFUSAL_CODES: [&str; 11] = ["internal", "invalid_request", "caller_refused", "unknown_operation", "not_administrator", "withdrawn", "unknown_question", "unknown_option", "bad_slot", "nothing_pending", "no_record"];
 
-pub const RESOURCE_ACTIONS: [&str; 1] = ["abstraction.asks/question.ask"];
+pub const RESOURCE_ACTIONS: [&str; 3] = ["abstraction.asks/question.ask", "abstraction.asks/question.answer", "abstraction.asks/notification.post"];
 
 /// Own Ask fields. The service owns question text/options; callers supply a
 /// known key and slots. Native Ask.For carries optional peer observation
@@ -454,6 +1384,513 @@ pub struct OperatorRetirement {
     pub record: Option<RecordMetadata>,
 }
 
+/// Found carries the retained question's metadata and the requester's publisher
+/// as the admitting service recorded it at admission: the code signer's subject
+/// and whether the platform trust policy accepted the signature. Absent
+/// publisher means none was recorded. Program description and program original
+/// name are the FileDescription and OriginalFilename of the requesting
+/// program's signed version resource, recorded with a trusted signature only;
+/// absent means none was recorded. Answered by names the service through which
+/// the recorded answer arrived: operator for QuestionOperator, responder for a
+/// delegated QuestionResponder answer. It is absent for a pending question and
+/// for an answer recorded before the service kept it. Only the service sets
+/// these fields; no caller supplies them. Every other outcome carries no
+/// record, publisher, program or answered by. Unknown means no retained
+/// question. Invalid means a malformed ID. Unavailable establishes nothing
+/// about the question.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OperatorQuestion {
+    pub outcome: OperatorQuestionOutcome,
+    pub record: Option<RecordMetadata>,
+    pub publisher: String,
+    pub publisher_trusted: bool,
+    pub answered_by: Option<Answerer>,
+    pub program_description: String,
+    pub program_original_name: String,
+}
+
+/// Recorded metadata and attribution for a retained question. answerer is the
+/// program bound from the answering peer when answered_by is responder, and
+/// absent for every other answer and every refusal. The service supplies it;
+/// request text never does. This metadata read carries no permission target and
+/// remains available when a legacy target cannot be recovered.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AttributedQuestion {
+    pub question: OperatorQuestion,
+    pub answerer: String,
+}
+
+/// An exact service-owned first-use target. Account is the receiving runtime
+/// account, 1..128 UTF-8 bytes; program is a normalized subject program up to
+/// 4096 bytes; action is 1..128 bytes; resource is 1..1024 bytes. All exclude
+/// control characters. Display text supplies no target authority.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PermissionTarget {
+    pub account: String,
+    pub program: String,
+    pub action: String,
+    pub resource: String,
+}
+
+/// The immutable permission effect retained with a trusted runtime occurrence.
+/// Exactly one primary target, or its uniquely determined content.read pair for
+/// content.write on input:image, input:audio, output:image, output:speech or
+/// output:video. A pair has the same account, normalized program and resource;
+/// independent secondary targets are refused. Applications cannot admit this
+/// record.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PermissionRequest {
+    pub targets: Vec<PermissionTarget>,
+}
+
+/// Opt-in structured permission details from the same retained occurrence as
+/// question. Permission is present only for a runtime first-use record;
+/// canonical legacy records are read through the explicit legacy reader. Other
+/// outcomes carry no permission. Existing operator responses retain their
+/// closed shapes. All exact target strings remain complete regardless of
+/// presentation limits.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QuestionDetails {
+    pub question: AttributedQuestion,
+    pub permission: Option<PermissionRequest>,
+}
+
+/// Trusted permission details and asker attribution from one retained
+/// occurrence. program is the bound program the application service derived the
+/// question's subject from: the clean absolute executable path the platform
+/// proved at admission, up to 4096 bytes. The record's asker is its display
+/// name, derived from it. Program is absent for every refusal, for the
+/// runtime's own questions and for a question admitted before the service kept
+/// it. The service supplies it; request text never does. An unrecoverable
+/// legacy permission target returns unavailable without details or program.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct QuestionAsker {
+    pub details: QuestionDetails,
+    pub program: String,
+}
+
+/// Caller-created immutable ordinary request identity: key is 1..128 UTF-8
+/// bytes without controls and replay_until_ms is an absolute Unix millisecond
+/// deadline. Create it once and retain both fields unchanged for all retries.
+/// The initial provider admits at most seven days ahead. The same key with a
+/// different replay deadline is deliberate new intent. Effective ordinary time
+/// is the maximum of service UTC and a private durably recorded ordinary time
+/// floor. An observed expiry is committed before success and never reopens
+/// after rollback, collection or restart. A forward clock jump can expire
+/// choices permanently.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RequestRef {
+    pub key: String,
+    pub replay_until_ms: i64,
+}
+
+/// Stable application option ID, 1..64 UTF-8 bytes without controls, and a
+/// nonblank single-line label of at most 80 Unicode characters. Labels do not
+/// determine selection or authority.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ChoiceOption {
+    pub id: String,
+    pub label: String,
+}
+
+/// Application-authored ordinary choice. Title is nonblank, single-line and at
+/// most 80 Unicode characters. Exactly 1..3 distinct stable IDs are offered.
+/// pending_until_ms is an explicit absolute deadline after service time and no
+/// later than replay_until_ms. Full ref and request content are immutable:
+/// identical retry replays its occurrence; changed content under that full ref
+/// conflicts. The service derives requester attribution. This request carries
+/// no permission or configuration authority.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ChoiceRequest {
+    pub request_ref: RequestRef,
+    pub title: String,
+    pub options: Vec<ChoiceOption>,
+    pub pending_until_ms: i64,
+}
+
+/// Exact recorded occurrence and decision time. answered_by is the full valid
+/// subject program of the proven answering operator or owning requester,
+/// derived by the service. It proves program attribution, not human presence.
+/// An answered choice carries its offered option ID. A dismissal carries no
+/// option. This decision proves no application effect or resource permission.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ChoiceAnswer {
+    pub id: String,
+    pub option: String,
+    pub answered_ms: i64,
+    pub answered_by: String,
+}
+
+/// Pending, answered and dismissed carry the admitted occurrence ID. Exactly
+/// answered/dismissed carry its exact decision. Other outcomes carry neither.
+/// Expired means the pending or replay deadline elapsed, and creates no new
+/// occurrence. Gone is an acknowledged admission. Unknown means this full ref
+/// has no retained admission. Conflict is changed immutable content. Exhausted
+/// is bounded ordinary capacity; unavailable is an uncertain storage/service
+/// result. All establish no resource authority.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChoiceObservation {
+    pub outcome: ChoiceOutcome,
+    pub id: String,
+    pub answer: Option<ChoiceAnswer>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChoiceAcknowledgement {
+    pub outcome: ChoiceAckOutcome,
+}
+
+/// An ordinary occurrence with immutable application-authored request and
+/// service-recorded requester attribution. Exactly answered/dismissed carry a
+/// decision. Pending and expired select no option. Display text and option IDs
+/// carry no permission effect; no rights target is accepted or returned.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChoiceRecord {
+    pub id: String,
+    pub asker: String,
+    pub request: ChoiceRequest,
+    pub state: ChoiceState,
+    pub asked_ms: i64,
+    pub answer: Option<ChoiceAnswer>,
+    pub publisher: String,
+    pub publisher_trusted: bool,
+    pub program_description: String,
+    pub program_original_name: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChoicePage {
+    pub outcome: OperatorPageOutcome,
+    pub records: Vec<ChoiceRecord>,
+    pub next: String,
+    pub complete: bool,
+}
+
+/// Exactly found carries one ordinary record. Other outcomes carry none.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChoiceRead {
+    pub outcome: OperatorQuestionOutcome,
+    pub record: Option<ChoiceRecord>,
+}
+
+/// Exactly answered/dismissed carry the exact recorded ordinary decision. These
+/// outcomes record application intent only. Expired, gone, unknown, conflict,
+/// invalid, forbidden and unavailable carry no record or effect.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChoiceDecision {
+    pub outcome: ChoiceDecisionOutcome,
+    pub record: Option<ChoiceRecord>,
+}
+
+/// Opt-in details of a retained ordinary occurrence. choice is the same closed
+/// response ReadChoice returns. asker_program is the bound program the
+/// application service derived the requester's scope from, up to 4096 bytes; it
+/// is absent for refusals and for a choice admitted before the service kept it.
+/// assistant_options are the options the application shared with an assistant,
+/// empty for an unshared choice. answered_via names the service route of the
+/// recorded decision: requester for the application's own application@2
+/// decision, operator for operator@1 and responder for an enrolled assistant's
+/// responder@1 answer. It is absent while pending, after expiry and for a
+/// decision recorded before the service kept it. Only the service sets these
+/// fields.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ChoiceDetails {
+    pub choice: ChoiceRead,
+    pub asker_program: String,
+    pub assistant_options: Vec<String>,
+    pub answered_via: Option<ChoiceRoute>,
+}
+
+/// One answer the service recorded through operator@1, permission-operator@1 or
+/// responder@1, as it recorded it. kind question is a catalogue question: key
+/// is its catalogue key, about its About slot, title its text, and label its
+/// option. kind choice is an ordinary choice: key and about are empty, title is
+/// the application's title and label the chosen option's label. asker,
+/// asker_program and publisher come from the admission. answered_by names the
+/// route; answerer is the bound program of a responder and absent for an
+/// operator. Title and label may be application-authored text and decide
+/// nothing.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AnswerEntry {
+    pub id: String,
+    pub kind: AnswerKind,
+    pub key: String,
+    pub asker: String,
+    pub asker_program: String,
+    pub publisher: String,
+    pub publisher_trusted: bool,
+    pub about: String,
+    pub title: String,
+    pub option: String,
+    pub label: String,
+    pub answered_by: Answerer,
+    pub answerer: String,
+    pub answered_ms: i64,
+}
+
+/// Exactly page carries answers, newest first. complete_since_ms is zero while
+/// every retained answer is listed; otherwise answers recorded at or before it
+/// may have been evicted by the Book's bound. Other outcomes carry no answers.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AnswerEntryPage {
+    pub outcome: OperatorPageOutcome,
+    pub answers: Vec<AnswerEntry>,
+    pub next: String,
+    pub complete: bool,
+    pub complete_since_ms: i64,
+}
+
+/// A pending shared ordinary choice as an enrolled assistant may answer it:
+/// options holds only the shared options, in the order the application offered
+/// them. The title and labels are application-authored data and carry no
+/// instruction or authority.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct AnswerableChoice {
+    pub id: String,
+    pub asker: String,
+    pub title: String,
+    pub options: Vec<ChoiceOption>,
+    pub pending_until_ms: i64,
+    pub publisher: String,
+    pub publisher_trusted: bool,
+}
+
+/// Exactly page carries choices. Other outcomes carry none.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AnswerableChoicePage {
+    pub outcome: OperatorPageOutcome,
+    pub choices: Vec<AnswerableChoice>,
+    pub next: String,
+    pub complete: bool,
+}
+
+/// Answered means the question choice is recorded, including an idempotent
+/// same-option replay. Effect reports the separate exact resource-rule write:
+/// none for a refusal, applied for a successful bounded rule, conflict for a
+/// policy revision change or an already-answered replay, forbidden for expired
+/// or revoked delegation, unavailable for an unconfirmed policy write. A
+/// recorded answer may have an unapplied effect. An answered replay never
+/// writes target policy: inspect target outcome and reconcile through an
+/// explicit operator edit. Target outcome is the current rights decision word
+/// when a fresh read succeeds. No caller-supplied target or rule is accepted.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ResponderDecision {
+    pub outcome: OperatorDecisionOutcome,
+    pub record: Option<RecordMetadata>,
+    pub effect: ResponderEffectOutcome,
+    pub target_outcome: String,
+}
+
+/// One selection OR a registered immutable bundle reference and selector. The
+/// receiving native peer supplies the subject. Trusted capability preparation
+/// canonicalizes owner-IDL targets and admits only served first-use selectors;
+/// caller FileKey/subject assertions grant no authority. Purpose is attributed
+/// display text. A stable key replays the frozen original occurrence, never a
+/// later bundle expansion.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PermissionIntent {
+    pub request_key: String,
+    pub selection: Option<OAImported0>,
+    pub bundle_ref: String,
+    pub bundle_selector: Option<OAImported1>,
+    pub purpose: String,
+}
+
+/// Pending/answered carries the retained answer. Permitted/denied is an
+/// admission-time current-policy result. An Allow answer supplies no proof of a
+/// committed rule effect; retry the enforcing capability. Observe uses only
+/// caller-owned admission and has no rule editing authority.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PermissionObservation {
+    pub outcome: PermissionOutcome,
+    pub answer: Option<Answer>,
+    pub policy_revision: String,
+}
+
+/// Found carries the complete immutable trusted effect, its digest, app/service
+/// origin and separately attributed purpose. Other outcomes have no effect and
+/// empty strings. Existing exact details methods retain their original meaning
+/// and refuse typed entries.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TypedPermissionDetails {
+    pub question: AttributedQuestion,
+    pub effect: Option<OAImported2>,
+    pub effect_digest: String,
+    pub origin: String,
+    pub purpose: String,
+    pub display: Option<PermissionDisplay>,
+}
+
+/// Trusted capability-authored explanation aligned in order with the frozen
+/// effect selections. Monitor never parses target binary or caller prose into
+/// this projection.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PermissionDisplaySelection {
+    pub operation: String,
+    pub target: String,
+    pub collection: String,
+    pub all_effect: String,
+    pub disclosure: String,
+}
+
+/// Immutable trusted display metadata pinned with the complete effect. Breadth
+/// follows each typed selector independently of OS authorization and answering
+/// tier.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct PermissionDisplay {
+    pub selections: Vec<PermissionDisplaySelection>,
+    pub bundle_label: String,
+    pub bundle_disclosure: String,
+    pub requires_os_authorization: bool,
+}
+
+/// Stable application action ID, 1..64 UTF-8 bytes without controls, and a
+/// nonblank single-line title of at most 40 Unicode characters. app records
+/// application intent for the poster to observe. open_activity also opens the
+/// person's Activity view at the request's own operation and requires
+/// operation_id. Titles do not determine the recorded action or any authority
+/// (ASK-N2).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotificationAction {
+    pub id: String,
+    pub title: String,
+    pub activation: NotificationActivation,
+}
+
+/// Application-authored one-way notification (ASK-N1, ASK-N2). Title is
+/// nonblank, single-line and at most 80 Unicode characters; body is 1..240
+/// Unicode characters without control characters other than line feed. 0..2
+/// distinct actions. expires_ms is an absolute deadline after service time and
+/// no later than replay_until_ms. operation_id names one job operation the same
+/// caller scope accepted, 1..128 lowercase ASCII letters, digits and '-';
+/// open_activity and operation_end require it. A tag of 1..64 UTF-8 bytes
+/// replaces this caller's live notification with the same tag. operation_end
+/// holds the notification scheduled until the trusted runtime observes that
+/// operation end. Full ref and request content are immutable. The service
+/// derives the sender; no request field names a program, publisher or icon.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotificationRequest {
+    pub request_ref: RequestRef,
+    pub title: String,
+    pub body: String,
+    pub actions: Vec<NotificationAction>,
+    pub expires_ms: i64,
+    pub operation_id: String,
+    pub tag: String,
+    pub delivery: NotificationDelivery,
+}
+
+/// The exact terminal outcome of one occurrence: acted, dismissed or withdrawn.
+/// Exactly acted carries the offered action ID. decided_by is the full subject
+/// program of the proven operator or posting caller that recorded it, derived
+/// by the service. It proves program attribution, not human presence, and no
+/// application effect.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotificationResult {
+    pub id: String,
+    pub state: NotificationState,
+    pub action: String,
+    pub decided_ms: i64,
+    pub decided_by: String,
+}
+
+/// Scheduled, posted, acted, dismissed and withdrawn carry the admitted
+/// occurrence ID; exactly acted, dismissed and withdrawn carry the result.
+/// Expired means the expiry or replay deadline elapsed with no recorded
+/// outcome, or the replay deadline elapsed; it carries nothing. Gone is an
+/// acknowledged occurrence. Unknown means this full ref has no retained
+/// admission. Conflict is changed immutable content. Suppressed is a live
+/// explicit block on this program; nothing was stored or shown. Exhausted is a
+/// rate, live or capacity bound; nothing was stored. Unavailable is an
+/// uncertain storage or decision result. None establishes resource authority.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotificationObservation {
+    pub outcome: NotificationOutcome,
+    pub id: String,
+    pub result: Option<NotificationResult>,
+}
+
+/// One occurrence with its immutable application-authored request and
+/// service-recorded sender: the bound program (a clean absolute path up to 4096
+/// bytes), its display name and the publisher evidence recorded at admission.
+/// posted_ms is set once the notification is posted. Exactly acted, dismissed
+/// and withdrawn carry a result. presentation is present only in operator
+/// reads: a staleness token bound to this record and the current host epoch,
+/// which Act requires.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotificationRecord {
+    pub id: String,
+    pub asker: String,
+    pub program: String,
+    pub request: NotificationRequest,
+    pub state: NotificationState,
+    pub admitted_ms: i64,
+    pub posted_ms: i64,
+    pub result: Option<NotificationResult>,
+    pub publisher: String,
+    pub publisher_trusted: bool,
+    pub program_description: String,
+    pub program_original_name: String,
+    pub presentation: String,
+}
+
+/// Retained occurrences in admission order under the operator page and cursor
+/// rules of ListQuestions: 1..64 records, 256 KiB, cursors bound to the caller,
+/// host epoch and revision. Refusals carry no records.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotificationPage {
+    pub outcome: OperatorPageOutcome,
+    pub records: Vec<NotificationRecord>,
+    pub next: String,
+    pub complete: bool,
+}
+
+/// Exactly found carries one record.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotificationRead {
+    pub outcome: OperatorQuestionOutcome,
+    pub record: Option<NotificationRecord>,
+}
+
+/// Acted, dismissed and withdrawn carry the record as recorded; a replay of the
+/// same outcome returns the original actor and time. Conflict means another
+/// terminal outcome stands. Stale means the presentation token belongs to
+/// another showing or host epoch; nothing was recorded. Expired, gone, unknown,
+/// invalid, forbidden and unavailable carry no record. count is the number of
+/// notifications a WithdrawProgram call withdrew.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotificationDecision {
+    pub outcome: NotificationDecisionOutcome,
+    pub record: Option<NotificationRecord>,
+    pub count: i64,
+}
+
+/// Admitted posts on the service UTC day starting at day_ms.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct NotifierDay {
+    pub day_ms: i64,
+    pub posts: i64,
+}
+
+/// Admitted posts for one bound program on each of the last seven service UTC
+/// days that had any, oldest first, and its last admission time. Counts include
+/// notifications later withdrawn or expired.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct NotifierCount {
+    pub program: String,
+    pub asker: String,
+    pub days: Vec<NotifierDay>,
+    pub last_posted_ms: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotifierPage {
+    pub outcome: OperatorPageOutcome,
+    pub notifiers: Vec<NotifierCount>,
+    pub next: String,
+    pub complete: bool,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct OAQuestionApplicationAskArguments {
     question: ApplicationQuestion,
@@ -463,6 +1900,29 @@ struct OAQuestionApplicationAskArguments {
 struct OAQuestionApplicationObserveArguments {
     request_key: String,
     wait_ms: i64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionOperatorListChoicesArguments {
+    cursor: String,
+    limit: i64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionOperatorReadChoiceArguments {
+    id: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionOperatorAnswerChoiceArguments {
+    id: String,
+    option: String,
+    if_pending: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionOperatorDismissChoiceArguments {
+    id: String,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -480,6 +1940,180 @@ struct OAQuestionOperatorAnswerQuestionArguments {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct OAQuestionOperatorRetireQuestionArguments {
     id: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionOperatorReadAttributedQuestionArguments {
+    id: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionOperatorReadChoiceDetailsArguments {
+    id: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionOperatorReadQuestionAskerArguments {
+    id: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionOperatorAnswerQuestionIfPendingArguments {
+    id: String,
+    option: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionOperatorListAnswersArguments {
+    cursor: String,
+    limit: i64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAChoiceApplicationAskArguments {
+    request: ChoiceRequest,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAChoiceApplicationObserveArguments {
+    request_ref: RequestRef,
+    wait_ms: i64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAChoiceApplicationAnswerArguments {
+    request_ref: RequestRef,
+    option: String,
+    if_pending: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAChoiceApplicationDismissArguments {
+    request_ref: RequestRef,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAChoiceApplicationShareChoiceArguments {
+    request: ChoiceRequest,
+    assistant_options: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAChoiceApplicationAcknowledgeArguments {
+    request_ref: RequestRef,
+    answer: ChoiceAnswer,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionResponderListAnswerableArguments {
+    cursor: String,
+    limit: i64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionResponderAnswerArguments {
+    id: String,
+    option: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionResponderListChoicesArguments {
+    cursor: String,
+    limit: i64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionResponderRequestAnsweringArguments {
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAQuestionResponderAnswerChoiceArguments {
+    id: String,
+    option: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAPermissionApplicationRequestArguments {
+    request: PermissionIntent,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAPermissionApplicationObserveArguments {
+    request_key: String,
+    wait_ms: i64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAPermissionOperatorListPermissionsArguments {
+    cursor: String,
+    limit: i64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAPermissionOperatorReadPermissionDetailsArguments {
+    id: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OAPermissionOperatorAnswerPermissionIfPendingArguments {
+    id: String,
+    option: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OANotificationApplicationPostArguments {
+    request: NotificationRequest,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OANotificationApplicationObserveArguments {
+    request_ref: RequestRef,
+    wait_ms: i64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OANotificationApplicationWithdrawArguments {
+    request_ref: RequestRef,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OANotificationApplicationAcknowledgeArguments {
+    request_ref: RequestRef,
+    result: NotificationResult,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OANotificationOperatorListNotificationsArguments {
+    cursor: String,
+    limit: i64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OANotificationOperatorReadNotificationArguments {
+    id: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OANotificationOperatorActArguments {
+    id: String,
+    action: String,
+    presentation: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OANotificationOperatorDismissArguments {
+    id: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OANotificationOperatorWithdrawProgramArguments {
+    program: String,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct OANotificationOperatorListNotifiersArguments {
+    cursor: String,
+    limit: i64,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -516,6 +2150,26 @@ struct OAQuestionApplicationObserveResult {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionOperatorListChoicesResult {
+    value: ChoicePage,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionOperatorReadChoiceResult {
+    value: ChoiceRead,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionOperatorAnswerChoiceResult {
+    value: ChoiceDecision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionOperatorDismissChoiceResult {
+    value: ChoiceDecision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct OAQuestionOperatorListQuestionsResult {
     value: OperatorPage,
 }
@@ -528,6 +2182,161 @@ struct OAQuestionOperatorAnswerQuestionResult {
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct OAQuestionOperatorRetireQuestionResult {
     value: OperatorRetirement,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionOperatorReadAttributedQuestionResult {
+    value: AttributedQuestion,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionOperatorReadChoiceDetailsResult {
+    value: ChoiceDetails,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionOperatorReadQuestionAskerResult {
+    value: QuestionAsker,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionOperatorAnswerQuestionIfPendingResult {
+    value: OperatorDecision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionOperatorListAnswersResult {
+    value: AnswerEntryPage,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAChoiceApplicationAskResult {
+    value: ChoiceObservation,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAChoiceApplicationObserveResult {
+    value: ChoiceObservation,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAChoiceApplicationAnswerResult {
+    value: ChoiceDecision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAChoiceApplicationDismissResult {
+    value: ChoiceDecision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAChoiceApplicationShareChoiceResult {
+    value: ChoiceObservation,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAChoiceApplicationAcknowledgeResult {
+    value: ChoiceAcknowledgement,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionResponderListAnswerableResult {
+    value: OperatorPage,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionResponderAnswerResult {
+    value: ResponderDecision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionResponderListChoicesResult {
+    value: AnswerableChoicePage,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionResponderRequestAnsweringResult {
+    value: OAImported3,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAQuestionResponderAnswerChoiceResult {
+    value: ChoiceDecision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAPermissionApplicationRequestResult {
+    value: PermissionObservation,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAPermissionApplicationObserveResult {
+    value: PermissionObservation,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAPermissionOperatorListPermissionsResult {
+    value: OperatorPage,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAPermissionOperatorReadPermissionDetailsResult {
+    value: TypedPermissionDetails,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OAPermissionOperatorAnswerPermissionIfPendingResult {
+    value: OperatorDecision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OANotificationApplicationPostResult {
+    value: NotificationObservation,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OANotificationApplicationObserveResult {
+    value: NotificationObservation,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OANotificationApplicationWithdrawResult {
+    value: NotificationObservation,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OANotificationApplicationAcknowledgeResult {
+    value: ChoiceAcknowledgement,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OANotificationOperatorListNotificationsResult {
+    value: NotificationPage,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OANotificationOperatorReadNotificationResult {
+    value: NotificationRead,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OANotificationOperatorActResult {
+    value: NotificationDecision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OANotificationOperatorDismissResult {
+    value: NotificationDecision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OANotificationOperatorWithdrawProgramResult {
+    value: NotificationDecision,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct OANotificationOperatorListNotifiersResult {
+    value: NotifierPage,
 }
 
 fn enc_question(out: &mut Vec<u8>, v: &Question, depth: i32) {
@@ -608,6 +2417,183 @@ fn enc_request(out: &mut Vec<u8>, v: &Request, depth: i32) {
     out.push(b'}');
 }
 
+fn enc_answer(out: &mut Vec<u8>, v: &Answer, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    if v.pending {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "pending");
+        out.extend_from_slice(b": ");
+        out.extend_from_slice(if v.pending { b"true" } else { b"false" });
+    }
+    if !v.option.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "option");
+        out.extend_from_slice(b": ");
+        esc(out, &v.option);
+    }
+    if v.yes {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "yes");
+        out.extend_from_slice(b": ");
+        out.extend_from_slice(if v.yes { b"true" } else { b"false" });
+    }
+    if v.kept {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "kept");
+        out.extend_from_slice(b": ");
+        out.extend_from_slice(if v.kept { b"true" } else { b"false" });
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_record_metadata(out: &mut Vec<u8>, v: &RecordMetadata, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "asker");
+    out.extend_from_slice(b": ");
+    esc(out, &v.asker);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "key");
+    out.extend_from_slice(b": ");
+    esc(out, &v.key);
+    if !v.about.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "about");
+        out.extend_from_slice(b": ");
+        esc(out, &v.about);
+    }
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "text");
+    out.extend_from_slice(b": ");
+    esc(out, &v.text);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "options");
+    out.extend_from_slice(b": ");
+    strs(out, &v.options, depth + 1);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "asked");
+    out.extend_from_slice(b": ");
+    esc(out, &v.asked);
+    if !v.option.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "option");
+        out.extend_from_slice(b": ");
+        esc(out, &v.option);
+    }
+    if !v.answered.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "answered");
+        out.extend_from_slice(b": ");
+        esc(out, &v.answered);
+    }
+    if v.kept {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "kept");
+        out.extend_from_slice(b": ");
+        out.extend_from_slice(if v.kept { b"true" } else { b"false" });
+    }
+    if v.yes {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "yes");
+        out.extend_from_slice(b": ");
+        out.extend_from_slice(if v.yes { b"true" } else { b"false" });
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_response_metadata(out: &mut Vec<u8>, v: &ResponseMetadata, depth: i32) {
+    out.push(b'{');
+    let mut first = true;
+    if !v.code.is_empty() {
+        first = false;
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "code");
+        out.extend_from_slice(b": ");
+        esc(out, &v.code);
+    }
+    if !v.error.is_empty() {
+        if !first {
+            out.push(b',');
+        }
+        first = false;
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "error");
+        out.extend_from_slice(b": ");
+        esc(out, &v.error);
+    }
+    if let Some(value) = &v.answer {
+        if !first {
+            out.push(b',');
+        }
+        first = false;
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "answer");
+        out.extend_from_slice(b": ");
+        enc_answer(out, value, depth + 1);
+    }
+    if !v.records.is_empty() {
+        if !first {
+            out.push(b',');
+        }
+        first = false;
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "records");
+        out.extend_from_slice(b": ");
+        enc_list(out, &v.records, depth + 1, enc_record_metadata);
+    }
+    if !first {
+        out.push(b'\n');
+        pad(out, depth);
+    }
+    out.push(b'}');
+}
+
 fn enc_application_question(out: &mut Vec<u8>, v: &ApplicationQuestion, depth: i32) {
     out.push(b'{');
     out.push(b'\n');
@@ -627,6 +2613,1414 @@ fn enc_application_question(out: &mut Vec<u8>, v: &ApplicationQuestion, depth: i
     esc(out, "slots");
     out.extend_from_slice(b": ");
     strmap(out, &v.slots, depth + 1);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_question_observation(out: &mut Vec<u8>, v: &QuestionObservation, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    if let Some(value) = &v.answer {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "answer");
+        out.extend_from_slice(b": ");
+        enc_answer(out, value, depth + 1);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_operator_page(out: &mut Vec<u8>, v: &OperatorPage, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "records");
+    out.extend_from_slice(b": ");
+    enc_list(out, &v.records, depth + 1, enc_record_metadata);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "next");
+    out.extend_from_slice(b": ");
+    esc(out, &v.next);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "complete");
+    out.extend_from_slice(b": ");
+    out.extend_from_slice(if v.complete { b"true" } else { b"false" });
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_operator_decision(out: &mut Vec<u8>, v: &OperatorDecision, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    if let Some(value) = &v.record {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "record");
+        out.extend_from_slice(b": ");
+        enc_record_metadata(out, value, depth + 1);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_operator_retirement(out: &mut Vec<u8>, v: &OperatorRetirement, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    if let Some(value) = &v.record {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "record");
+        out.extend_from_slice(b": ");
+        enc_record_metadata(out, value, depth + 1);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_operator_question(out: &mut Vec<u8>, v: &OperatorQuestion, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    if let Some(value) = &v.record {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "record");
+        out.extend_from_slice(b": ");
+        enc_record_metadata(out, value, depth + 1);
+    }
+    if !v.publisher.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "publisher");
+        out.extend_from_slice(b": ");
+        esc(out, &v.publisher);
+    }
+    if v.publisher_trusted {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "publisher_trusted");
+        out.extend_from_slice(b": ");
+        out.extend_from_slice(if v.publisher_trusted { b"true" } else { b"false" });
+    }
+    if let Some(value) = &v.answered_by {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "answered_by");
+        out.extend_from_slice(b": ");
+        esc(out, value.as_str());
+    }
+    if !v.program_description.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "program_description");
+        out.extend_from_slice(b": ");
+        esc(out, &v.program_description);
+    }
+    if !v.program_original_name.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "program_original_name");
+        out.extend_from_slice(b": ");
+        esc(out, &v.program_original_name);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_attributed_question(out: &mut Vec<u8>, v: &AttributedQuestion, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "question");
+    out.extend_from_slice(b": ");
+    enc_operator_question(out, &v.question, depth + 1);
+    if !v.answerer.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "answerer");
+        out.extend_from_slice(b": ");
+        esc(out, &v.answerer);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_permission_target(out: &mut Vec<u8>, v: &PermissionTarget, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "account");
+    out.extend_from_slice(b": ");
+    esc(out, &v.account);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "program");
+    out.extend_from_slice(b": ");
+    esc(out, &v.program);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "action");
+    out.extend_from_slice(b": ");
+    esc(out, &v.action);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "resource");
+    out.extend_from_slice(b": ");
+    esc(out, &v.resource);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_permission_request(out: &mut Vec<u8>, v: &PermissionRequest, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "targets");
+    out.extend_from_slice(b": ");
+    enc_list(out, &v.targets, depth + 1, enc_permission_target);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_question_details(out: &mut Vec<u8>, v: &QuestionDetails, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "question");
+    out.extend_from_slice(b": ");
+    enc_attributed_question(out, &v.question, depth + 1);
+    if let Some(value) = &v.permission {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "permission");
+        out.extend_from_slice(b": ");
+        enc_permission_request(out, value, depth + 1);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_question_asker(out: &mut Vec<u8>, v: &QuestionAsker, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "details");
+    out.extend_from_slice(b": ");
+    enc_question_details(out, &v.details, depth + 1);
+    if !v.program.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "program");
+        out.extend_from_slice(b": ");
+        esc(out, &v.program);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_request_ref(out: &mut Vec<u8>, v: &RequestRef, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "key");
+    out.extend_from_slice(b": ");
+    esc(out, &v.key);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "replay_until_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.replay_until_ms);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_choice_option(out: &mut Vec<u8>, v: &ChoiceOption, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "label");
+    out.extend_from_slice(b": ");
+    esc(out, &v.label);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_choice_request(out: &mut Vec<u8>, v: &ChoiceRequest, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request_ref");
+    out.extend_from_slice(b": ");
+    enc_request_ref(out, &v.request_ref, depth + 1);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "title");
+    out.extend_from_slice(b": ");
+    esc(out, &v.title);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "options");
+    out.extend_from_slice(b": ");
+    enc_list(out, &v.options, depth + 1, enc_choice_option);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "pending_until_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.pending_until_ms);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_choice_answer(out: &mut Vec<u8>, v: &ChoiceAnswer, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    if !v.option.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "option");
+        out.extend_from_slice(b": ");
+        esc(out, &v.option);
+    }
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "answered_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.answered_ms);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "answered_by");
+    out.extend_from_slice(b": ");
+    esc(out, &v.answered_by);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_choice_observation(out: &mut Vec<u8>, v: &ChoiceObservation, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    if !v.id.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "id");
+        out.extend_from_slice(b": ");
+        esc(out, &v.id);
+    }
+    if let Some(value) = &v.answer {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "answer");
+        out.extend_from_slice(b": ");
+        enc_choice_answer(out, value, depth + 1);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_choice_acknowledgement(out: &mut Vec<u8>, v: &ChoiceAcknowledgement, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_choice_record(out: &mut Vec<u8>, v: &ChoiceRecord, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "asker");
+    out.extend_from_slice(b": ");
+    esc(out, &v.asker);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request");
+    out.extend_from_slice(b": ");
+    enc_choice_request(out, &v.request, depth + 1);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "state");
+    out.extend_from_slice(b": ");
+    esc(out, v.state.as_str());
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "asked_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.asked_ms);
+    if let Some(value) = &v.answer {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "answer");
+        out.extend_from_slice(b": ");
+        enc_choice_answer(out, value, depth + 1);
+    }
+    if !v.publisher.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "publisher");
+        out.extend_from_slice(b": ");
+        esc(out, &v.publisher);
+    }
+    if v.publisher_trusted {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "publisher_trusted");
+        out.extend_from_slice(b": ");
+        out.extend_from_slice(if v.publisher_trusted { b"true" } else { b"false" });
+    }
+    if !v.program_description.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "program_description");
+        out.extend_from_slice(b": ");
+        esc(out, &v.program_description);
+    }
+    if !v.program_original_name.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "program_original_name");
+        out.extend_from_slice(b": ");
+        esc(out, &v.program_original_name);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_choice_page(out: &mut Vec<u8>, v: &ChoicePage, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "records");
+    out.extend_from_slice(b": ");
+    enc_list(out, &v.records, depth + 1, enc_choice_record);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "next");
+    out.extend_from_slice(b": ");
+    esc(out, &v.next);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "complete");
+    out.extend_from_slice(b": ");
+    out.extend_from_slice(if v.complete { b"true" } else { b"false" });
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_choice_read(out: &mut Vec<u8>, v: &ChoiceRead, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    if let Some(value) = &v.record {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "record");
+        out.extend_from_slice(b": ");
+        enc_choice_record(out, value, depth + 1);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_choice_decision(out: &mut Vec<u8>, v: &ChoiceDecision, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    if let Some(value) = &v.record {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "record");
+        out.extend_from_slice(b": ");
+        enc_choice_record(out, value, depth + 1);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_choice_details(out: &mut Vec<u8>, v: &ChoiceDetails, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "choice");
+    out.extend_from_slice(b": ");
+    enc_choice_read(out, &v.choice, depth + 1);
+    if !v.asker_program.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "asker_program");
+        out.extend_from_slice(b": ");
+        esc(out, &v.asker_program);
+    }
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "assistant_options");
+    out.extend_from_slice(b": ");
+    strs(out, &v.assistant_options, depth + 1);
+    if let Some(value) = &v.answered_via {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "answered_via");
+        out.extend_from_slice(b": ");
+        esc(out, value.as_str());
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_answer_entry(out: &mut Vec<u8>, v: &AnswerEntry, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "kind");
+    out.extend_from_slice(b": ");
+    esc(out, v.kind.as_str());
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "key");
+    out.extend_from_slice(b": ");
+    esc(out, &v.key);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "asker");
+    out.extend_from_slice(b": ");
+    esc(out, &v.asker);
+    if !v.asker_program.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "asker_program");
+        out.extend_from_slice(b": ");
+        esc(out, &v.asker_program);
+    }
+    if !v.publisher.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "publisher");
+        out.extend_from_slice(b": ");
+        esc(out, &v.publisher);
+    }
+    if v.publisher_trusted {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "publisher_trusted");
+        out.extend_from_slice(b": ");
+        out.extend_from_slice(if v.publisher_trusted { b"true" } else { b"false" });
+    }
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "about");
+    out.extend_from_slice(b": ");
+    esc(out, &v.about);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "title");
+    out.extend_from_slice(b": ");
+    esc(out, &v.title);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "option");
+    out.extend_from_slice(b": ");
+    esc(out, &v.option);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "label");
+    out.extend_from_slice(b": ");
+    esc(out, &v.label);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "answered_by");
+    out.extend_from_slice(b": ");
+    esc(out, v.answered_by.as_str());
+    if !v.answerer.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "answerer");
+        out.extend_from_slice(b": ");
+        esc(out, &v.answerer);
+    }
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "answered_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.answered_ms);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_answer_entry_page(out: &mut Vec<u8>, v: &AnswerEntryPage, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "answers");
+    out.extend_from_slice(b": ");
+    enc_list(out, &v.answers, depth + 1, enc_answer_entry);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "next");
+    out.extend_from_slice(b": ");
+    esc(out, &v.next);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "complete");
+    out.extend_from_slice(b": ");
+    out.extend_from_slice(if v.complete { b"true" } else { b"false" });
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "complete_since_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.complete_since_ms);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_answerable_choice(out: &mut Vec<u8>, v: &AnswerableChoice, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "asker");
+    out.extend_from_slice(b": ");
+    esc(out, &v.asker);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "title");
+    out.extend_from_slice(b": ");
+    esc(out, &v.title);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "options");
+    out.extend_from_slice(b": ");
+    enc_list(out, &v.options, depth + 1, enc_choice_option);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "pending_until_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.pending_until_ms);
+    if !v.publisher.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "publisher");
+        out.extend_from_slice(b": ");
+        esc(out, &v.publisher);
+    }
+    if v.publisher_trusted {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "publisher_trusted");
+        out.extend_from_slice(b": ");
+        out.extend_from_slice(if v.publisher_trusted { b"true" } else { b"false" });
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_answerable_choice_page(out: &mut Vec<u8>, v: &AnswerableChoicePage, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "choices");
+    out.extend_from_slice(b": ");
+    enc_list(out, &v.choices, depth + 1, enc_answerable_choice);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "next");
+    out.extend_from_slice(b": ");
+    esc(out, &v.next);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "complete");
+    out.extend_from_slice(b": ");
+    out.extend_from_slice(if v.complete { b"true" } else { b"false" });
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_responder_decision(out: &mut Vec<u8>, v: &ResponderDecision, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    if let Some(value) = &v.record {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "record");
+        out.extend_from_slice(b": ");
+        enc_record_metadata(out, value, depth + 1);
+    }
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "effect");
+    out.extend_from_slice(b": ");
+    esc(out, v.effect.as_str());
+    if !v.target_outcome.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "target_outcome");
+        out.extend_from_slice(b": ");
+        esc(out, &v.target_outcome);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_permission_intent(out: &mut Vec<u8>, v: &PermissionIntent, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request_key");
+    out.extend_from_slice(b": ");
+    esc(out, &v.request_key);
+    if let Some(value) = &v.selection {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "selection");
+        out.extend_from_slice(b": ");
+        enc_oa_imported0(out, value, depth + 1);
+    }
+    if !v.bundle_ref.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "bundle_ref");
+        out.extend_from_slice(b": ");
+        esc(out, &v.bundle_ref);
+    }
+    if let Some(value) = &v.bundle_selector {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "bundle_selector");
+        out.extend_from_slice(b": ");
+        enc_oa_imported1(out, value, depth + 1);
+    }
+    if !v.purpose.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "purpose");
+        out.extend_from_slice(b": ");
+        esc(out, &v.purpose);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_permission_observation(out: &mut Vec<u8>, v: &PermissionObservation, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    if let Some(value) = &v.answer {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "answer");
+        out.extend_from_slice(b": ");
+        enc_answer(out, value, depth + 1);
+    }
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "policy_revision");
+    out.extend_from_slice(b": ");
+    esc(out, &v.policy_revision);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_typed_permission_details(out: &mut Vec<u8>, v: &TypedPermissionDetails, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "question");
+    out.extend_from_slice(b": ");
+    enc_attributed_question(out, &v.question, depth + 1);
+    if let Some(value) = &v.effect {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "effect");
+        out.extend_from_slice(b": ");
+        enc_oa_imported2(out, value, depth + 1);
+    }
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "effect_digest");
+    out.extend_from_slice(b": ");
+    esc(out, &v.effect_digest);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "origin");
+    out.extend_from_slice(b": ");
+    esc(out, &v.origin);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "purpose");
+    out.extend_from_slice(b": ");
+    esc(out, &v.purpose);
+    if let Some(value) = &v.display {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "display");
+        out.extend_from_slice(b": ");
+        enc_permission_display(out, value, depth + 1);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_permission_display_selection(out: &mut Vec<u8>, v: &PermissionDisplaySelection, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "operation");
+    out.extend_from_slice(b": ");
+    esc(out, &v.operation);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "target");
+    out.extend_from_slice(b": ");
+    esc(out, &v.target);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "collection");
+    out.extend_from_slice(b": ");
+    esc(out, &v.collection);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "all_effect");
+    out.extend_from_slice(b": ");
+    esc(out, &v.all_effect);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "disclosure");
+    out.extend_from_slice(b": ");
+    esc(out, &v.disclosure);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_permission_display(out: &mut Vec<u8>, v: &PermissionDisplay, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "selections");
+    out.extend_from_slice(b": ");
+    enc_list(out, &v.selections, depth + 1, enc_permission_display_selection);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "bundle_label");
+    out.extend_from_slice(b": ");
+    esc(out, &v.bundle_label);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "bundle_disclosure");
+    out.extend_from_slice(b": ");
+    esc(out, &v.bundle_disclosure);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "requires_os_authorization");
+    out.extend_from_slice(b": ");
+    out.extend_from_slice(if v.requires_os_authorization { b"true" } else { b"false" });
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_notification_action(out: &mut Vec<u8>, v: &NotificationAction, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "title");
+    out.extend_from_slice(b": ");
+    esc(out, &v.title);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "activation");
+    out.extend_from_slice(b": ");
+    esc(out, v.activation.as_str());
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_notification_request(out: &mut Vec<u8>, v: &NotificationRequest, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request_ref");
+    out.extend_from_slice(b": ");
+    enc_request_ref(out, &v.request_ref, depth + 1);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "title");
+    out.extend_from_slice(b": ");
+    esc(out, &v.title);
+    if !v.body.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "body");
+        out.extend_from_slice(b": ");
+        esc(out, &v.body);
+    }
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "actions");
+    out.extend_from_slice(b": ");
+    enc_list(out, &v.actions, depth + 1, enc_notification_action);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "expires_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.expires_ms);
+    if !v.operation_id.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "operation_id");
+        out.extend_from_slice(b": ");
+        esc(out, &v.operation_id);
+    }
+    if !v.tag.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "tag");
+        out.extend_from_slice(b": ");
+        esc(out, &v.tag);
+    }
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "delivery");
+    out.extend_from_slice(b": ");
+    esc(out, v.delivery.as_str());
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_notification_result(out: &mut Vec<u8>, v: &NotificationResult, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "state");
+    out.extend_from_slice(b": ");
+    esc(out, v.state.as_str());
+    if !v.action.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "action");
+        out.extend_from_slice(b": ");
+        esc(out, &v.action);
+    }
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "decided_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.decided_ms);
+    if !v.decided_by.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "decided_by");
+        out.extend_from_slice(b": ");
+        esc(out, &v.decided_by);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_notification_observation(out: &mut Vec<u8>, v: &NotificationObservation, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    if !v.id.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "id");
+        out.extend_from_slice(b": ");
+        esc(out, &v.id);
+    }
+    if let Some(value) = &v.result {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "result");
+        out.extend_from_slice(b": ");
+        enc_notification_result(out, value, depth + 1);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_notification_record(out: &mut Vec<u8>, v: &NotificationRecord, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "asker");
+    out.extend_from_slice(b": ");
+    esc(out, &v.asker);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "program");
+    out.extend_from_slice(b": ");
+    esc(out, &v.program);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request");
+    out.extend_from_slice(b": ");
+    enc_notification_request(out, &v.request, depth + 1);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "state");
+    out.extend_from_slice(b": ");
+    esc(out, v.state.as_str());
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "admitted_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.admitted_ms);
+    if v.posted_ms != 0 {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "posted_ms");
+        out.extend_from_slice(b": ");
+        num(out, v.posted_ms);
+    }
+    if let Some(value) = &v.result {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "result");
+        out.extend_from_slice(b": ");
+        enc_notification_result(out, value, depth + 1);
+    }
+    if !v.publisher.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "publisher");
+        out.extend_from_slice(b": ");
+        esc(out, &v.publisher);
+    }
+    if v.publisher_trusted {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "publisher_trusted");
+        out.extend_from_slice(b": ");
+        out.extend_from_slice(if v.publisher_trusted { b"true" } else { b"false" });
+    }
+    if !v.program_description.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "program_description");
+        out.extend_from_slice(b": ");
+        esc(out, &v.program_description);
+    }
+    if !v.program_original_name.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "program_original_name");
+        out.extend_from_slice(b": ");
+        esc(out, &v.program_original_name);
+    }
+    if !v.presentation.is_empty() {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "presentation");
+        out.extend_from_slice(b": ");
+        esc(out, &v.presentation);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_notification_page(out: &mut Vec<u8>, v: &NotificationPage, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "records");
+    out.extend_from_slice(b": ");
+    enc_list(out, &v.records, depth + 1, enc_notification_record);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "next");
+    out.extend_from_slice(b": ");
+    esc(out, &v.next);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "complete");
+    out.extend_from_slice(b": ");
+    out.extend_from_slice(if v.complete { b"true" } else { b"false" });
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_notification_read(out: &mut Vec<u8>, v: &NotificationRead, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    if let Some(value) = &v.record {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "record");
+        out.extend_from_slice(b": ");
+        enc_notification_record(out, value, depth + 1);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_notification_decision(out: &mut Vec<u8>, v: &NotificationDecision, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    if let Some(value) = &v.record {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "record");
+        out.extend_from_slice(b": ");
+        enc_notification_record(out, value, depth + 1);
+    }
+    if v.count != 0 {
+        out.push(b',');
+        out.push(b'\n');
+        pad(out, depth + 1);
+        esc(out, "count");
+        out.extend_from_slice(b": ");
+        num(out, v.count);
+    }
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_notifier_day(out: &mut Vec<u8>, v: &NotifierDay, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "day_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.day_ms);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "posts");
+    out.extend_from_slice(b": ");
+    num(out, v.posts);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_notifier_count(out: &mut Vec<u8>, v: &NotifierCount, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "program");
+    out.extend_from_slice(b": ");
+    esc(out, &v.program);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "asker");
+    out.extend_from_slice(b": ");
+    esc(out, &v.asker);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "days");
+    out.extend_from_slice(b": ");
+    enc_list(out, &v.days, depth + 1, enc_notifier_day);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "last_posted_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.last_posted_ms);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_notifier_page(out: &mut Vec<u8>, v: &NotifierPage, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out.extend_from_slice(b": ");
+    esc(out, v.outcome.as_str());
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "notifiers");
+    out.extend_from_slice(b": ");
+    enc_list(out, &v.notifiers, depth + 1, enc_notifier_count);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "next");
+    out.extend_from_slice(b": ");
+    esc(out, &v.next);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "complete");
+    out.extend_from_slice(b": ");
+    out.extend_from_slice(if v.complete { b"true" } else { b"false" });
     out.push(b'\n');
     pad(out, depth);
     out.push(b'}');
@@ -657,6 +4051,72 @@ fn enc_oa_question_application_observe_arguments(out: &mut Vec<u8>, v: &OAQuesti
     esc(out, "wait_ms");
     out.extend_from_slice(b": ");
     num(out, v.wait_ms);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_question_operator_list_choices_arguments(out: &mut Vec<u8>, v: &OAQuestionOperatorListChoicesArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "cursor");
+    out.extend_from_slice(b": ");
+    esc(out, &v.cursor);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "limit");
+    out.extend_from_slice(b": ");
+    num(out, v.limit);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_question_operator_read_choice_arguments(out: &mut Vec<u8>, v: &OAQuestionOperatorReadChoiceArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_question_operator_answer_choice_arguments(out: &mut Vec<u8>, v: &OAQuestionOperatorAnswerChoiceArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "option");
+    out.extend_from_slice(b": ");
+    esc(out, &v.option);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "if_pending");
+    out.extend_from_slice(b": ");
+    out.extend_from_slice(if v.if_pending { b"true" } else { b"false" });
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_question_operator_dismiss_choice_arguments(out: &mut Vec<u8>, v: &OAQuestionOperatorDismissChoiceArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
     out.push(b'\n');
     pad(out, depth);
     out.push(b'}');
@@ -710,6 +4170,491 @@ fn enc_oa_question_operator_retire_question_arguments(out: &mut Vec<u8>, v: &OAQ
     out.push(b'}');
 }
 
+fn enc_oa_question_operator_read_attributed_question_arguments(out: &mut Vec<u8>, v: &OAQuestionOperatorReadAttributedQuestionArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_question_operator_read_choice_details_arguments(out: &mut Vec<u8>, v: &OAQuestionOperatorReadChoiceDetailsArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_question_operator_read_question_asker_arguments(out: &mut Vec<u8>, v: &OAQuestionOperatorReadQuestionAskerArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_question_operator_answer_question_if_pending_arguments(out: &mut Vec<u8>, v: &OAQuestionOperatorAnswerQuestionIfPendingArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "option");
+    out.extend_from_slice(b": ");
+    esc(out, &v.option);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_question_operator_list_answers_arguments(out: &mut Vec<u8>, v: &OAQuestionOperatorListAnswersArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "cursor");
+    out.extend_from_slice(b": ");
+    esc(out, &v.cursor);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "limit");
+    out.extend_from_slice(b": ");
+    num(out, v.limit);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_choice_application_ask_arguments(out: &mut Vec<u8>, v: &OAChoiceApplicationAskArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request");
+    out.extend_from_slice(b": ");
+    enc_choice_request(out, &v.request, depth + 1);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_choice_application_observe_arguments(out: &mut Vec<u8>, v: &OAChoiceApplicationObserveArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request_ref");
+    out.extend_from_slice(b": ");
+    enc_request_ref(out, &v.request_ref, depth + 1);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "wait_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.wait_ms);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_choice_application_answer_arguments(out: &mut Vec<u8>, v: &OAChoiceApplicationAnswerArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request_ref");
+    out.extend_from_slice(b": ");
+    enc_request_ref(out, &v.request_ref, depth + 1);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "option");
+    out.extend_from_slice(b": ");
+    esc(out, &v.option);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "if_pending");
+    out.extend_from_slice(b": ");
+    out.extend_from_slice(if v.if_pending { b"true" } else { b"false" });
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_choice_application_dismiss_arguments(out: &mut Vec<u8>, v: &OAChoiceApplicationDismissArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request_ref");
+    out.extend_from_slice(b": ");
+    enc_request_ref(out, &v.request_ref, depth + 1);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_choice_application_share_choice_arguments(out: &mut Vec<u8>, v: &OAChoiceApplicationShareChoiceArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request");
+    out.extend_from_slice(b": ");
+    enc_choice_request(out, &v.request, depth + 1);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "assistant_options");
+    out.extend_from_slice(b": ");
+    strs(out, &v.assistant_options, depth + 1);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_choice_application_acknowledge_arguments(out: &mut Vec<u8>, v: &OAChoiceApplicationAcknowledgeArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request_ref");
+    out.extend_from_slice(b": ");
+    enc_request_ref(out, &v.request_ref, depth + 1);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "answer");
+    out.extend_from_slice(b": ");
+    enc_choice_answer(out, &v.answer, depth + 1);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_question_responder_list_answerable_arguments(out: &mut Vec<u8>, v: &OAQuestionResponderListAnswerableArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "cursor");
+    out.extend_from_slice(b": ");
+    esc(out, &v.cursor);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "limit");
+    out.extend_from_slice(b": ");
+    num(out, v.limit);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_question_responder_answer_arguments(out: &mut Vec<u8>, v: &OAQuestionResponderAnswerArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "option");
+    out.extend_from_slice(b": ");
+    esc(out, &v.option);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_question_responder_list_choices_arguments(out: &mut Vec<u8>, v: &OAQuestionResponderListChoicesArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "cursor");
+    out.extend_from_slice(b": ");
+    esc(out, &v.cursor);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "limit");
+    out.extend_from_slice(b": ");
+    num(out, v.limit);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_question_responder_request_answering_arguments(out: &mut Vec<u8>, _v: &OAQuestionResponderRequestAnsweringArguments, _depth: i32) {
+    out.push(b'{');
+    out.push(b'}');
+}
+
+fn enc_oa_question_responder_answer_choice_arguments(out: &mut Vec<u8>, v: &OAQuestionResponderAnswerChoiceArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "option");
+    out.extend_from_slice(b": ");
+    esc(out, &v.option);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_permission_application_request_arguments(out: &mut Vec<u8>, v: &OAPermissionApplicationRequestArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request");
+    out.extend_from_slice(b": ");
+    enc_permission_intent(out, &v.request, depth + 1);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_permission_application_observe_arguments(out: &mut Vec<u8>, v: &OAPermissionApplicationObserveArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request_key");
+    out.extend_from_slice(b": ");
+    esc(out, &v.request_key);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "wait_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.wait_ms);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_permission_operator_list_permissions_arguments(out: &mut Vec<u8>, v: &OAPermissionOperatorListPermissionsArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "cursor");
+    out.extend_from_slice(b": ");
+    esc(out, &v.cursor);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "limit");
+    out.extend_from_slice(b": ");
+    num(out, v.limit);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_permission_operator_read_permission_details_arguments(out: &mut Vec<u8>, v: &OAPermissionOperatorReadPermissionDetailsArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_permission_operator_answer_permission_if_pending_arguments(out: &mut Vec<u8>, v: &OAPermissionOperatorAnswerPermissionIfPendingArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "option");
+    out.extend_from_slice(b": ");
+    esc(out, &v.option);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_notification_application_post_arguments(out: &mut Vec<u8>, v: &OANotificationApplicationPostArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request");
+    out.extend_from_slice(b": ");
+    enc_notification_request(out, &v.request, depth + 1);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_notification_application_observe_arguments(out: &mut Vec<u8>, v: &OANotificationApplicationObserveArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request_ref");
+    out.extend_from_slice(b": ");
+    enc_request_ref(out, &v.request_ref, depth + 1);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "wait_ms");
+    out.extend_from_slice(b": ");
+    num(out, v.wait_ms);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_notification_application_withdraw_arguments(out: &mut Vec<u8>, v: &OANotificationApplicationWithdrawArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request_ref");
+    out.extend_from_slice(b": ");
+    enc_request_ref(out, &v.request_ref, depth + 1);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_notification_application_acknowledge_arguments(out: &mut Vec<u8>, v: &OANotificationApplicationAcknowledgeArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "request_ref");
+    out.extend_from_slice(b": ");
+    enc_request_ref(out, &v.request_ref, depth + 1);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "result");
+    out.extend_from_slice(b": ");
+    enc_notification_result(out, &v.result, depth + 1);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_notification_operator_list_notifications_arguments(out: &mut Vec<u8>, v: &OANotificationOperatorListNotificationsArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "cursor");
+    out.extend_from_slice(b": ");
+    esc(out, &v.cursor);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "limit");
+    out.extend_from_slice(b": ");
+    num(out, v.limit);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_notification_operator_read_notification_arguments(out: &mut Vec<u8>, v: &OANotificationOperatorReadNotificationArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_notification_operator_act_arguments(out: &mut Vec<u8>, v: &OANotificationOperatorActArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "action");
+    out.extend_from_slice(b": ");
+    esc(out, &v.action);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "presentation");
+    out.extend_from_slice(b": ");
+    esc(out, &v.presentation);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_notification_operator_dismiss_arguments(out: &mut Vec<u8>, v: &OANotificationOperatorDismissArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "id");
+    out.extend_from_slice(b": ");
+    esc(out, &v.id);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_notification_operator_withdraw_program_arguments(out: &mut Vec<u8>, v: &OANotificationOperatorWithdrawProgramArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "program");
+    out.extend_from_slice(b": ");
+    esc(out, &v.program);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
+fn enc_oa_notification_operator_list_notifiers_arguments(out: &mut Vec<u8>, v: &OANotificationOperatorListNotifiersArguments, depth: i32) {
+    out.push(b'{');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "cursor");
+    out.extend_from_slice(b": ");
+    esc(out, &v.cursor);
+    out.push(b',');
+    out.push(b'\n');
+    pad(out, depth + 1);
+    esc(out, "limit");
+    out.extend_from_slice(b": ");
+    num(out, v.limit);
+    out.push(b'\n');
+    pad(out, depth);
+    out.push(b'}');
+}
+
 fn enc_oa_service_frame(out: &mut Vec<u8>, v: &OAServiceFrame, depth: i32) {
     out.push(b'{');
     out.push(b'\n');
@@ -741,10 +4686,10 @@ fn enc_oa_service_frame(out: &mut Vec<u8>, v: &OAServiceFrame, depth: i32) {
 }
 
 pub fn encode(v: &Request) -> Vec<u8> {
-    let mut out = Vec::new();
-    enc_request(&mut out, v, 0);
-    out.push(b'\n');
-    out
+    match encode_request_document(v) {
+        Ok(out) => out,
+        Err(e) => std::panic::panic_any(e),
+    }
 }
 
 const DEPTH_LIMIT: i32 = 64;
@@ -785,6 +4730,7 @@ struct Reader<'a> {
     buf: &'a [u8],
     pos: usize,
     depth: i32,
+    limit: i32,
 }
 
 impl<'a> Reader<'a> {
@@ -804,7 +4750,7 @@ impl<'a> Reader<'a> {
 
     fn enter(&mut self) -> Result<(), Refusal> {
         self.depth += 1;
-        if self.depth > DEPTH_LIMIT {
+        if self.depth > self.limit {
             return self.refuse("depth_exceeded");
         }
         Ok(())
@@ -1584,6 +5530,84 @@ fn decode_record_metadata(r: &mut Reader) -> Result<RecordMetadata, Refusal> {
     })
 }
 
+fn decode_response_metadata(r: &mut Reader) -> Result<ResponseMetadata, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_code: String = Default::default();
+    let mut field_error: String = Default::default();
+    let mut field_answer: Option<Answer> = None;
+    let mut field_records: Vec<RecordMetadata> = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "code" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_code = r.string()?;
+                }
+                "error" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_error = r.string()?;
+                }
+                "answer" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_answer = Some(decode_answer(r)?);
+                }
+                "records" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_records = decode_list(r, decode_record_metadata)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    Ok(ResponseMetadata {
+        code: field_code,
+        error: field_error,
+        answer: field_answer,
+        records: field_records,
+    })
+}
+
 fn decode_application_question(r: &mut Reader) -> Result<ApplicationQuestion, Refusal> {
     if r.at() != b'{' {
         return r.refuse("wrong_type");
@@ -1938,6 +5962,3293 @@ fn decode_operator_retirement(r: &mut Reader) -> Result<OperatorRetirement, Refu
     })
 }
 
+fn decode_operator_question(r: &mut Reader) -> Result<OperatorQuestion, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_record: Option<RecordMetadata> = None;
+    let mut field_publisher: String = Default::default();
+    let mut field_publisher_trusted: bool = Default::default();
+    let mut field_answered_by: Option<String> = None;
+    let mut field_program_description: String = Default::default();
+    let mut field_program_original_name: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "record" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_record = Some(decode_record_metadata(r)?);
+                }
+                "publisher" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_publisher = r.string()?;
+                }
+                "publisher_trusted" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_publisher_trusted = r.boolean()?;
+                }
+                "answered_by" => {
+                    if seen & 16 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 16;
+                    field_answered_by = Some(r.string()?);
+                }
+                "program_description" => {
+                    if seen & 32 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 32;
+                    field_program_description = r.string()?;
+                }
+                "program_original_name" => {
+                    if seen & 64 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 64;
+                    field_program_original_name = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(OperatorQuestionOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    let field_answered_by = match field_answered_by {
+        Some(name) => match Answerer::from_wire(&name) {
+            Some(value) => Some(value),
+            None => return r.refuse("bad_enum"),
+        },
+        None => None,
+    };
+    Ok(OperatorQuestion {
+        outcome: field_outcome,
+        record: field_record,
+        publisher: field_publisher,
+        publisher_trusted: field_publisher_trusted,
+        answered_by: field_answered_by,
+        program_description: field_program_description,
+        program_original_name: field_program_original_name,
+    })
+}
+
+fn decode_attributed_question(r: &mut Reader) -> Result<AttributedQuestion, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_question: Option<OperatorQuestion> = None;
+    let mut field_answerer: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "question" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_question = Some(decode_operator_question(r)?);
+                }
+                "answerer" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_answerer = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_question) = field_question else {
+        return r.refuse("missing_field");
+    };
+    Ok(AttributedQuestion {
+        question: field_question,
+        answerer: field_answerer,
+    })
+}
+
+fn decode_permission_target(r: &mut Reader) -> Result<PermissionTarget, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_account: String = Default::default();
+    let mut field_program: String = Default::default();
+    let mut field_action: String = Default::default();
+    let mut field_resource: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "account" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_account = r.string()?;
+                }
+                "program" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_program = r.string()?;
+                }
+                "action" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_action = r.string()?;
+                }
+                "resource" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_resource = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 15 != 15 {
+        return r.refuse("missing_field");
+    }
+    Ok(PermissionTarget {
+        account: field_account,
+        program: field_program,
+        action: field_action,
+        resource: field_resource,
+    })
+}
+
+fn decode_permission_request(r: &mut Reader) -> Result<PermissionRequest, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_targets: Vec<PermissionTarget> = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "targets" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_targets = decode_list(r, decode_permission_target)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(PermissionRequest {
+        targets: field_targets,
+    })
+}
+
+fn decode_question_details(r: &mut Reader) -> Result<QuestionDetails, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_question: Option<AttributedQuestion> = None;
+    let mut field_permission: Option<PermissionRequest> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "question" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_question = Some(decode_attributed_question(r)?);
+                }
+                "permission" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_permission = Some(decode_permission_request(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_question) = field_question else {
+        return r.refuse("missing_field");
+    };
+    Ok(QuestionDetails {
+        question: field_question,
+        permission: field_permission,
+    })
+}
+
+fn decode_question_asker(r: &mut Reader) -> Result<QuestionAsker, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_details: Option<QuestionDetails> = None;
+    let mut field_program: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "details" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_details = Some(decode_question_details(r)?);
+                }
+                "program" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_program = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_details) = field_details else {
+        return r.refuse("missing_field");
+    };
+    Ok(QuestionAsker {
+        details: field_details,
+        program: field_program,
+    })
+}
+
+fn decode_request_ref(r: &mut Reader) -> Result<RequestRef, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_key: String = Default::default();
+    let mut field_replay_until_ms: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "key" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_key = r.string()?;
+                }
+                "replay_until_ms" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_replay_until_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(RequestRef {
+        key: field_key,
+        replay_until_ms: field_replay_until_ms,
+    })
+}
+
+fn decode_choice_option(r: &mut Reader) -> Result<ChoiceOption, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_label: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "label" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_label = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(ChoiceOption {
+        id: field_id,
+        label: field_label,
+    })
+}
+
+fn decode_choice_request(r: &mut Reader) -> Result<ChoiceRequest, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request_ref: RequestRef = Default::default();
+    let mut field_title: String = Default::default();
+    let mut field_options: Vec<ChoiceOption> = Default::default();
+    let mut field_pending_until_ms: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request_ref" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request_ref = decode_request_ref(r)?;
+                }
+                "title" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_title = r.string()?;
+                }
+                "options" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_options = decode_list(r, decode_choice_option)?;
+                }
+                "pending_until_ms" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_pending_until_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 15 != 15 {
+        return r.refuse("missing_field");
+    }
+    Ok(ChoiceRequest {
+        request_ref: field_request_ref,
+        title: field_title,
+        options: field_options,
+        pending_until_ms: field_pending_until_ms,
+    })
+}
+
+fn decode_choice_answer(r: &mut Reader) -> Result<ChoiceAnswer, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_option: String = Default::default();
+    let mut field_answered_ms: i64 = Default::default();
+    let mut field_answered_by: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "option" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_option = r.string()?;
+                }
+                "answered_ms" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_answered_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                "answered_by" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_answered_by = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 13 != 13 {
+        return r.refuse("missing_field");
+    }
+    Ok(ChoiceAnswer {
+        id: field_id,
+        option: field_option,
+        answered_ms: field_answered_ms,
+        answered_by: field_answered_by,
+    })
+}
+
+fn decode_choice_observation(r: &mut Reader) -> Result<ChoiceObservation, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_id: String = Default::default();
+    let mut field_answer: Option<ChoiceAnswer> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "id" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_id = r.string()?;
+                }
+                "answer" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_answer = Some(decode_choice_answer(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(ChoiceOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(ChoiceObservation {
+        outcome: field_outcome,
+        id: field_id,
+        answer: field_answer,
+    })
+}
+
+fn decode_choice_acknowledgement(r: &mut Reader) -> Result<ChoiceAcknowledgement, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(ChoiceAckOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(ChoiceAcknowledgement {
+        outcome: field_outcome,
+    })
+}
+
+fn decode_choice_record(r: &mut Reader) -> Result<ChoiceRecord, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_asker: String = Default::default();
+    let mut field_request: ChoiceRequest = Default::default();
+    let mut field_state: Option<String> = None;
+    let mut field_asked_ms: i64 = Default::default();
+    let mut field_answer: Option<ChoiceAnswer> = None;
+    let mut field_publisher: String = Default::default();
+    let mut field_publisher_trusted: bool = Default::default();
+    let mut field_program_description: String = Default::default();
+    let mut field_program_original_name: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "asker" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_asker = r.string()?;
+                }
+                "request" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_request = decode_choice_request(r)?;
+                }
+                "state" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_state = Some(r.string()?);
+                }
+                "asked_ms" => {
+                    if seen & 16 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 16;
+                    field_asked_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                "answer" => {
+                    if seen & 32 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 32;
+                    field_answer = Some(decode_choice_answer(r)?);
+                }
+                "publisher" => {
+                    if seen & 64 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 64;
+                    field_publisher = r.string()?;
+                }
+                "publisher_trusted" => {
+                    if seen & 128 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 128;
+                    field_publisher_trusted = r.boolean()?;
+                }
+                "program_description" => {
+                    if seen & 256 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 256;
+                    field_program_description = r.string()?;
+                }
+                "program_original_name" => {
+                    if seen & 512 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 512;
+                    field_program_original_name = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 31 != 31 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_state) = field_state.as_deref().and_then(ChoiceState::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(ChoiceRecord {
+        id: field_id,
+        asker: field_asker,
+        request: field_request,
+        state: field_state,
+        asked_ms: field_asked_ms,
+        answer: field_answer,
+        publisher: field_publisher,
+        publisher_trusted: field_publisher_trusted,
+        program_description: field_program_description,
+        program_original_name: field_program_original_name,
+    })
+}
+
+fn decode_choice_page(r: &mut Reader) -> Result<ChoicePage, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_records: Vec<ChoiceRecord> = Default::default();
+    let mut field_next: String = Default::default();
+    let mut field_complete: bool = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "records" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_records = decode_list(r, decode_choice_record)?;
+                }
+                "next" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_next = r.string()?;
+                }
+                "complete" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_complete = r.boolean()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 15 != 15 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(OperatorPageOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(ChoicePage {
+        outcome: field_outcome,
+        records: field_records,
+        next: field_next,
+        complete: field_complete,
+    })
+}
+
+fn decode_choice_read(r: &mut Reader) -> Result<ChoiceRead, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_record: Option<ChoiceRecord> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "record" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_record = Some(decode_choice_record(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(OperatorQuestionOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(ChoiceRead {
+        outcome: field_outcome,
+        record: field_record,
+    })
+}
+
+fn decode_choice_decision(r: &mut Reader) -> Result<ChoiceDecision, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_record: Option<ChoiceRecord> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "record" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_record = Some(decode_choice_record(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(ChoiceDecisionOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(ChoiceDecision {
+        outcome: field_outcome,
+        record: field_record,
+    })
+}
+
+fn decode_choice_details(r: &mut Reader) -> Result<ChoiceDetails, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_choice: Option<ChoiceRead> = None;
+    let mut field_asker_program: String = Default::default();
+    let mut field_assistant_options: Vec<String> = Default::default();
+    let mut field_answered_via: Option<String> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "choice" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_choice = Some(decode_choice_read(r)?);
+                }
+                "asker_program" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_asker_program = r.string()?;
+                }
+                "assistant_options" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_assistant_options = r.str_list()?;
+                }
+                "answered_via" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_answered_via = Some(r.string()?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 5 != 5 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_choice) = field_choice else {
+        return r.refuse("missing_field");
+    };
+    let field_answered_via = match field_answered_via {
+        Some(name) => match ChoiceRoute::from_wire(&name) {
+            Some(value) => Some(value),
+            None => return r.refuse("bad_enum"),
+        },
+        None => None,
+    };
+    Ok(ChoiceDetails {
+        choice: field_choice,
+        asker_program: field_asker_program,
+        assistant_options: field_assistant_options,
+        answered_via: field_answered_via,
+    })
+}
+
+fn decode_answer_entry(r: &mut Reader) -> Result<AnswerEntry, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_kind: Option<String> = None;
+    let mut field_key: String = Default::default();
+    let mut field_asker: String = Default::default();
+    let mut field_asker_program: String = Default::default();
+    let mut field_publisher: String = Default::default();
+    let mut field_publisher_trusted: bool = Default::default();
+    let mut field_about: String = Default::default();
+    let mut field_title: String = Default::default();
+    let mut field_option: String = Default::default();
+    let mut field_label: String = Default::default();
+    let mut field_answered_by: Option<String> = None;
+    let mut field_answerer: String = Default::default();
+    let mut field_answered_ms: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "kind" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_kind = Some(r.string()?);
+                }
+                "key" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_key = r.string()?;
+                }
+                "asker" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_asker = r.string()?;
+                }
+                "asker_program" => {
+                    if seen & 16 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 16;
+                    field_asker_program = r.string()?;
+                }
+                "publisher" => {
+                    if seen & 32 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 32;
+                    field_publisher = r.string()?;
+                }
+                "publisher_trusted" => {
+                    if seen & 64 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 64;
+                    field_publisher_trusted = r.boolean()?;
+                }
+                "about" => {
+                    if seen & 128 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 128;
+                    field_about = r.string()?;
+                }
+                "title" => {
+                    if seen & 256 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 256;
+                    field_title = r.string()?;
+                }
+                "option" => {
+                    if seen & 512 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 512;
+                    field_option = r.string()?;
+                }
+                "label" => {
+                    if seen & 1024 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1024;
+                    field_label = r.string()?;
+                }
+                "answered_by" => {
+                    if seen & 2048 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2048;
+                    field_answered_by = Some(r.string()?);
+                }
+                "answerer" => {
+                    if seen & 4096 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4096;
+                    field_answerer = r.string()?;
+                }
+                "answered_ms" => {
+                    if seen & 8192 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8192;
+                    field_answered_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 12175 != 12175 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_kind) = field_kind.as_deref().and_then(AnswerKind::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    let Some(field_answered_by) = field_answered_by.as_deref().and_then(Answerer::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(AnswerEntry {
+        id: field_id,
+        kind: field_kind,
+        key: field_key,
+        asker: field_asker,
+        asker_program: field_asker_program,
+        publisher: field_publisher,
+        publisher_trusted: field_publisher_trusted,
+        about: field_about,
+        title: field_title,
+        option: field_option,
+        label: field_label,
+        answered_by: field_answered_by,
+        answerer: field_answerer,
+        answered_ms: field_answered_ms,
+    })
+}
+
+fn decode_answer_entry_page(r: &mut Reader) -> Result<AnswerEntryPage, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_answers: Vec<AnswerEntry> = Default::default();
+    let mut field_next: String = Default::default();
+    let mut field_complete: bool = Default::default();
+    let mut field_complete_since_ms: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "answers" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_answers = decode_list(r, decode_answer_entry)?;
+                }
+                "next" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_next = r.string()?;
+                }
+                "complete" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_complete = r.boolean()?;
+                }
+                "complete_since_ms" => {
+                    if seen & 16 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 16;
+                    field_complete_since_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 31 != 31 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(OperatorPageOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(AnswerEntryPage {
+        outcome: field_outcome,
+        answers: field_answers,
+        next: field_next,
+        complete: field_complete,
+        complete_since_ms: field_complete_since_ms,
+    })
+}
+
+fn decode_answerable_choice(r: &mut Reader) -> Result<AnswerableChoice, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_asker: String = Default::default();
+    let mut field_title: String = Default::default();
+    let mut field_options: Vec<ChoiceOption> = Default::default();
+    let mut field_pending_until_ms: i64 = Default::default();
+    let mut field_publisher: String = Default::default();
+    let mut field_publisher_trusted: bool = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "asker" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_asker = r.string()?;
+                }
+                "title" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_title = r.string()?;
+                }
+                "options" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_options = decode_list(r, decode_choice_option)?;
+                }
+                "pending_until_ms" => {
+                    if seen & 16 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 16;
+                    field_pending_until_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                "publisher" => {
+                    if seen & 32 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 32;
+                    field_publisher = r.string()?;
+                }
+                "publisher_trusted" => {
+                    if seen & 64 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 64;
+                    field_publisher_trusted = r.boolean()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 31 != 31 {
+        return r.refuse("missing_field");
+    }
+    Ok(AnswerableChoice {
+        id: field_id,
+        asker: field_asker,
+        title: field_title,
+        options: field_options,
+        pending_until_ms: field_pending_until_ms,
+        publisher: field_publisher,
+        publisher_trusted: field_publisher_trusted,
+    })
+}
+
+fn decode_answerable_choice_page(r: &mut Reader) -> Result<AnswerableChoicePage, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_choices: Vec<AnswerableChoice> = Default::default();
+    let mut field_next: String = Default::default();
+    let mut field_complete: bool = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "choices" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_choices = decode_list(r, decode_answerable_choice)?;
+                }
+                "next" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_next = r.string()?;
+                }
+                "complete" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_complete = r.boolean()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 15 != 15 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(OperatorPageOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(AnswerableChoicePage {
+        outcome: field_outcome,
+        choices: field_choices,
+        next: field_next,
+        complete: field_complete,
+    })
+}
+
+fn decode_responder_decision(r: &mut Reader) -> Result<ResponderDecision, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_record: Option<RecordMetadata> = None;
+    let mut field_effect: Option<String> = None;
+    let mut field_target_outcome: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "record" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_record = Some(decode_record_metadata(r)?);
+                }
+                "effect" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_effect = Some(r.string()?);
+                }
+                "target_outcome" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_target_outcome = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 5 != 5 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(OperatorDecisionOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    let Some(field_effect) = field_effect.as_deref().and_then(ResponderEffectOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(ResponderDecision {
+        outcome: field_outcome,
+        record: field_record,
+        effect: field_effect,
+        target_outcome: field_target_outcome,
+    })
+}
+
+fn decode_permission_intent(r: &mut Reader) -> Result<PermissionIntent, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request_key: String = Default::default();
+    let mut field_selection: Option<OAImported0> = None;
+    let mut field_bundle_ref: String = Default::default();
+    let mut field_bundle_selector: Option<OAImported1> = None;
+    let mut field_purpose: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request_key" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request_key = r.string()?;
+                }
+                "selection" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_selection = Some(decode_oa_imported0(r)?);
+                }
+                "bundle_ref" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_bundle_ref = r.string()?;
+                }
+                "bundle_selector" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_bundle_selector = Some(decode_oa_imported1(r)?);
+                }
+                "purpose" => {
+                    if seen & 16 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 16;
+                    field_purpose = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(PermissionIntent {
+        request_key: field_request_key,
+        selection: field_selection,
+        bundle_ref: field_bundle_ref,
+        bundle_selector: field_bundle_selector,
+        purpose: field_purpose,
+    })
+}
+
+fn decode_permission_observation(r: &mut Reader) -> Result<PermissionObservation, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_answer: Option<Answer> = None;
+    let mut field_policy_revision: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "answer" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_answer = Some(decode_answer(r)?);
+                }
+                "policy_revision" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_policy_revision = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 5 != 5 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(PermissionOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(PermissionObservation {
+        outcome: field_outcome,
+        answer: field_answer,
+        policy_revision: field_policy_revision,
+    })
+}
+
+fn decode_typed_permission_details(r: &mut Reader) -> Result<TypedPermissionDetails, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_question: Option<AttributedQuestion> = None;
+    let mut field_effect: Option<OAImported2> = None;
+    let mut field_effect_digest: String = Default::default();
+    let mut field_origin: String = Default::default();
+    let mut field_purpose: String = Default::default();
+    let mut field_display: Option<PermissionDisplay> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "question" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_question = Some(decode_attributed_question(r)?);
+                }
+                "effect" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_effect = Some(decode_oa_imported2(r)?);
+                }
+                "effect_digest" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_effect_digest = r.string()?;
+                }
+                "origin" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_origin = r.string()?;
+                }
+                "purpose" => {
+                    if seen & 16 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 16;
+                    field_purpose = r.string()?;
+                }
+                "display" => {
+                    if seen & 32 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 32;
+                    field_display = Some(decode_permission_display(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 29 != 29 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_question) = field_question else {
+        return r.refuse("missing_field");
+    };
+    Ok(TypedPermissionDetails {
+        question: field_question,
+        effect: field_effect,
+        effect_digest: field_effect_digest,
+        origin: field_origin,
+        purpose: field_purpose,
+        display: field_display,
+    })
+}
+
+fn decode_permission_display_selection(r: &mut Reader) -> Result<PermissionDisplaySelection, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_operation: String = Default::default();
+    let mut field_target: String = Default::default();
+    let mut field_collection: String = Default::default();
+    let mut field_all_effect: String = Default::default();
+    let mut field_disclosure: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "operation" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_operation = r.string()?;
+                }
+                "target" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_target = r.string()?;
+                }
+                "collection" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_collection = r.string()?;
+                }
+                "all_effect" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_all_effect = r.string()?;
+                }
+                "disclosure" => {
+                    if seen & 16 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 16;
+                    field_disclosure = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 31 != 31 {
+        return r.refuse("missing_field");
+    }
+    Ok(PermissionDisplaySelection {
+        operation: field_operation,
+        target: field_target,
+        collection: field_collection,
+        all_effect: field_all_effect,
+        disclosure: field_disclosure,
+    })
+}
+
+fn decode_permission_display(r: &mut Reader) -> Result<PermissionDisplay, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_selections: Vec<PermissionDisplaySelection> = Default::default();
+    let mut field_bundle_label: String = Default::default();
+    let mut field_bundle_disclosure: String = Default::default();
+    let mut field_requires_os_authorization: bool = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "selections" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_selections = decode_list(r, decode_permission_display_selection)?;
+                }
+                "bundle_label" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_bundle_label = r.string()?;
+                }
+                "bundle_disclosure" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_bundle_disclosure = r.string()?;
+                }
+                "requires_os_authorization" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_requires_os_authorization = r.boolean()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 15 != 15 {
+        return r.refuse("missing_field");
+    }
+    Ok(PermissionDisplay {
+        selections: field_selections,
+        bundle_label: field_bundle_label,
+        bundle_disclosure: field_bundle_disclosure,
+        requires_os_authorization: field_requires_os_authorization,
+    })
+}
+
+fn decode_notification_action(r: &mut Reader) -> Result<NotificationAction, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_title: String = Default::default();
+    let mut field_activation: Option<String> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "title" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_title = r.string()?;
+                }
+                "activation" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_activation = Some(r.string()?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 7 != 7 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_activation) = field_activation.as_deref().and_then(NotificationActivation::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(NotificationAction {
+        id: field_id,
+        title: field_title,
+        activation: field_activation,
+    })
+}
+
+fn decode_notification_request(r: &mut Reader) -> Result<NotificationRequest, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request_ref: RequestRef = Default::default();
+    let mut field_title: String = Default::default();
+    let mut field_body: String = Default::default();
+    let mut field_actions: Vec<NotificationAction> = Default::default();
+    let mut field_expires_ms: i64 = Default::default();
+    let mut field_operation_id: String = Default::default();
+    let mut field_tag: String = Default::default();
+    let mut field_delivery: Option<String> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request_ref" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request_ref = decode_request_ref(r)?;
+                }
+                "title" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_title = r.string()?;
+                }
+                "body" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_body = r.string()?;
+                }
+                "actions" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_actions = decode_list(r, decode_notification_action)?;
+                }
+                "expires_ms" => {
+                    if seen & 16 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 16;
+                    field_expires_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                "operation_id" => {
+                    if seen & 32 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 32;
+                    field_operation_id = r.string()?;
+                }
+                "tag" => {
+                    if seen & 64 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 64;
+                    field_tag = r.string()?;
+                }
+                "delivery" => {
+                    if seen & 128 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 128;
+                    field_delivery = Some(r.string()?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 155 != 155 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_delivery) = field_delivery.as_deref().and_then(NotificationDelivery::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(NotificationRequest {
+        request_ref: field_request_ref,
+        title: field_title,
+        body: field_body,
+        actions: field_actions,
+        expires_ms: field_expires_ms,
+        operation_id: field_operation_id,
+        tag: field_tag,
+        delivery: field_delivery,
+    })
+}
+
+fn decode_notification_result(r: &mut Reader) -> Result<NotificationResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_state: Option<String> = None;
+    let mut field_action: String = Default::default();
+    let mut field_decided_ms: i64 = Default::default();
+    let mut field_decided_by: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "state" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_state = Some(r.string()?);
+                }
+                "action" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_action = r.string()?;
+                }
+                "decided_ms" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_decided_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                "decided_by" => {
+                    if seen & 16 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 16;
+                    field_decided_by = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 11 != 11 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_state) = field_state.as_deref().and_then(NotificationState::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(NotificationResult {
+        id: field_id,
+        state: field_state,
+        action: field_action,
+        decided_ms: field_decided_ms,
+        decided_by: field_decided_by,
+    })
+}
+
+fn decode_notification_observation(r: &mut Reader) -> Result<NotificationObservation, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_id: String = Default::default();
+    let mut field_result: Option<NotificationResult> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "id" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_id = r.string()?;
+                }
+                "result" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_result = Some(decode_notification_result(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(NotificationOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(NotificationObservation {
+        outcome: field_outcome,
+        id: field_id,
+        result: field_result,
+    })
+}
+
+fn decode_notification_record(r: &mut Reader) -> Result<NotificationRecord, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_asker: String = Default::default();
+    let mut field_program: String = Default::default();
+    let mut field_request: Option<NotificationRequest> = None;
+    let mut field_state: Option<String> = None;
+    let mut field_admitted_ms: i64 = Default::default();
+    let mut field_posted_ms: i64 = Default::default();
+    let mut field_result: Option<NotificationResult> = None;
+    let mut field_publisher: String = Default::default();
+    let mut field_publisher_trusted: bool = Default::default();
+    let mut field_program_description: String = Default::default();
+    let mut field_program_original_name: String = Default::default();
+    let mut field_presentation: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "asker" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_asker = r.string()?;
+                }
+                "program" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_program = r.string()?;
+                }
+                "request" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_request = Some(decode_notification_request(r)?);
+                }
+                "state" => {
+                    if seen & 16 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 16;
+                    field_state = Some(r.string()?);
+                }
+                "admitted_ms" => {
+                    if seen & 32 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 32;
+                    field_admitted_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                "posted_ms" => {
+                    if seen & 64 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 64;
+                    field_posted_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                "result" => {
+                    if seen & 128 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 128;
+                    field_result = Some(decode_notification_result(r)?);
+                }
+                "publisher" => {
+                    if seen & 256 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 256;
+                    field_publisher = r.string()?;
+                }
+                "publisher_trusted" => {
+                    if seen & 512 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 512;
+                    field_publisher_trusted = r.boolean()?;
+                }
+                "program_description" => {
+                    if seen & 1024 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1024;
+                    field_program_description = r.string()?;
+                }
+                "program_original_name" => {
+                    if seen & 2048 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2048;
+                    field_program_original_name = r.string()?;
+                }
+                "presentation" => {
+                    if seen & 4096 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4096;
+                    field_presentation = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 63 != 63 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_request) = field_request else {
+        return r.refuse("missing_field");
+    };
+    let Some(field_state) = field_state.as_deref().and_then(NotificationState::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(NotificationRecord {
+        id: field_id,
+        asker: field_asker,
+        program: field_program,
+        request: field_request,
+        state: field_state,
+        admitted_ms: field_admitted_ms,
+        posted_ms: field_posted_ms,
+        result: field_result,
+        publisher: field_publisher,
+        publisher_trusted: field_publisher_trusted,
+        program_description: field_program_description,
+        program_original_name: field_program_original_name,
+        presentation: field_presentation,
+    })
+}
+
+fn decode_notification_page(r: &mut Reader) -> Result<NotificationPage, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_records: Vec<NotificationRecord> = Default::default();
+    let mut field_next: String = Default::default();
+    let mut field_complete: bool = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "records" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_records = decode_list(r, decode_notification_record)?;
+                }
+                "next" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_next = r.string()?;
+                }
+                "complete" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_complete = r.boolean()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 15 != 15 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(OperatorPageOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(NotificationPage {
+        outcome: field_outcome,
+        records: field_records,
+        next: field_next,
+        complete: field_complete,
+    })
+}
+
+fn decode_notification_read(r: &mut Reader) -> Result<NotificationRead, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_record: Option<NotificationRecord> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "record" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_record = Some(decode_notification_record(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(OperatorQuestionOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(NotificationRead {
+        outcome: field_outcome,
+        record: field_record,
+    })
+}
+
+fn decode_notification_decision(r: &mut Reader) -> Result<NotificationDecision, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_record: Option<NotificationRecord> = None;
+    let mut field_count: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "record" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_record = Some(decode_notification_record(r)?);
+                }
+                "count" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_count = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(NotificationDecisionOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(NotificationDecision {
+        outcome: field_outcome,
+        record: field_record,
+        count: field_count,
+    })
+}
+
+fn decode_notifier_day(r: &mut Reader) -> Result<NotifierDay, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_day_ms: i64 = Default::default();
+    let mut field_posts: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "day_ms" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_day_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                "posts" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_posts = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(NotifierDay {
+        day_ms: field_day_ms,
+        posts: field_posts,
+    })
+}
+
+fn decode_notifier_count(r: &mut Reader) -> Result<NotifierCount, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_program: String = Default::default();
+    let mut field_asker: String = Default::default();
+    let mut field_days: Vec<NotifierDay> = Default::default();
+    let mut field_last_posted_ms: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "program" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_program = r.string()?;
+                }
+                "asker" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_asker = r.string()?;
+                }
+                "days" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_days = decode_list(r, decode_notifier_day)?;
+                }
+                "last_posted_ms" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_last_posted_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 15 != 15 {
+        return r.refuse("missing_field");
+    }
+    Ok(NotifierCount {
+        program: field_program,
+        asker: field_asker,
+        days: field_days,
+        last_posted_ms: field_last_posted_ms,
+    })
+}
+
+fn decode_notifier_page(r: &mut Reader) -> Result<NotifierPage, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_outcome: Option<String> = None;
+    let mut field_notifiers: Vec<NotifierCount> = Default::default();
+    let mut field_next: String = Default::default();
+    let mut field_complete: bool = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "outcome" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_outcome = Some(r.string()?);
+                }
+                "notifiers" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_notifiers = decode_list(r, decode_notifier_count)?;
+                }
+                "next" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_next = r.string()?;
+                }
+                "complete" => {
+                    if seen & 8 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 8;
+                    field_complete = r.boolean()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 15 != 15 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_outcome) = field_outcome.as_deref().and_then(OperatorPageOutcome::from_wire) else {
+        return r.refuse("bad_enum");
+    };
+    Ok(NotifierPage {
+        outcome: field_outcome,
+        notifiers: field_notifiers,
+        next: field_next,
+        complete: field_complete,
+    })
+}
+
 fn decode_oa_question_application_ask_arguments(r: &mut Reader) -> Result<OAQuestionApplicationAskArguments, Refusal> {
     if r.at() != b'{' {
         return r.refuse("wrong_type");
@@ -2052,6 +9363,249 @@ fn decode_oa_question_application_observe_arguments(r: &mut Reader) -> Result<OA
     Ok(OAQuestionApplicationObserveArguments {
         request_key: field_request_key,
         wait_ms: field_wait_ms,
+    })
+}
+
+fn decode_oa_question_operator_list_choices_arguments(r: &mut Reader) -> Result<OAQuestionOperatorListChoicesArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_cursor: String = Default::default();
+    let mut field_limit: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "cursor" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_cursor = r.string()?;
+                }
+                "limit" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_limit = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionOperatorListChoicesArguments {
+        cursor: field_cursor,
+        limit: field_limit,
+    })
+}
+
+fn decode_oa_question_operator_read_choice_arguments(r: &mut Reader) -> Result<OAQuestionOperatorReadChoiceArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionOperatorReadChoiceArguments {
+        id: field_id,
+    })
+}
+
+fn decode_oa_question_operator_answer_choice_arguments(r: &mut Reader) -> Result<OAQuestionOperatorAnswerChoiceArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_option: String = Default::default();
+    let mut field_if_pending: bool = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "option" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_option = r.string()?;
+                }
+                "if_pending" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_if_pending = r.boolean()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 7 != 7 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionOperatorAnswerChoiceArguments {
+        id: field_id,
+        option: field_option,
+        if_pending: field_if_pending,
+    })
+}
+
+fn decode_oa_question_operator_dismiss_choice_arguments(r: &mut Reader) -> Result<OAQuestionOperatorDismissChoiceArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionOperatorDismissChoiceArguments {
+        id: field_id,
     })
 }
 
@@ -2232,6 +9786,1838 @@ fn decode_oa_question_operator_retire_question_arguments(r: &mut Reader) -> Resu
     }
     Ok(OAQuestionOperatorRetireQuestionArguments {
         id: field_id,
+    })
+}
+
+fn decode_oa_question_operator_read_attributed_question_arguments(r: &mut Reader) -> Result<OAQuestionOperatorReadAttributedQuestionArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionOperatorReadAttributedQuestionArguments {
+        id: field_id,
+    })
+}
+
+fn decode_oa_question_operator_read_choice_details_arguments(r: &mut Reader) -> Result<OAQuestionOperatorReadChoiceDetailsArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionOperatorReadChoiceDetailsArguments {
+        id: field_id,
+    })
+}
+
+fn decode_oa_question_operator_read_question_asker_arguments(r: &mut Reader) -> Result<OAQuestionOperatorReadQuestionAskerArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionOperatorReadQuestionAskerArguments {
+        id: field_id,
+    })
+}
+
+fn decode_oa_question_operator_answer_question_if_pending_arguments(r: &mut Reader) -> Result<OAQuestionOperatorAnswerQuestionIfPendingArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_option: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "option" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_option = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionOperatorAnswerQuestionIfPendingArguments {
+        id: field_id,
+        option: field_option,
+    })
+}
+
+fn decode_oa_question_operator_list_answers_arguments(r: &mut Reader) -> Result<OAQuestionOperatorListAnswersArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_cursor: String = Default::default();
+    let mut field_limit: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "cursor" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_cursor = r.string()?;
+                }
+                "limit" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_limit = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionOperatorListAnswersArguments {
+        cursor: field_cursor,
+        limit: field_limit,
+    })
+}
+
+fn decode_oa_choice_application_ask_arguments(r: &mut Reader) -> Result<OAChoiceApplicationAskArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request: ChoiceRequest = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request = decode_choice_request(r)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAChoiceApplicationAskArguments {
+        request: field_request,
+    })
+}
+
+fn decode_oa_choice_application_observe_arguments(r: &mut Reader) -> Result<OAChoiceApplicationObserveArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request_ref: RequestRef = Default::default();
+    let mut field_wait_ms: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request_ref" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request_ref = decode_request_ref(r)?;
+                }
+                "wait_ms" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_wait_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAChoiceApplicationObserveArguments {
+        request_ref: field_request_ref,
+        wait_ms: field_wait_ms,
+    })
+}
+
+fn decode_oa_choice_application_answer_arguments(r: &mut Reader) -> Result<OAChoiceApplicationAnswerArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request_ref: RequestRef = Default::default();
+    let mut field_option: String = Default::default();
+    let mut field_if_pending: bool = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request_ref" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request_ref = decode_request_ref(r)?;
+                }
+                "option" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_option = r.string()?;
+                }
+                "if_pending" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_if_pending = r.boolean()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 7 != 7 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAChoiceApplicationAnswerArguments {
+        request_ref: field_request_ref,
+        option: field_option,
+        if_pending: field_if_pending,
+    })
+}
+
+fn decode_oa_choice_application_dismiss_arguments(r: &mut Reader) -> Result<OAChoiceApplicationDismissArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request_ref: RequestRef = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request_ref" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request_ref = decode_request_ref(r)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAChoiceApplicationDismissArguments {
+        request_ref: field_request_ref,
+    })
+}
+
+fn decode_oa_choice_application_share_choice_arguments(r: &mut Reader) -> Result<OAChoiceApplicationShareChoiceArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request: ChoiceRequest = Default::default();
+    let mut field_assistant_options: Vec<String> = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request = decode_choice_request(r)?;
+                }
+                "assistant_options" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_assistant_options = r.str_list()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAChoiceApplicationShareChoiceArguments {
+        request: field_request,
+        assistant_options: field_assistant_options,
+    })
+}
+
+fn decode_oa_choice_application_acknowledge_arguments(r: &mut Reader) -> Result<OAChoiceApplicationAcknowledgeArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request_ref: RequestRef = Default::default();
+    let mut field_answer: ChoiceAnswer = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request_ref" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request_ref = decode_request_ref(r)?;
+                }
+                "answer" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_answer = decode_choice_answer(r)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAChoiceApplicationAcknowledgeArguments {
+        request_ref: field_request_ref,
+        answer: field_answer,
+    })
+}
+
+fn decode_oa_question_responder_list_answerable_arguments(r: &mut Reader) -> Result<OAQuestionResponderListAnswerableArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_cursor: String = Default::default();
+    let mut field_limit: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "cursor" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_cursor = r.string()?;
+                }
+                "limit" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_limit = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionResponderListAnswerableArguments {
+        cursor: field_cursor,
+        limit: field_limit,
+    })
+}
+
+fn decode_oa_question_responder_answer_arguments(r: &mut Reader) -> Result<OAQuestionResponderAnswerArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_option: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "option" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_option = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionResponderAnswerArguments {
+        id: field_id,
+        option: field_option,
+    })
+}
+
+fn decode_oa_question_responder_list_choices_arguments(r: &mut Reader) -> Result<OAQuestionResponderListChoicesArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_cursor: String = Default::default();
+    let mut field_limit: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "cursor" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_cursor = r.string()?;
+                }
+                "limit" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_limit = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionResponderListChoicesArguments {
+        cursor: field_cursor,
+        limit: field_limit,
+    })
+}
+
+fn decode_oa_question_responder_request_answering_arguments(r: &mut Reader) -> Result<OAQuestionResponderRequestAnsweringArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    r.skip_ws();
+    if r.at() != b'}' {
+        if r.at() != b'"' {
+            return r.refuse("malformed");
+        }
+        r.string()?;
+        r.skip_ws();
+        if r.at() != b':' {
+            return r.refuse("malformed");
+        }
+        return r.refuse("unknown_field");
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    Ok(OAQuestionResponderRequestAnsweringArguments {})
+}
+
+fn decode_oa_question_responder_answer_choice_arguments(r: &mut Reader) -> Result<OAQuestionResponderAnswerChoiceArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_option: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "option" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_option = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAQuestionResponderAnswerChoiceArguments {
+        id: field_id,
+        option: field_option,
+    })
+}
+
+fn decode_oa_permission_application_request_arguments(r: &mut Reader) -> Result<OAPermissionApplicationRequestArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request: PermissionIntent = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request = decode_permission_intent(r)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAPermissionApplicationRequestArguments {
+        request: field_request,
+    })
+}
+
+fn decode_oa_permission_application_observe_arguments(r: &mut Reader) -> Result<OAPermissionApplicationObserveArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request_key: String = Default::default();
+    let mut field_wait_ms: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request_key" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request_key = r.string()?;
+                }
+                "wait_ms" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_wait_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAPermissionApplicationObserveArguments {
+        request_key: field_request_key,
+        wait_ms: field_wait_ms,
+    })
+}
+
+fn decode_oa_permission_operator_list_permissions_arguments(r: &mut Reader) -> Result<OAPermissionOperatorListPermissionsArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_cursor: String = Default::default();
+    let mut field_limit: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "cursor" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_cursor = r.string()?;
+                }
+                "limit" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_limit = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAPermissionOperatorListPermissionsArguments {
+        cursor: field_cursor,
+        limit: field_limit,
+    })
+}
+
+fn decode_oa_permission_operator_read_permission_details_arguments(r: &mut Reader) -> Result<OAPermissionOperatorReadPermissionDetailsArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAPermissionOperatorReadPermissionDetailsArguments {
+        id: field_id,
+    })
+}
+
+fn decode_oa_permission_operator_answer_permission_if_pending_arguments(r: &mut Reader) -> Result<OAPermissionOperatorAnswerPermissionIfPendingArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_option: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "option" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_option = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OAPermissionOperatorAnswerPermissionIfPendingArguments {
+        id: field_id,
+        option: field_option,
+    })
+}
+
+fn decode_oa_notification_application_post_arguments(r: &mut Reader) -> Result<OANotificationApplicationPostArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request: Option<NotificationRequest> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request = Some(decode_notification_request(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_request) = field_request else {
+        return r.refuse("missing_field");
+    };
+    Ok(OANotificationApplicationPostArguments {
+        request: field_request,
+    })
+}
+
+fn decode_oa_notification_application_observe_arguments(r: &mut Reader) -> Result<OANotificationApplicationObserveArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request_ref: RequestRef = Default::default();
+    let mut field_wait_ms: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request_ref" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request_ref = decode_request_ref(r)?;
+                }
+                "wait_ms" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_wait_ms = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OANotificationApplicationObserveArguments {
+        request_ref: field_request_ref,
+        wait_ms: field_wait_ms,
+    })
+}
+
+fn decode_oa_notification_application_withdraw_arguments(r: &mut Reader) -> Result<OANotificationApplicationWithdrawArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request_ref: RequestRef = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request_ref" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request_ref = decode_request_ref(r)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OANotificationApplicationWithdrawArguments {
+        request_ref: field_request_ref,
+    })
+}
+
+fn decode_oa_notification_application_acknowledge_arguments(r: &mut Reader) -> Result<OANotificationApplicationAcknowledgeArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_request_ref: RequestRef = Default::default();
+    let mut field_result: Option<NotificationResult> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "request_ref" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_request_ref = decode_request_ref(r)?;
+                }
+                "result" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_result = Some(decode_notification_result(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_result) = field_result else {
+        return r.refuse("missing_field");
+    };
+    Ok(OANotificationApplicationAcknowledgeArguments {
+        request_ref: field_request_ref,
+        result: field_result,
+    })
+}
+
+fn decode_oa_notification_operator_list_notifications_arguments(r: &mut Reader) -> Result<OANotificationOperatorListNotificationsArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_cursor: String = Default::default();
+    let mut field_limit: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "cursor" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_cursor = r.string()?;
+                }
+                "limit" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_limit = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OANotificationOperatorListNotificationsArguments {
+        cursor: field_cursor,
+        limit: field_limit,
+    })
+}
+
+fn decode_oa_notification_operator_read_notification_arguments(r: &mut Reader) -> Result<OANotificationOperatorReadNotificationArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OANotificationOperatorReadNotificationArguments {
+        id: field_id,
+    })
+}
+
+fn decode_oa_notification_operator_act_arguments(r: &mut Reader) -> Result<OANotificationOperatorActArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut field_action: String = Default::default();
+    let mut field_presentation: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                "action" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_action = r.string()?;
+                }
+                "presentation" => {
+                    if seen & 4 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 4;
+                    field_presentation = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 7 != 7 {
+        return r.refuse("missing_field");
+    }
+    Ok(OANotificationOperatorActArguments {
+        id: field_id,
+        action: field_action,
+        presentation: field_presentation,
+    })
+}
+
+fn decode_oa_notification_operator_dismiss_arguments(r: &mut Reader) -> Result<OANotificationOperatorDismissArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_id: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "id" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_id = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OANotificationOperatorDismissArguments {
+        id: field_id,
+    })
+}
+
+fn decode_oa_notification_operator_withdraw_program_arguments(r: &mut Reader) -> Result<OANotificationOperatorWithdrawProgramArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_program: String = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "program" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_program = r.string()?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    Ok(OANotificationOperatorWithdrawProgramArguments {
+        program: field_program,
+    })
+}
+
+fn decode_oa_notification_operator_list_notifiers_arguments(r: &mut Reader) -> Result<OANotificationOperatorListNotifiersArguments, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_cursor: String = Default::default();
+    let mut field_limit: i64 = Default::default();
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "cursor" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_cursor = r.string()?;
+                }
+                "limit" => {
+                    if seen & 2 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 2;
+                    field_limit = r.integer(i64::MIN, i64::MAX)?;
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 3 != 3 {
+        return r.refuse("missing_field");
+    }
+    Ok(OANotificationOperatorListNotifiersArguments {
+        cursor: field_cursor,
+        limit: field_limit,
     })
 }
 
@@ -2583,6 +11969,234 @@ fn decode_oa_question_application_observe_result(r: &mut Reader) -> Result<OAQue
     })
 }
 
+fn decode_oa_question_operator_list_choices_result(r: &mut Reader) -> Result<OAQuestionOperatorListChoicesResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoicePage> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_page(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionOperatorListChoicesResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_question_operator_read_choice_result(r: &mut Reader) -> Result<OAQuestionOperatorReadChoiceResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoiceRead> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_read(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionOperatorReadChoiceResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_question_operator_answer_choice_result(r: &mut Reader) -> Result<OAQuestionOperatorAnswerChoiceResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoiceDecision> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_decision(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionOperatorAnswerChoiceResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_question_operator_dismiss_choice_result(r: &mut Reader) -> Result<OAQuestionOperatorDismissChoiceResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoiceDecision> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_decision(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionOperatorDismissChoiceResult {
+        value: field_value,
+    })
+}
+
 fn decode_oa_question_operator_list_questions_result(r: &mut Reader) -> Result<OAQuestionOperatorListQuestionsResult, Refusal> {
     if r.at() != b'{' {
         return r.refuse("wrong_type");
@@ -2754,8 +12368,1775 @@ fn decode_oa_question_operator_retire_question_result(r: &mut Reader) -> Result<
     })
 }
 
+fn decode_oa_question_operator_read_attributed_question_result(r: &mut Reader) -> Result<OAQuestionOperatorReadAttributedQuestionResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<AttributedQuestion> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_attributed_question(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionOperatorReadAttributedQuestionResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_question_operator_read_choice_details_result(r: &mut Reader) -> Result<OAQuestionOperatorReadChoiceDetailsResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoiceDetails> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_details(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionOperatorReadChoiceDetailsResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_question_operator_read_question_asker_result(r: &mut Reader) -> Result<OAQuestionOperatorReadQuestionAskerResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<QuestionAsker> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_question_asker(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionOperatorReadQuestionAskerResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_question_operator_answer_question_if_pending_result(r: &mut Reader) -> Result<OAQuestionOperatorAnswerQuestionIfPendingResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<OperatorDecision> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_operator_decision(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionOperatorAnswerQuestionIfPendingResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_question_operator_list_answers_result(r: &mut Reader) -> Result<OAQuestionOperatorListAnswersResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<AnswerEntryPage> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_answer_entry_page(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionOperatorListAnswersResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_choice_application_ask_result(r: &mut Reader) -> Result<OAChoiceApplicationAskResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoiceObservation> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_observation(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAChoiceApplicationAskResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_choice_application_observe_result(r: &mut Reader) -> Result<OAChoiceApplicationObserveResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoiceObservation> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_observation(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAChoiceApplicationObserveResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_choice_application_answer_result(r: &mut Reader) -> Result<OAChoiceApplicationAnswerResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoiceDecision> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_decision(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAChoiceApplicationAnswerResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_choice_application_dismiss_result(r: &mut Reader) -> Result<OAChoiceApplicationDismissResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoiceDecision> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_decision(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAChoiceApplicationDismissResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_choice_application_share_choice_result(r: &mut Reader) -> Result<OAChoiceApplicationShareChoiceResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoiceObservation> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_observation(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAChoiceApplicationShareChoiceResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_choice_application_acknowledge_result(r: &mut Reader) -> Result<OAChoiceApplicationAcknowledgeResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoiceAcknowledgement> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_acknowledgement(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAChoiceApplicationAcknowledgeResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_question_responder_list_answerable_result(r: &mut Reader) -> Result<OAQuestionResponderListAnswerableResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<OperatorPage> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_operator_page(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionResponderListAnswerableResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_question_responder_answer_result(r: &mut Reader) -> Result<OAQuestionResponderAnswerResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ResponderDecision> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_responder_decision(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionResponderAnswerResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_question_responder_list_choices_result(r: &mut Reader) -> Result<OAQuestionResponderListChoicesResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<AnswerableChoicePage> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_answerable_choice_page(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionResponderListChoicesResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_question_responder_request_answering_result(r: &mut Reader) -> Result<OAQuestionResponderRequestAnsweringResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<OAImported3> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_oa_imported3(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionResponderRequestAnsweringResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_question_responder_answer_choice_result(r: &mut Reader) -> Result<OAQuestionResponderAnswerChoiceResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoiceDecision> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_decision(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAQuestionResponderAnswerChoiceResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_permission_application_request_result(r: &mut Reader) -> Result<OAPermissionApplicationRequestResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<PermissionObservation> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_permission_observation(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAPermissionApplicationRequestResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_permission_application_observe_result(r: &mut Reader) -> Result<OAPermissionApplicationObserveResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<PermissionObservation> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_permission_observation(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAPermissionApplicationObserveResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_permission_operator_list_permissions_result(r: &mut Reader) -> Result<OAPermissionOperatorListPermissionsResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<OperatorPage> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_operator_page(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAPermissionOperatorListPermissionsResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_permission_operator_read_permission_details_result(r: &mut Reader) -> Result<OAPermissionOperatorReadPermissionDetailsResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<TypedPermissionDetails> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_typed_permission_details(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAPermissionOperatorReadPermissionDetailsResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_permission_operator_answer_permission_if_pending_result(r: &mut Reader) -> Result<OAPermissionOperatorAnswerPermissionIfPendingResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<OperatorDecision> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_operator_decision(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OAPermissionOperatorAnswerPermissionIfPendingResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_notification_application_post_result(r: &mut Reader) -> Result<OANotificationApplicationPostResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<NotificationObservation> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_notification_observation(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OANotificationApplicationPostResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_notification_application_observe_result(r: &mut Reader) -> Result<OANotificationApplicationObserveResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<NotificationObservation> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_notification_observation(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OANotificationApplicationObserveResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_notification_application_withdraw_result(r: &mut Reader) -> Result<OANotificationApplicationWithdrawResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<NotificationObservation> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_notification_observation(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OANotificationApplicationWithdrawResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_notification_application_acknowledge_result(r: &mut Reader) -> Result<OANotificationApplicationAcknowledgeResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<ChoiceAcknowledgement> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_choice_acknowledgement(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OANotificationApplicationAcknowledgeResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_notification_operator_list_notifications_result(r: &mut Reader) -> Result<OANotificationOperatorListNotificationsResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<NotificationPage> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_notification_page(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OANotificationOperatorListNotificationsResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_notification_operator_read_notification_result(r: &mut Reader) -> Result<OANotificationOperatorReadNotificationResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<NotificationRead> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_notification_read(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OANotificationOperatorReadNotificationResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_notification_operator_act_result(r: &mut Reader) -> Result<OANotificationOperatorActResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<NotificationDecision> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_notification_decision(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OANotificationOperatorActResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_notification_operator_dismiss_result(r: &mut Reader) -> Result<OANotificationOperatorDismissResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<NotificationDecision> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_notification_decision(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OANotificationOperatorDismissResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_notification_operator_withdraw_program_result(r: &mut Reader) -> Result<OANotificationOperatorWithdrawProgramResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<NotificationDecision> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_notification_decision(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OANotificationOperatorWithdrawProgramResult {
+        value: field_value,
+    })
+}
+
+fn decode_oa_notification_operator_list_notifiers_result(r: &mut Reader) -> Result<OANotificationOperatorListNotifiersResult, Refusal> {
+    if r.at() != b'{' {
+        return r.refuse("wrong_type");
+    }
+    r.enter()?;
+    r.pos += 1;
+    let mut field_value: Option<NotifierPage> = None;
+    let mut seen: u32 = 0;
+    r.skip_ws();
+    if r.at() != b'}' {
+        loop {
+            r.skip_ws();
+            if r.at() != b'"' {
+                return r.refuse("malformed");
+            }
+            let key = r.string()?;
+            r.skip_ws();
+            if r.at() != b':' {
+                return r.refuse("malformed");
+            }
+            r.pos += 1;
+            r.skip_ws();
+            match key.as_str() {
+                "value" => {
+                    if seen & 1 != 0 {
+                        return r.refuse("duplicate_field");
+                    }
+                    seen |= 1;
+                    field_value = Some(decode_notifier_page(r)?);
+                }
+                _ => {
+                    return r.refuse("unknown_field");
+                }
+            }
+            r.skip_ws();
+            if r.at() != b',' {
+                break;
+            }
+            r.pos += 1;
+        }
+    }
+    if r.at() != b'}' {
+        return r.refuse("malformed");
+    }
+    r.pos += 1;
+    r.depth -= 1;
+    if seen & 1 != 1 {
+        return r.refuse("missing_field");
+    }
+    let Some(field_value) = field_value else {
+        return r.refuse("missing_field");
+    };
+    Ok(OANotificationOperatorListNotifiersResult {
+        value: field_value,
+    })
+}
+
 pub fn decode(data: &[u8]) -> Result<Request, Refusal> {
-    let mut r = Reader { buf: data, pos: 0, depth: 0 };
+    let mut r = Reader { buf: data, pos: 0, depth: 0, limit: DEPTH_LIMIT };
     r.skip_ws();
     let v = decode_request(&mut r)?;
     r.skip_ws();
@@ -2769,12 +14150,74 @@ fn service_check_application_question(_v: &ApplicationQuestion) -> Result<(), Re
     Ok(())
 }
 
+fn service_check_request_ref(_v: &RequestRef) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_choice_option(_v: &ChoiceOption) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_choice_request(v: &ChoiceRequest) -> Result<(), Refusal> {
+    service_check_request_ref(&v.request_ref)?;
+    for value in &v.options {
+        service_check_choice_option(value)?;
+    }
+    Ok(())
+}
+
+fn service_check_choice_answer(_v: &ChoiceAnswer) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_permission_intent(v: &PermissionIntent) -> Result<(), Refusal> {
+    if let Some(value) = &v.selection {
+        service_check_oa_imported0(value)?;
+    }
+    if let Some(value) = &v.bundle_selector {
+        service_check_oa_imported1(value)?;
+    }
+    Ok(())
+}
+
+fn service_check_notification_action(_v: &NotificationAction) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_notification_request(v: &NotificationRequest) -> Result<(), Refusal> {
+    service_check_request_ref(&v.request_ref)?;
+    for value in &v.actions {
+        service_check_notification_action(value)?;
+    }
+    Ok(())
+}
+
+fn service_check_notification_result(_v: &NotificationResult) -> Result<(), Refusal> {
+    Ok(())
+}
+
 fn service_check_oa_question_application_ask_arguments(v: &OAQuestionApplicationAskArguments) -> Result<(), Refusal> {
     service_check_application_question(&v.question)?;
     Ok(())
 }
 
 fn service_check_oa_question_application_observe_arguments(_v: &OAQuestionApplicationObserveArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_operator_list_choices_arguments(_v: &OAQuestionOperatorListChoicesArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_operator_read_choice_arguments(_v: &OAQuestionOperatorReadChoiceArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_operator_answer_choice_arguments(_v: &OAQuestionOperatorAnswerChoiceArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_operator_dismiss_choice_arguments(_v: &OAQuestionOperatorDismissChoiceArguments) -> Result<(), Refusal> {
     Ok(())
 }
 
@@ -2787,6 +14230,143 @@ fn service_check_oa_question_operator_answer_question_arguments(_v: &OAQuestionO
 }
 
 fn service_check_oa_question_operator_retire_question_arguments(_v: &OAQuestionOperatorRetireQuestionArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_operator_read_attributed_question_arguments(_v: &OAQuestionOperatorReadAttributedQuestionArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_operator_read_choice_details_arguments(_v: &OAQuestionOperatorReadChoiceDetailsArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_operator_read_question_asker_arguments(_v: &OAQuestionOperatorReadQuestionAskerArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_operator_answer_question_if_pending_arguments(_v: &OAQuestionOperatorAnswerQuestionIfPendingArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_operator_list_answers_arguments(_v: &OAQuestionOperatorListAnswersArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_choice_application_ask_arguments(v: &OAChoiceApplicationAskArguments) -> Result<(), Refusal> {
+    service_check_choice_request(&v.request)?;
+    Ok(())
+}
+
+fn service_check_oa_choice_application_observe_arguments(v: &OAChoiceApplicationObserveArguments) -> Result<(), Refusal> {
+    service_check_request_ref(&v.request_ref)?;
+    Ok(())
+}
+
+fn service_check_oa_choice_application_answer_arguments(v: &OAChoiceApplicationAnswerArguments) -> Result<(), Refusal> {
+    service_check_request_ref(&v.request_ref)?;
+    Ok(())
+}
+
+fn service_check_oa_choice_application_dismiss_arguments(v: &OAChoiceApplicationDismissArguments) -> Result<(), Refusal> {
+    service_check_request_ref(&v.request_ref)?;
+    Ok(())
+}
+
+fn service_check_oa_choice_application_share_choice_arguments(v: &OAChoiceApplicationShareChoiceArguments) -> Result<(), Refusal> {
+    service_check_choice_request(&v.request)?;
+    Ok(())
+}
+
+fn service_check_oa_choice_application_acknowledge_arguments(v: &OAChoiceApplicationAcknowledgeArguments) -> Result<(), Refusal> {
+    service_check_request_ref(&v.request_ref)?;
+    service_check_choice_answer(&v.answer)?;
+    Ok(())
+}
+
+fn service_check_oa_question_responder_list_answerable_arguments(_v: &OAQuestionResponderListAnswerableArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_responder_answer_arguments(_v: &OAQuestionResponderAnswerArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_responder_list_choices_arguments(_v: &OAQuestionResponderListChoicesArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_responder_request_answering_arguments(_v: &OAQuestionResponderRequestAnsweringArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_question_responder_answer_choice_arguments(_v: &OAQuestionResponderAnswerChoiceArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_permission_application_request_arguments(v: &OAPermissionApplicationRequestArguments) -> Result<(), Refusal> {
+    service_check_permission_intent(&v.request)?;
+    Ok(())
+}
+
+fn service_check_oa_permission_application_observe_arguments(_v: &OAPermissionApplicationObserveArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_permission_operator_list_permissions_arguments(_v: &OAPermissionOperatorListPermissionsArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_permission_operator_read_permission_details_arguments(_v: &OAPermissionOperatorReadPermissionDetailsArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_permission_operator_answer_permission_if_pending_arguments(_v: &OAPermissionOperatorAnswerPermissionIfPendingArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_notification_application_post_arguments(v: &OANotificationApplicationPostArguments) -> Result<(), Refusal> {
+    service_check_notification_request(&v.request)?;
+    Ok(())
+}
+
+fn service_check_oa_notification_application_observe_arguments(v: &OANotificationApplicationObserveArguments) -> Result<(), Refusal> {
+    service_check_request_ref(&v.request_ref)?;
+    Ok(())
+}
+
+fn service_check_oa_notification_application_withdraw_arguments(v: &OANotificationApplicationWithdrawArguments) -> Result<(), Refusal> {
+    service_check_request_ref(&v.request_ref)?;
+    Ok(())
+}
+
+fn service_check_oa_notification_application_acknowledge_arguments(v: &OANotificationApplicationAcknowledgeArguments) -> Result<(), Refusal> {
+    service_check_request_ref(&v.request_ref)?;
+    service_check_notification_result(&v.result)?;
+    Ok(())
+}
+
+fn service_check_oa_notification_operator_list_notifications_arguments(_v: &OANotificationOperatorListNotificationsArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_notification_operator_read_notification_arguments(_v: &OANotificationOperatorReadNotificationArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_notification_operator_act_arguments(_v: &OANotificationOperatorActArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_notification_operator_dismiss_arguments(_v: &OANotificationOperatorDismissArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_notification_operator_withdraw_program_arguments(_v: &OANotificationOperatorWithdrawProgramArguments) -> Result<(), Refusal> {
+    Ok(())
+}
+
+fn service_check_oa_notification_operator_list_notifiers_arguments(_v: &OANotificationOperatorListNotifiersArguments) -> Result<(), Refusal> {
     Ok(())
 }
 
@@ -2813,7 +14393,7 @@ pub enum CallError<E> {
 }
 
 fn service_decode<T>(data: &[u8], decode: fn(&mut Reader) -> Result<T, Refusal>) -> Result<T, Refusal> {
-    let mut r = Reader { buf: data, pos: 0, depth: 0 };
+    let mut r = Reader { buf: data, pos: 0, depth: 0, limit: DEPTH_LIMIT };
     r.skip_ws();
     let value = decode(&mut r)?;
     r.skip_ws();
@@ -2924,6 +14504,26 @@ impl<T: FrameTransport> QuestionApplication for QuestionApplicationClient<T> {
 /// Retirement and native Forget both retain admission tombstones.
 pub trait QuestionOperator {
     type Error;
+    /// Opt-in bounded enumeration of application-authored ordinary choices.
+    /// Existing ListQuestions returns its unchanged catalogue records. The same
+    /// operator authorization, caller/epoch/revision cursor binding and
+    /// 1..64/256-KiB page bounds apply.
+    fn list_choices(&self, cursor: String, limit: i64) -> Result<ChoicePage, Self::Error>;
+    /// Read one ordinary occurrence and verified requester attribution. Recheck
+    /// authorization before disclosure. No permission target exists on this
+    /// record.
+    fn read_choice(&self, id: String) -> Result<ChoiceRead, Self::Error>;
+    /// Record an offered stable option ID for an ordinary choice. Recheck
+    /// operator authorization inside the edit. if_pending refuses every
+    /// terminal occurrence with conflict; otherwise the same decision replays
+    /// unchanged. An answer supplies application intent and no OA permission or
+    /// policy effect.
+    fn answer_choice(&self, id: String, option: String, if_pending: bool) -> Result<ChoiceDecision, Self::Error>;
+    /// Close one ordinary choice without selecting an option. The same
+    /// dismissal replays; an answered choice conflicts. Expired pending choices
+    /// cannot be answered or dismissed. No application work or resource policy
+    /// is changed.
+    fn dismiss_choice(&self, id: String) -> Result<ChoiceDecision, Self::Error>;
     /// Read bounded current-book pages. Empty cursor starts enumeration; a gap
     /// requires an explicit restart. Receiver checks same-account Program
     /// identity and its configured operator authorization on every call before
@@ -2942,6 +14542,44 @@ pub trait QuestionOperator {
     /// retired ID replays retired without a record. No automatic retry;
     /// retirement grants and revokes no resource authority.
     fn retire_question(&self, id: String) -> Result<OperatorRetirement, Self::Error>;
+    /// Read one retained question's recorded metadata, publisher and bound
+    /// responder program for an explicitly authorized operator. ID is 1..128
+    /// UTF-8 bytes without control characters. Authorization is rechecked
+    /// before disclosure. This metadata-only read does not recover a permission
+    /// target. An earlier operator@1 service answers unknown_method.
+    fn read_attributed_question(&self, id: String) -> Result<AttributedQuestion, Self::Error>;
+    /// Read one ordinary occurrence with its bound requester program, the
+    /// options its application shared with an assistant and the route through
+    /// which its decision arrived. Authorization is rechecked before
+    /// disclosure. Only found carries details beyond the read outcome. An
+    /// earlier operator@1 service answers unknown_method; ReadChoice keeps its
+    /// closed result.
+    fn read_choice_details(&self, id: String) -> Result<ChoiceDetails, Self::Error>;
+    /// Read one retained occurrence's service-owned structured permission
+    /// target, answer attribution and bound asking program for an explicitly
+    /// authorized operator. Authorization is rechecked before disclosure. The
+    /// receiving account scopes every target. An unrecoverable legacy target
+    /// returns unavailable. An earlier operator@1 service answers
+    /// unknown_method; published methods and result shapes remain unchanged.
+    fn read_question_asker(&self, id: String) -> Result<QuestionAsker, Self::Error>;
+    /// Record an explicitly authorized operator's choice only while the
+    /// question is still pending. A question ID names content that never
+    /// changes, so pending is the whole precondition. An answered question is
+    /// conflict for every option, the same one included, and is never replayed.
+    /// Other outcomes follow AnswerQuestion. No automatic retry: after an
+    /// uncertain reply, inspect history, since an explicit retry of a landed
+    /// answer reads conflict. Added to operator@1 as a method; an earlier
+    /// service answers unknown_method.
+    fn answer_question_if_pending(&self, id: String, option: String) -> Result<OperatorDecision, Self::Error>;
+    /// Read bounded pages of the retained answers to catalogue questions and
+    /// ordinary choices that arrived through operator@1, permission-operator@1
+    /// or responder@1, newest first. Entries survive release, dismissal,
+    /// acknowledgement and replay expiry for seven days after the answer,
+    /// within the Book's answer-audit bound. complete_since_ms names the time
+    /// from which the list is complete. The same operator authorization,
+    /// caller/epoch/revision cursor binding and 1..64/256-KiB page bounds
+    /// apply. An earlier operator@1 service answers unknown_method.
+    fn list_answers(&self, cursor: String, limit: i64) -> Result<AnswerEntryPage, Self::Error>;
 }
 
 pub struct QuestionOperatorClient<T> {
@@ -2960,6 +14598,102 @@ impl<T> QuestionOperatorClient<T> {
 
 impl<T: FrameTransport> QuestionOperator for QuestionOperatorClient<T> {
     type Error = CallError<T::Error>;
+    fn list_choices(&self, cursor: String, limit: i64) -> Result<ChoicePage, Self::Error> {
+        let args = OAQuestionOperatorListChoicesArguments { cursor, limit };
+        let arguments = service_encode(&args, service_check_oa_question_operator_list_choices_arguments, enc_oa_question_operator_list_choices_arguments, decode_oa_question_operator_list_choices_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/operator@1".into(), method: "ListChoices".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/operator@1" || reply.method != "ListChoices" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_operator_list_choices_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn read_choice(&self, id: String) -> Result<ChoiceRead, Self::Error> {
+        let args = OAQuestionOperatorReadChoiceArguments { id };
+        let arguments = service_encode(&args, service_check_oa_question_operator_read_choice_arguments, enc_oa_question_operator_read_choice_arguments, decode_oa_question_operator_read_choice_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/operator@1".into(), method: "ReadChoice".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/operator@1" || reply.method != "ReadChoice" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_operator_read_choice_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn answer_choice(&self, id: String, option: String, if_pending: bool) -> Result<ChoiceDecision, Self::Error> {
+        let args = OAQuestionOperatorAnswerChoiceArguments { id, option, if_pending };
+        let arguments = service_encode(&args, service_check_oa_question_operator_answer_choice_arguments, enc_oa_question_operator_answer_choice_arguments, decode_oa_question_operator_answer_choice_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/operator@1".into(), method: "AnswerChoice".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/operator@1" || reply.method != "AnswerChoice" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_operator_answer_choice_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn dismiss_choice(&self, id: String) -> Result<ChoiceDecision, Self::Error> {
+        let args = OAQuestionOperatorDismissChoiceArguments { id };
+        let arguments = service_encode(&args, service_check_oa_question_operator_dismiss_choice_arguments, enc_oa_question_operator_dismiss_choice_arguments, decode_oa_question_operator_dismiss_choice_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/operator@1".into(), method: "DismissChoice".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/operator@1" || reply.method != "DismissChoice" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_operator_dismiss_choice_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
     fn list_questions(&self, cursor: String, limit: i64) -> Result<OperatorPage, Self::Error> {
         let args = OAQuestionOperatorListQuestionsArguments { cursor, limit };
         let arguments = service_encode(&args, service_check_oa_question_operator_list_questions_arguments, enc_oa_question_operator_list_questions_arguments, decode_oa_question_operator_list_questions_arguments).map_err(CallError::Refusal)?;
@@ -3030,5 +14764,4458 @@ impl<T: FrameTransport> QuestionOperator for QuestionOperatorClient<T> {
         }
         let result = service_decode(&reply.payload, decode_oa_question_operator_retire_question_result).map_err(CallError::Refusal)?;
         Ok(result.value)
+    }
+
+    fn read_attributed_question(&self, id: String) -> Result<AttributedQuestion, Self::Error> {
+        let args = OAQuestionOperatorReadAttributedQuestionArguments { id };
+        let arguments = service_encode(&args, service_check_oa_question_operator_read_attributed_question_arguments, enc_oa_question_operator_read_attributed_question_arguments, decode_oa_question_operator_read_attributed_question_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/operator@1".into(), method: "ReadAttributedQuestion".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/operator@1" || reply.method != "ReadAttributedQuestion" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_operator_read_attributed_question_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn read_choice_details(&self, id: String) -> Result<ChoiceDetails, Self::Error> {
+        let args = OAQuestionOperatorReadChoiceDetailsArguments { id };
+        let arguments = service_encode(&args, service_check_oa_question_operator_read_choice_details_arguments, enc_oa_question_operator_read_choice_details_arguments, decode_oa_question_operator_read_choice_details_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/operator@1".into(), method: "ReadChoiceDetails".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/operator@1" || reply.method != "ReadChoiceDetails" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_operator_read_choice_details_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn read_question_asker(&self, id: String) -> Result<QuestionAsker, Self::Error> {
+        let args = OAQuestionOperatorReadQuestionAskerArguments { id };
+        let arguments = service_encode(&args, service_check_oa_question_operator_read_question_asker_arguments, enc_oa_question_operator_read_question_asker_arguments, decode_oa_question_operator_read_question_asker_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/operator@1".into(), method: "ReadQuestionAsker".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/operator@1" || reply.method != "ReadQuestionAsker" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_operator_read_question_asker_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn answer_question_if_pending(&self, id: String, option: String) -> Result<OperatorDecision, Self::Error> {
+        let args = OAQuestionOperatorAnswerQuestionIfPendingArguments { id, option };
+        let arguments = service_encode(&args, service_check_oa_question_operator_answer_question_if_pending_arguments, enc_oa_question_operator_answer_question_if_pending_arguments, decode_oa_question_operator_answer_question_if_pending_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/operator@1".into(), method: "AnswerQuestionIfPending".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/operator@1" || reply.method != "AnswerQuestionIfPending" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_operator_answer_question_if_pending_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn list_answers(&self, cursor: String, limit: i64) -> Result<AnswerEntryPage, Self::Error> {
+        let args = OAQuestionOperatorListAnswersArguments { cursor, limit };
+        let arguments = service_encode(&args, service_check_oa_question_operator_list_answers_arguments, enc_oa_question_operator_list_answers_arguments, decode_oa_question_operator_list_answers_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/operator@1".into(), method: "ListAnswers".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/operator@1" || reply.method != "ListAnswers" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_operator_list_answers_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+}
+
+/// Caller-bound ordinary application choices with explicit pending and replay
+/// deadlines, verified attribution and isolated bounded retention. The
+/// application owns ordinary presentation and may answer or dismiss its own
+/// occurrence through this service. Account-wide answering uses opt-in
+/// operator@1 methods. An enrolled assistant answers only choices the
+/// application shared through ShareChoice, and only their shared options
+/// (responder@1 ListChoices, AnswerChoice); exact ordinary delegation is a
+/// separate future profile. Legacy application@1 wire and lifetime behavior
+/// remains unchanged.
+pub trait ChoiceApplication {
+    type Error;
+    /// Admit or replay one caller-scoped ordinary choice. No automatic retry.
+    /// Reuse the entire reference and unchanged request after an uncertain
+    /// reply. A missing catalogue entry is irrelevant: application text and
+    /// offered IDs are explicit.
+    fn ask(&self, request: ChoiceRequest) -> Result<ChoiceObservation, Self::Error>;
+    /// Observe only this caller's full reference, optionally waiting 0..30000
+    /// milliseconds. Wait cancellation or timeout changes no decision. Recheck
+    /// pending/replay deadlines and binding after waking. SDKs never
+    /// manufacture a fresh deadline on retry.
+    fn observe(&self, request_ref: RequestRef, wait_ms: i64) -> Result<ChoiceObservation, Self::Error>;
+    /// Record an offered option for this proven caller's own ordinary full
+    /// reference. Requester scope and reference are looked up inside the atomic
+    /// edit after binding recheck; no operator grant or ask-admission policy is
+    /// required. if_pending conflicts with every terminal decision; false
+    /// explicitly reconciles the same recorded answer with its original actor
+    /// and time. No automatic retry, human-presence claim or permission effect.
+    /// An older service returns unknown_method.
+    fn answer(&self, request_ref: RequestRef, option: String, if_pending: bool) -> Result<ChoiceDecision, Self::Error>;
+    /// Dismiss only this proven caller's own ordinary full reference,
+    /// rechecking binding and ownership inside the atomic edit. The same
+    /// dismissal replays with its original actor and time; another terminal
+    /// decision conflicts. No operator grant or ask-admission policy is
+    /// required. Expired choices cannot be changed. An older service returns
+    /// unknown_method.
+    fn dismiss(&self, request_ref: RequestRef) -> Result<ChoiceDecision, Self::Error>;
+    /// Admit or replay one caller-scoped ordinary choice as Ask does, sharing
+    /// it with an assistant the person enrolled. assistant_options lists 1..3
+    /// distinct offered option IDs the assistant may choose; every other option
+    /// and dismissal stay with the person and the application. The request and
+    /// assistant_options together are the immutable content of the reference:
+    /// Ask and ShareChoice under one reference, or another option list,
+    /// conflict. Sharing conveys no OA permission. An older service returns
+    /// unknown_method; a client then decides explicitly whether to Ask
+    /// unshared.
+    fn share_choice(&self, request: ChoiceRequest, assistant_options: Vec<String>) -> Result<ChoiceObservation, Self::Error>;
+    /// Acknowledge the exact recorded answer only once the caller no longer
+    /// requires full service answer replay and has retained the answer/result
+    /// required by its own recovery guarantees. Ack relinquishes full service
+    /// replay and proves no application effect. Crash or relaunch recovery that
+    /// still needs the answer must durably retain it or leave the occurrence
+    /// unacknowledged. A one-shot caller with a completed durable result and no
+    /// same-intent recovery after restart needs no separate answer receipt. For
+    /// any explicit retry after an uncertain Ack reply, retain and use the
+    /// exact recorded answer. Replaces the full record with a small immutable
+    /// fingerprint/decision tombstone until replay_until_ms. The same
+    /// acknowledgement safely replays after a lost reply. Later Ask/Observe
+    /// reports gone; expiration never creates a fresh occurrence.
+    fn acknowledge(&self, request_ref: RequestRef, answer: ChoiceAnswer) -> Result<ChoiceAcknowledgement, Self::Error>;
+}
+
+pub struct ChoiceApplicationClient<T> {
+    transport: T,
+}
+
+impl<T> ChoiceApplicationClient<T> {
+    pub fn new(transport: T) -> Self {
+        Self { transport }
+    }
+
+    pub fn transport(&self) -> &T {
+        &self.transport
+    }
+}
+
+impl<T: FrameTransport> ChoiceApplication for ChoiceApplicationClient<T> {
+    type Error = CallError<T::Error>;
+    fn ask(&self, request: ChoiceRequest) -> Result<ChoiceObservation, Self::Error> {
+        let args = OAChoiceApplicationAskArguments { request };
+        let arguments = service_encode(&args, service_check_oa_choice_application_ask_arguments, enc_oa_choice_application_ask_arguments, decode_oa_choice_application_ask_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/application@2".into(), method: "Ask".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/application@2" || reply.method != "Ask" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_choice_application_ask_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn observe(&self, request_ref: RequestRef, wait_ms: i64) -> Result<ChoiceObservation, Self::Error> {
+        let args = OAChoiceApplicationObserveArguments { request_ref, wait_ms };
+        let arguments = service_encode(&args, service_check_oa_choice_application_observe_arguments, enc_oa_choice_application_observe_arguments, decode_oa_choice_application_observe_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/application@2".into(), method: "Observe".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/application@2" || reply.method != "Observe" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_choice_application_observe_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn answer(&self, request_ref: RequestRef, option: String, if_pending: bool) -> Result<ChoiceDecision, Self::Error> {
+        let args = OAChoiceApplicationAnswerArguments { request_ref, option, if_pending };
+        let arguments = service_encode(&args, service_check_oa_choice_application_answer_arguments, enc_oa_choice_application_answer_arguments, decode_oa_choice_application_answer_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/application@2".into(), method: "Answer".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/application@2" || reply.method != "Answer" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_choice_application_answer_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn dismiss(&self, request_ref: RequestRef) -> Result<ChoiceDecision, Self::Error> {
+        let args = OAChoiceApplicationDismissArguments { request_ref };
+        let arguments = service_encode(&args, service_check_oa_choice_application_dismiss_arguments, enc_oa_choice_application_dismiss_arguments, decode_oa_choice_application_dismiss_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/application@2".into(), method: "Dismiss".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/application@2" || reply.method != "Dismiss" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_choice_application_dismiss_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn share_choice(&self, request: ChoiceRequest, assistant_options: Vec<String>) -> Result<ChoiceObservation, Self::Error> {
+        let args = OAChoiceApplicationShareChoiceArguments { request, assistant_options };
+        let arguments = service_encode(&args, service_check_oa_choice_application_share_choice_arguments, enc_oa_choice_application_share_choice_arguments, decode_oa_choice_application_share_choice_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/application@2".into(), method: "ShareChoice".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/application@2" || reply.method != "ShareChoice" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_choice_application_share_choice_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn acknowledge(&self, request_ref: RequestRef, answer: ChoiceAnswer) -> Result<ChoiceAcknowledgement, Self::Error> {
+        let args = OAChoiceApplicationAcknowledgeArguments { request_ref, answer };
+        let arguments = service_encode(&args, service_check_oa_choice_application_acknowledge_arguments, enc_oa_choice_application_acknowledge_arguments, decode_oa_choice_application_acknowledge_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/application@2".into(), method: "Acknowledge".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/application@2" || reply.method != "Acknowledge" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_choice_application_acknowledge_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+}
+
+/// Narrow delegated first-use answering, and answering of ordinary choices
+/// applications share with an assistant. The host derives question provenance
+/// and the target from its own Book, binds the responder from native
+/// same-account Program proof, and consults the current rights policy. It
+/// accepts no authority, target, program, resource or expiry claim from the
+/// caller. An operator remains separately privileged.
+pub trait QuestionResponder {
+    type Error;
+    /// List at most 1..64 pending runtime first-use questions this proven
+    /// caller may currently answer: routine ones under its enrollment
+    /// (question.answer on apps, ASK-R5), and routine ones an exact
+    /// option-specific responder grant names (ASK-R3). A question that is not
+    /// routine is never listed (ASK-R6). A returned record contains only the
+    /// options this caller may answer. Cursors bind caller subject, host epoch
+    /// and Book revision; gap requires a restart. Recheck grants before
+    /// returning a page. No general question history is exposed.
+    fn list_answerable(&self, cursor: String, limit: i64) -> Result<OperatorPage, Self::Error>;
+    /// Answer a routine runtime first-use question only when this caller holds
+    /// a current enrollment (ASK-R5) or a current exact, expiring,
+    /// option-specific responder grant (ASK-R3), is no party to it and is no
+    /// script host (ASK-R7). Every other question is refused to every answerer
+    /// (ASK-R6). An allow under an enrollment lasts until the enrollment ends
+    /// (ASK-R4). Recheck the grant under the Book edit lock and before any
+    /// target rule write. Same-ID/option replay preserves the answer and never
+    /// writes policy; a different delegated choice conflicts, while a choice
+    /// without a grant is forbidden. Refuse stale, foreign, forged or
+    /// out-of-scope questions. A first allow creates a bounded target
+    /// permission when its guarded policy edit applies; refusal writes no
+    /// target rule.
+    fn answer(&self, id: String, option: String) -> Result<ResponderDecision, Self::Error>;
+    /// List at most 1..64 pending ordinary choices their applications shared
+    /// with an assistant, which this proven caller may currently answer under
+    /// its enrollment (ASK-R9). Each carries only its shared options. A choice
+    /// whose requester, publisher or bound peer is this caller, or a caller the
+    /// host refuses, is never listed. Cursors bind caller subject, host epoch
+    /// and ordinary revision; gap requires a restart. Recheck the answerer
+    /// before returning a page.
+    fn list_choices(&self, cursor: String, limit: i64) -> Result<AnswerableChoicePage, Self::Error>;
+    /// Ask for the right to answer for the person: the enrollment,
+    /// abstraction.asks/question.answer on apps (ASK-R10). The receiving
+    /// account and program are bound from the peer; a script host, an operator
+    /// program or another account reads forbidden. A current enrollment reads
+    /// permitted. Otherwise the decision is not_granted and the runtime admits
+    /// its ordinary first-use question for that right, which the person answers
+    /// in the native permission prompt and an answerer never can; an Allow
+    /// writes the same enrollment the operator UI writes. A refused Answer or
+    /// AnswerChoice for want of an enrollment asks the same way. An earlier
+    /// responder@1 service answers unknown_method.
+    fn request_answering(&self) -> Result<OAImported3, Self::Error>;
+    /// Record a shared option for a pending shared ordinary choice under the
+    /// caller's current enrollment (ASK-R9). The check is repeated inside the
+    /// Book edit. The same answerer repeating the same option replays answered
+    /// with the original actor and time; every other terminal state conflicts.
+    /// An unshared choice or option is forbidden. There is no responder
+    /// dismissal. An answer supplies application intent and no OA permission or
+    /// policy effect.
+    fn answer_choice(&self, id: String, option: String) -> Result<ChoiceDecision, Self::Error>;
+}
+
+pub struct QuestionResponderClient<T> {
+    transport: T,
+}
+
+impl<T> QuestionResponderClient<T> {
+    pub fn new(transport: T) -> Self {
+        Self { transport }
+    }
+
+    pub fn transport(&self) -> &T {
+        &self.transport
+    }
+}
+
+impl<T: FrameTransport> QuestionResponder for QuestionResponderClient<T> {
+    type Error = CallError<T::Error>;
+    fn list_answerable(&self, cursor: String, limit: i64) -> Result<OperatorPage, Self::Error> {
+        let args = OAQuestionResponderListAnswerableArguments { cursor, limit };
+        let arguments = service_encode(&args, service_check_oa_question_responder_list_answerable_arguments, enc_oa_question_responder_list_answerable_arguments, decode_oa_question_responder_list_answerable_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/responder@1".into(), method: "ListAnswerable".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/responder@1" || reply.method != "ListAnswerable" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_responder_list_answerable_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn answer(&self, id: String, option: String) -> Result<ResponderDecision, Self::Error> {
+        let args = OAQuestionResponderAnswerArguments { id, option };
+        let arguments = service_encode(&args, service_check_oa_question_responder_answer_arguments, enc_oa_question_responder_answer_arguments, decode_oa_question_responder_answer_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/responder@1".into(), method: "Answer".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/responder@1" || reply.method != "Answer" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_responder_answer_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn list_choices(&self, cursor: String, limit: i64) -> Result<AnswerableChoicePage, Self::Error> {
+        let args = OAQuestionResponderListChoicesArguments { cursor, limit };
+        let arguments = service_encode(&args, service_check_oa_question_responder_list_choices_arguments, enc_oa_question_responder_list_choices_arguments, decode_oa_question_responder_list_choices_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/responder@1".into(), method: "ListChoices".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/responder@1" || reply.method != "ListChoices" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_responder_list_choices_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn request_answering(&self) -> Result<OAImported3, Self::Error> {
+        let args = OAQuestionResponderRequestAnsweringArguments {};
+        let arguments = service_encode(&args, service_check_oa_question_responder_request_answering_arguments, enc_oa_question_responder_request_answering_arguments, decode_oa_question_responder_request_answering_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/responder@1".into(), method: "RequestAnswering".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/responder@1" || reply.method != "RequestAnswering" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_responder_request_answering_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn answer_choice(&self, id: String, option: String) -> Result<ChoiceDecision, Self::Error> {
+        let args = OAQuestionResponderAnswerChoiceArguments { id, option };
+        let arguments = service_encode(&args, service_check_oa_question_responder_answer_choice_arguments, enc_oa_question_responder_answer_choice_arguments, decode_oa_question_responder_answer_choice_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/responder@1".into(), method: "AnswerChoice".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/responder@1" || reply.method != "AnswerChoice" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_question_responder_answer_choice_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+}
+
+/// Native caller-bound OA permission requests under compiled served definitions
+/// and supported first-use selectors, current explicit-block checks and Book
+/// quota/replay/refusal pacing. This capability-owned consent admission
+/// requires no ordinary question.ask permit. Trusted service missing-permit
+/// admission remains separate. Neither admission nor application prose grants
+/// Rights authority. This profile exposes no application answering or operator
+/// methods.
+pub trait PermissionApplication {
+    type Error;
+    fn request(&self, request: PermissionIntent) -> Result<PermissionObservation, Self::Error>;
+    fn observe(&self, request_key: String, wait_ms: i64) -> Result<PermissionObservation, Self::Error>;
+}
+
+pub struct PermissionApplicationClient<T> {
+    transport: T,
+}
+
+impl<T> PermissionApplicationClient<T> {
+    pub fn new(transport: T) -> Self {
+        Self { transport }
+    }
+
+    pub fn transport(&self) -> &T {
+        &self.transport
+    }
+}
+
+impl<T: FrameTransport> PermissionApplication for PermissionApplicationClient<T> {
+    type Error = CallError<T::Error>;
+    fn request(&self, request: PermissionIntent) -> Result<PermissionObservation, Self::Error> {
+        let args = OAPermissionApplicationRequestArguments { request };
+        let arguments = service_encode(&args, service_check_oa_permission_application_request_arguments, enc_oa_permission_application_request_arguments, decode_oa_permission_application_request_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/permission@1".into(), method: "Request".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/permission@1" || reply.method != "Request" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_permission_application_request_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn observe(&self, request_key: String, wait_ms: i64) -> Result<PermissionObservation, Self::Error> {
+        let args = OAPermissionApplicationObserveArguments { request_key, wait_ms };
+        let arguments = service_encode(&args, service_check_oa_permission_application_observe_arguments, enc_oa_permission_application_observe_arguments, decode_oa_permission_application_observe_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/permission@1".into(), method: "Observe".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/permission@1" || reply.method != "Observe" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_permission_application_observe_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+}
+
+/// Explicitly authorized operator reading and conditional answering of
+/// immutable typed OA permission occurrences. This slice grants no delegated
+/// responder authority. Rights operator@2 completes or undoes the retained
+/// effect by occurrence ID; an answer and its effect remain separate commits.
+pub trait PermissionOperator {
+    type Error;
+    fn list_permissions(&self, cursor: String, limit: i64) -> Result<OperatorPage, Self::Error>;
+    fn read_permission_details(&self, id: String) -> Result<TypedPermissionDetails, Self::Error>;
+    fn answer_permission_if_pending(&self, id: String, option: String) -> Result<OperatorDecision, Self::Error>;
+}
+
+pub struct PermissionOperatorClient<T> {
+    transport: T,
+}
+
+impl<T> PermissionOperatorClient<T> {
+    pub fn new(transport: T) -> Self {
+        Self { transport }
+    }
+
+    pub fn transport(&self) -> &T {
+        &self.transport
+    }
+}
+
+impl<T: FrameTransport> PermissionOperator for PermissionOperatorClient<T> {
+    type Error = CallError<T::Error>;
+    fn list_permissions(&self, cursor: String, limit: i64) -> Result<OperatorPage, Self::Error> {
+        let args = OAPermissionOperatorListPermissionsArguments { cursor, limit };
+        let arguments = service_encode(&args, service_check_oa_permission_operator_list_permissions_arguments, enc_oa_permission_operator_list_permissions_arguments, decode_oa_permission_operator_list_permissions_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/permission-operator@1".into(), method: "ListPermissions".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/permission-operator@1" || reply.method != "ListPermissions" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_permission_operator_list_permissions_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn read_permission_details(&self, id: String) -> Result<TypedPermissionDetails, Self::Error> {
+        let args = OAPermissionOperatorReadPermissionDetailsArguments { id };
+        let arguments = service_encode(&args, service_check_oa_permission_operator_read_permission_details_arguments, enc_oa_permission_operator_read_permission_details_arguments, decode_oa_permission_operator_read_permission_details_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/permission-operator@1".into(), method: "ReadPermissionDetails".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/permission-operator@1" || reply.method != "ReadPermissionDetails" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_permission_operator_read_permission_details_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn answer_permission_if_pending(&self, id: String, option: String) -> Result<OperatorDecision, Self::Error> {
+        let args = OAPermissionOperatorAnswerPermissionIfPendingArguments { id, option };
+        let arguments = service_encode(&args, service_check_oa_permission_operator_answer_permission_if_pending_arguments, enc_oa_permission_operator_answer_permission_if_pending_arguments, decode_oa_permission_operator_answer_permission_if_pending_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/permission-operator@1".into(), method: "AnswerPermissionIfPending".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/permission-operator@1" || reply.method != "AnswerPermissionIfPending" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_permission_operator_answer_permission_if_pending_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+}
+
+/// Caller-bound application notifications whose actions the service holds after
+/// the poster exits (ASK-N1..N7). Admission is decided by
+/// abstraction.asks/notification.post on account; a live explicit block
+/// suppresses. The session presenter shows posted notifications natively
+/// through notification-operator@1. A notification grants no authority and
+/// collects no text.
+pub trait NotificationApplication {
+    type Error;
+    /// Admit or replay one caller-scoped notification (ASK-N1). No automatic
+    /// retry: reuse the entire reference and unchanged request after an
+    /// uncertain reply. A blocked program receives suppressed; rate, live and
+    /// capacity bounds return exhausted. Neither stores anything.
+    fn post(&self, request: NotificationRequest) -> Result<NotificationObservation, Self::Error>;
+    /// Observe only this caller's full reference, optionally waiting 0..30000
+    /// milliseconds for an outcome. Waiting changes nothing. Recheck deadlines
+    /// and binding after waking.
+    fn observe(&self, request_ref: RequestRef, wait_ms: i64) -> Result<NotificationObservation, Self::Error>;
+    /// Withdraw this proven caller's own scheduled or posted notification. A
+    /// presenter removes its native item. The same withdrawal replays; another
+    /// terminal outcome is returned unchanged.
+    fn withdraw(&self, request_ref: RequestRef) -> Result<NotificationObservation, Self::Error>;
+    /// Acknowledge the exact recorded result once the caller no longer requires
+    /// service replay (ASK-N5). Replaces the record with a small fingerprint
+    /// tombstone until replay_until_ms; later Post/Observe report gone. The
+    /// same acknowledgement replays after a lost reply.
+    fn acknowledge(&self, request_ref: RequestRef, result: NotificationResult) -> Result<ChoiceAcknowledgement, Self::Error>;
+}
+
+pub struct NotificationApplicationClient<T> {
+    transport: T,
+}
+
+impl<T> NotificationApplicationClient<T> {
+    pub fn new(transport: T) -> Self {
+        Self { transport }
+    }
+
+    pub fn transport(&self) -> &T {
+        &self.transport
+    }
+}
+
+impl<T: FrameTransport> NotificationApplication for NotificationApplicationClient<T> {
+    type Error = CallError<T::Error>;
+    fn post(&self, request: NotificationRequest) -> Result<NotificationObservation, Self::Error> {
+        let args = OANotificationApplicationPostArguments { request };
+        let arguments = service_encode(&args, service_check_oa_notification_application_post_arguments, enc_oa_notification_application_post_arguments, decode_oa_notification_application_post_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/notification@1".into(), method: "Post".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/notification@1" || reply.method != "Post" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_notification_application_post_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn observe(&self, request_ref: RequestRef, wait_ms: i64) -> Result<NotificationObservation, Self::Error> {
+        let args = OANotificationApplicationObserveArguments { request_ref, wait_ms };
+        let arguments = service_encode(&args, service_check_oa_notification_application_observe_arguments, enc_oa_notification_application_observe_arguments, decode_oa_notification_application_observe_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/notification@1".into(), method: "Observe".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/notification@1" || reply.method != "Observe" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_notification_application_observe_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn withdraw(&self, request_ref: RequestRef) -> Result<NotificationObservation, Self::Error> {
+        let args = OANotificationApplicationWithdrawArguments { request_ref };
+        let arguments = service_encode(&args, service_check_oa_notification_application_withdraw_arguments, enc_oa_notification_application_withdraw_arguments, decode_oa_notification_application_withdraw_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/notification@1".into(), method: "Withdraw".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/notification@1" || reply.method != "Withdraw" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_notification_application_withdraw_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn acknowledge(&self, request_ref: RequestRef, result: NotificationResult) -> Result<ChoiceAcknowledgement, Self::Error> {
+        let args = OANotificationApplicationAcknowledgeArguments { request_ref, result };
+        let arguments = service_encode(&args, service_check_oa_notification_application_acknowledge_arguments, enc_oa_notification_application_acknowledge_arguments, decode_oa_notification_application_acknowledge_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/notification@1".into(), method: "Acknowledge".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/notification@1" || reply.method != "Acknowledge" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_notification_application_acknowledge_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+}
+
+/// Explicitly authorized presentation, action recording, dismissal and audit of
+/// application notifications. The session presenter and the Panel are its
+/// clients. A recorded action is application intent only.
+pub trait NotificationOperator {
+    type Error;
+    /// List retained notification occurrences for an explicitly authorized
+    /// operator, each with a presentation token. Authorization is rechecked
+    /// before the page is returned.
+    fn list_notifications(&self, cursor: String, limit: i64) -> Result<NotificationPage, Self::Error>;
+    /// Read one occurrence with its presentation token.
+    fn read_notification(&self, id: String) -> Result<NotificationRead, Self::Error>;
+    /// Record that the person chose one offered action on a posted notification
+    /// (ASK-N4). Inside the atomic edit the service rechecks operator
+    /// authorization, the presentation token, state posted, service time before
+    /// expires_ms, the offered action and the live block on the poster. The
+    /// first recorded action wins; the same action replays; any failed check
+    /// records nothing.
+    fn act(&self, id: String, action: String, presentation: String) -> Result<NotificationDecision, Self::Error>;
+    /// Record that the person dismissed one scheduled or posted notification
+    /// without an action. The same dismissal replays; another terminal outcome
+    /// conflicts.
+    fn dismiss(&self, id: String) -> Result<NotificationDecision, Self::Error>;
+    /// Withdraw every scheduled and posted notification of one bound program,
+    /// for example after the person turned its notifications off. count reports
+    /// how many changed.
+    fn withdraw_program(&self, program: String) -> Result<NotificationDecision, Self::Error>;
+    /// List per-program post counts for the last seven days under the same page
+    /// rules (ASK-N6).
+    fn list_notifiers(&self, cursor: String, limit: i64) -> Result<NotifierPage, Self::Error>;
+}
+
+pub struct NotificationOperatorClient<T> {
+    transport: T,
+}
+
+impl<T> NotificationOperatorClient<T> {
+    pub fn new(transport: T) -> Self {
+        Self { transport }
+    }
+
+    pub fn transport(&self) -> &T {
+        &self.transport
+    }
+}
+
+impl<T: FrameTransport> NotificationOperator for NotificationOperatorClient<T> {
+    type Error = CallError<T::Error>;
+    fn list_notifications(&self, cursor: String, limit: i64) -> Result<NotificationPage, Self::Error> {
+        let args = OANotificationOperatorListNotificationsArguments { cursor, limit };
+        let arguments = service_encode(&args, service_check_oa_notification_operator_list_notifications_arguments, enc_oa_notification_operator_list_notifications_arguments, decode_oa_notification_operator_list_notifications_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/notification-operator@1".into(), method: "ListNotifications".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/notification-operator@1" || reply.method != "ListNotifications" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_notification_operator_list_notifications_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn read_notification(&self, id: String) -> Result<NotificationRead, Self::Error> {
+        let args = OANotificationOperatorReadNotificationArguments { id };
+        let arguments = service_encode(&args, service_check_oa_notification_operator_read_notification_arguments, enc_oa_notification_operator_read_notification_arguments, decode_oa_notification_operator_read_notification_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/notification-operator@1".into(), method: "ReadNotification".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/notification-operator@1" || reply.method != "ReadNotification" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_notification_operator_read_notification_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn act(&self, id: String, action: String, presentation: String) -> Result<NotificationDecision, Self::Error> {
+        let args = OANotificationOperatorActArguments { id, action, presentation };
+        let arguments = service_encode(&args, service_check_oa_notification_operator_act_arguments, enc_oa_notification_operator_act_arguments, decode_oa_notification_operator_act_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/notification-operator@1".into(), method: "Act".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/notification-operator@1" || reply.method != "Act" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_notification_operator_act_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn dismiss(&self, id: String) -> Result<NotificationDecision, Self::Error> {
+        let args = OANotificationOperatorDismissArguments { id };
+        let arguments = service_encode(&args, service_check_oa_notification_operator_dismiss_arguments, enc_oa_notification_operator_dismiss_arguments, decode_oa_notification_operator_dismiss_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/notification-operator@1".into(), method: "Dismiss".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/notification-operator@1" || reply.method != "Dismiss" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_notification_operator_dismiss_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn withdraw_program(&self, program: String) -> Result<NotificationDecision, Self::Error> {
+        let args = OANotificationOperatorWithdrawProgramArguments { program };
+        let arguments = service_encode(&args, service_check_oa_notification_operator_withdraw_program_arguments, enc_oa_notification_operator_withdraw_program_arguments, decode_oa_notification_operator_withdraw_program_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/notification-operator@1".into(), method: "WithdrawProgram".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/notification-operator@1" || reply.method != "WithdrawProgram" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_notification_operator_withdraw_program_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+
+    fn list_notifiers(&self, cursor: String, limit: i64) -> Result<NotifierPage, Self::Error> {
+        let args = OANotificationOperatorListNotifiersArguments { cursor, limit };
+        let arguments = service_encode(&args, service_check_oa_notification_operator_list_notifiers_arguments, enc_oa_notification_operator_list_notifiers_arguments, decode_oa_notification_operator_list_notifiers_arguments).map_err(CallError::Refusal)?;
+        let request = OAServiceFrame { version: 1, service: "abstraction.asks/notification-operator@1".into(), method: "ListNotifiers".into(), arguments };
+        let frame = service_encode(&request, service_check_oa_service_frame, enc_oa_service_frame, decode_oa_service_frame).map_err(CallError::Refusal)?;
+        let reply = self.transport.exchange_frame(&frame).map_err(CallError::Transport)?;
+        let reply = service_decode(&reply, decode_oa_service_reply).map_err(CallError::Refusal)?;
+        if reply.version != 1 {
+            return Err(CallError::Dispatch("unknown_version"));
+        }
+        if reply.service != "abstraction.asks/notification-operator@1" || reply.method != "ListNotifiers" {
+            return Err(CallError::Dispatch("mismatched_response"));
+        }
+        if !reply.ok {
+            let error = service_decode(&reply.payload, decode_oa_service_error).map_err(CallError::Refusal)?;
+            if error.code.is_empty() {
+                return Err(CallError::Dispatch("invalid_error"));
+            }
+            return Err(CallError::Service(ServiceError { code: error.code, message: error.message }));
+        }
+        let result = service_decode(&reply.payload, decode_oa_notification_operator_list_notifiers_result).map_err(CallError::Refusal)?;
+        Ok(result.value)
+    }
+}
+
+type OAImported0 = abstraction_rights_api::PermissionSelection;
+
+// The included crate encodes and checks its own record; its refusal keeps its word.
+fn enc_oa_imported0(out: &mut Vec<u8>, v: &OAImported0, depth: i32) {
+    match abstraction_rights_api::internal::encode_permission_selection_at(v, depth) {
+        Ok(bytes) => out.extend_from_slice(&bytes),
+        Err(e) => std::panic::panic_any(Refusal { word: e.word, offset: e.offset }),
+    }
+}
+
+fn decode_oa_imported0(r: &mut Reader) -> Result<OAImported0, Refusal> {
+    match abstraction_rights_api::internal::decode_permission_selection_at(&r.buf[r.pos..], r.depth, r.limit) {
+        Ok((v, n)) => {
+            r.pos += n;
+            Ok(v)
+        }
+        Err(e) => Err(Refusal { word: e.word, offset: r.pos + e.offset }),
+    }
+}
+
+fn check_imported_oa_imported0(v: &OAImported0) -> Result<(), Refusal> {
+    abstraction_rights_api::internal::check_permission_selection(v, 0, DEPTH_LIMIT).map_err(|e| Refusal { word: e.word, offset: e.offset })
+}
+
+fn service_check_oa_imported0(v: &OAImported0) -> Result<(), Refusal> {
+    check_imported_oa_imported0(v)
+}
+
+type OAImported1 = abstraction_rights_api::ResourceSelector;
+
+// The included crate encodes and checks its own record; its refusal keeps its word.
+fn enc_oa_imported1(out: &mut Vec<u8>, v: &OAImported1, depth: i32) {
+    match abstraction_rights_api::internal::encode_resource_selector_at(v, depth) {
+        Ok(bytes) => out.extend_from_slice(&bytes),
+        Err(e) => std::panic::panic_any(Refusal { word: e.word, offset: e.offset }),
+    }
+}
+
+fn decode_oa_imported1(r: &mut Reader) -> Result<OAImported1, Refusal> {
+    match abstraction_rights_api::internal::decode_resource_selector_at(&r.buf[r.pos..], r.depth, r.limit) {
+        Ok((v, n)) => {
+            r.pos += n;
+            Ok(v)
+        }
+        Err(e) => Err(Refusal { word: e.word, offset: r.pos + e.offset }),
+    }
+}
+
+fn check_imported_oa_imported1(v: &OAImported1) -> Result<(), Refusal> {
+    abstraction_rights_api::internal::check_resource_selector(v, 0, DEPTH_LIMIT).map_err(|e| Refusal { word: e.word, offset: e.offset })
+}
+
+fn service_check_oa_imported1(v: &OAImported1) -> Result<(), Refusal> {
+    check_imported_oa_imported1(v)
+}
+
+type OAImported2 = abstraction_rights_api::PermissionEffect;
+
+// The included crate encodes and checks its own record; its refusal keeps its word.
+fn enc_oa_imported2(out: &mut Vec<u8>, v: &OAImported2, depth: i32) {
+    match abstraction_rights_api::internal::encode_permission_effect_at(v, depth) {
+        Ok(bytes) => out.extend_from_slice(&bytes),
+        Err(e) => std::panic::panic_any(Refusal { word: e.word, offset: e.offset }),
+    }
+}
+
+fn decode_oa_imported2(r: &mut Reader) -> Result<OAImported2, Refusal> {
+    match abstraction_rights_api::internal::decode_permission_effect_at(&r.buf[r.pos..], r.depth, r.limit) {
+        Ok((v, n)) => {
+            r.pos += n;
+            Ok(v)
+        }
+        Err(e) => Err(Refusal { word: e.word, offset: r.pos + e.offset }),
+    }
+}
+
+type OAImported3 = abstraction_rights_api::Decision;
+
+fn decode_oa_imported3(r: &mut Reader) -> Result<OAImported3, Refusal> {
+    match abstraction_rights_api::internal::decode_decision_at(&r.buf[r.pos..], r.depth, r.limit) {
+        Ok((v, n)) => {
+            r.pos += n;
+            Ok(v)
+        }
+        Err(e) => Err(Refusal { word: e.word, offset: r.pos + e.offset }),
+    }
+}
+
+fn named_encode_question(v: &Question, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_question(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_question_at(data: &[u8], depth: i32, limit: i32) -> Result<(Question, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_question(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_question(v: &Question, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_question(v, depth)?;
+    decode_question_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_question_at(v: &Question, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_question(v, depth)?;
+    decode_question_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_question_document(v: &Question) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_question_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_question_document(data: &[u8]) -> Result<Question, Refusal> {
+    let (v, n) = decode_question_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_request(v: &Request, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_request(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_request_at(data: &[u8], depth: i32, limit: i32) -> Result<(Request, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_request(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_request(v: &Request, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_request(v, depth)?;
+    decode_request_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_request_at(v: &Request, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_request(v, depth)?;
+    decode_request_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_request_document(v: &Request) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_request_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_request_document(data: &[u8]) -> Result<Request, Refusal> {
+    let (v, n) = decode_request_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_answer(v: &Answer, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_answer(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_answer_at(data: &[u8], depth: i32, limit: i32) -> Result<(Answer, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_answer(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_answer(v: &Answer, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_answer(v, depth)?;
+    decode_answer_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_answer_at(v: &Answer, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_answer(v, depth)?;
+    decode_answer_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_answer_document(v: &Answer) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_answer_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_answer_document(data: &[u8]) -> Result<Answer, Refusal> {
+    let (v, n) = decode_answer_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_record_metadata(v: &RecordMetadata, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_record_metadata(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_record_metadata_at(data: &[u8], depth: i32, limit: i32) -> Result<(RecordMetadata, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_record_metadata(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_record_metadata(v: &RecordMetadata, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_record_metadata(v, depth)?;
+    decode_record_metadata_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_record_metadata_at(v: &RecordMetadata, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_record_metadata(v, depth)?;
+    decode_record_metadata_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_record_metadata_document(v: &RecordMetadata) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_record_metadata_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_record_metadata_document(data: &[u8]) -> Result<RecordMetadata, Refusal> {
+    let (v, n) = decode_record_metadata_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_response_metadata(v: &ResponseMetadata, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_response_metadata(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_response_metadata_at(data: &[u8], depth: i32, limit: i32) -> Result<(ResponseMetadata, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_response_metadata(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_response_metadata(v: &ResponseMetadata, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_response_metadata(v, depth)?;
+    decode_response_metadata_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_response_metadata_at(v: &ResponseMetadata, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_response_metadata(v, depth)?;
+    decode_response_metadata_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_response_metadata_document(v: &ResponseMetadata) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_response_metadata_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_response_metadata_document(data: &[u8]) -> Result<ResponseMetadata, Refusal> {
+    let (v, n) = decode_response_metadata_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_application_question(v: &ApplicationQuestion, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_application_question(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_application_question_at(data: &[u8], depth: i32, limit: i32) -> Result<(ApplicationQuestion, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_application_question(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_application_question(v: &ApplicationQuestion, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_application_question(v, depth)?;
+    decode_application_question_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_application_question_at(v: &ApplicationQuestion, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_application_question(v, depth)?;
+    decode_application_question_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_application_question_document(v: &ApplicationQuestion) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_application_question_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_application_question_document(data: &[u8]) -> Result<ApplicationQuestion, Refusal> {
+    let (v, n) = decode_application_question_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_question_observation(v: &QuestionObservation, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_question_observation(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_question_observation_at(data: &[u8], depth: i32, limit: i32) -> Result<(QuestionObservation, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_question_observation(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_question_observation(v: &QuestionObservation, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_question_observation(v, depth)?;
+    decode_question_observation_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_question_observation_at(v: &QuestionObservation, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_question_observation(v, depth)?;
+    decode_question_observation_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_question_observation_document(v: &QuestionObservation) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_question_observation_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_question_observation_document(data: &[u8]) -> Result<QuestionObservation, Refusal> {
+    let (v, n) = decode_question_observation_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_operator_page(v: &OperatorPage, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_operator_page(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_operator_page_at(data: &[u8], depth: i32, limit: i32) -> Result<(OperatorPage, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_operator_page(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_operator_page(v: &OperatorPage, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_operator_page(v, depth)?;
+    decode_operator_page_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_operator_page_at(v: &OperatorPage, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_operator_page(v, depth)?;
+    decode_operator_page_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_operator_page_document(v: &OperatorPage) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_operator_page_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_operator_page_document(data: &[u8]) -> Result<OperatorPage, Refusal> {
+    let (v, n) = decode_operator_page_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_operator_decision(v: &OperatorDecision, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_operator_decision(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_operator_decision_at(data: &[u8], depth: i32, limit: i32) -> Result<(OperatorDecision, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_operator_decision(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_operator_decision(v: &OperatorDecision, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_operator_decision(v, depth)?;
+    decode_operator_decision_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_operator_decision_at(v: &OperatorDecision, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_operator_decision(v, depth)?;
+    decode_operator_decision_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_operator_decision_document(v: &OperatorDecision) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_operator_decision_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_operator_decision_document(data: &[u8]) -> Result<OperatorDecision, Refusal> {
+    let (v, n) = decode_operator_decision_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_operator_retirement(v: &OperatorRetirement, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_operator_retirement(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_operator_retirement_at(data: &[u8], depth: i32, limit: i32) -> Result<(OperatorRetirement, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_operator_retirement(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_operator_retirement(v: &OperatorRetirement, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_operator_retirement(v, depth)?;
+    decode_operator_retirement_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_operator_retirement_at(v: &OperatorRetirement, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_operator_retirement(v, depth)?;
+    decode_operator_retirement_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_operator_retirement_document(v: &OperatorRetirement) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_operator_retirement_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_operator_retirement_document(data: &[u8]) -> Result<OperatorRetirement, Refusal> {
+    let (v, n) = decode_operator_retirement_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_operator_question(v: &OperatorQuestion, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_operator_question(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_operator_question_at(data: &[u8], depth: i32, limit: i32) -> Result<(OperatorQuestion, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_operator_question(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_operator_question(v: &OperatorQuestion, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_operator_question(v, depth)?;
+    decode_operator_question_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_operator_question_at(v: &OperatorQuestion, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_operator_question(v, depth)?;
+    decode_operator_question_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_operator_question_document(v: &OperatorQuestion) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_operator_question_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_operator_question_document(data: &[u8]) -> Result<OperatorQuestion, Refusal> {
+    let (v, n) = decode_operator_question_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_attributed_question(v: &AttributedQuestion, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_attributed_question(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_attributed_question_at(data: &[u8], depth: i32, limit: i32) -> Result<(AttributedQuestion, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_attributed_question(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_attributed_question(v: &AttributedQuestion, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_attributed_question(v, depth)?;
+    decode_attributed_question_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_attributed_question_at(v: &AttributedQuestion, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_attributed_question(v, depth)?;
+    decode_attributed_question_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_attributed_question_document(v: &AttributedQuestion) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_attributed_question_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_attributed_question_document(data: &[u8]) -> Result<AttributedQuestion, Refusal> {
+    let (v, n) = decode_attributed_question_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_permission_target(v: &PermissionTarget, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_permission_target(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_permission_target_at(data: &[u8], depth: i32, limit: i32) -> Result<(PermissionTarget, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_permission_target(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_permission_target(v: &PermissionTarget, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_permission_target(v, depth)?;
+    decode_permission_target_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_permission_target_at(v: &PermissionTarget, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_permission_target(v, depth)?;
+    decode_permission_target_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_permission_target_document(v: &PermissionTarget) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_permission_target_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_permission_target_document(data: &[u8]) -> Result<PermissionTarget, Refusal> {
+    let (v, n) = decode_permission_target_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_permission_request(v: &PermissionRequest, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_permission_request(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_permission_request_at(data: &[u8], depth: i32, limit: i32) -> Result<(PermissionRequest, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_permission_request(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_permission_request(v: &PermissionRequest, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_permission_request(v, depth)?;
+    decode_permission_request_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_permission_request_at(v: &PermissionRequest, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_permission_request(v, depth)?;
+    decode_permission_request_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_permission_request_document(v: &PermissionRequest) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_permission_request_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_permission_request_document(data: &[u8]) -> Result<PermissionRequest, Refusal> {
+    let (v, n) = decode_permission_request_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_question_details(v: &QuestionDetails, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_question_details(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_question_details_at(data: &[u8], depth: i32, limit: i32) -> Result<(QuestionDetails, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_question_details(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_question_details(v: &QuestionDetails, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_question_details(v, depth)?;
+    decode_question_details_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_question_details_at(v: &QuestionDetails, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_question_details(v, depth)?;
+    decode_question_details_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_question_details_document(v: &QuestionDetails) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_question_details_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_question_details_document(data: &[u8]) -> Result<QuestionDetails, Refusal> {
+    let (v, n) = decode_question_details_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_question_asker(v: &QuestionAsker, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_question_asker(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_question_asker_at(data: &[u8], depth: i32, limit: i32) -> Result<(QuestionAsker, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_question_asker(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_question_asker(v: &QuestionAsker, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_question_asker(v, depth)?;
+    decode_question_asker_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_question_asker_at(v: &QuestionAsker, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_question_asker(v, depth)?;
+    decode_question_asker_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_question_asker_document(v: &QuestionAsker) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_question_asker_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_question_asker_document(data: &[u8]) -> Result<QuestionAsker, Refusal> {
+    let (v, n) = decode_question_asker_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_request_ref(v: &RequestRef, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_request_ref(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_request_ref_at(data: &[u8], depth: i32, limit: i32) -> Result<(RequestRef, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_request_ref(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_request_ref(v: &RequestRef, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_request_ref(v, depth)?;
+    decode_request_ref_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_request_ref_at(v: &RequestRef, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_request_ref(v, depth)?;
+    decode_request_ref_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_request_ref_document(v: &RequestRef) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_request_ref_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_request_ref_document(data: &[u8]) -> Result<RequestRef, Refusal> {
+    let (v, n) = decode_request_ref_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_choice_option(v: &ChoiceOption, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_choice_option(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_choice_option_at(data: &[u8], depth: i32, limit: i32) -> Result<(ChoiceOption, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_choice_option(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_choice_option(v: &ChoiceOption, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_option(v, depth)?;
+    decode_choice_option_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_choice_option_at(v: &ChoiceOption, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_option(v, depth)?;
+    decode_choice_option_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_choice_option_document(v: &ChoiceOption) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_choice_option_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_choice_option_document(data: &[u8]) -> Result<ChoiceOption, Refusal> {
+    let (v, n) = decode_choice_option_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_choice_request(v: &ChoiceRequest, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_choice_request(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_choice_request_at(data: &[u8], depth: i32, limit: i32) -> Result<(ChoiceRequest, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_choice_request(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_choice_request(v: &ChoiceRequest, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_request(v, depth)?;
+    decode_choice_request_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_choice_request_at(v: &ChoiceRequest, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_request(v, depth)?;
+    decode_choice_request_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_choice_request_document(v: &ChoiceRequest) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_choice_request_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_choice_request_document(data: &[u8]) -> Result<ChoiceRequest, Refusal> {
+    let (v, n) = decode_choice_request_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_choice_answer(v: &ChoiceAnswer, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_choice_answer(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_choice_answer_at(data: &[u8], depth: i32, limit: i32) -> Result<(ChoiceAnswer, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_choice_answer(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_choice_answer(v: &ChoiceAnswer, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_answer(v, depth)?;
+    decode_choice_answer_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_choice_answer_at(v: &ChoiceAnswer, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_answer(v, depth)?;
+    decode_choice_answer_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_choice_answer_document(v: &ChoiceAnswer) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_choice_answer_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_choice_answer_document(data: &[u8]) -> Result<ChoiceAnswer, Refusal> {
+    let (v, n) = decode_choice_answer_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_choice_observation(v: &ChoiceObservation, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_choice_observation(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_choice_observation_at(data: &[u8], depth: i32, limit: i32) -> Result<(ChoiceObservation, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_choice_observation(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_choice_observation(v: &ChoiceObservation, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_observation(v, depth)?;
+    decode_choice_observation_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_choice_observation_at(v: &ChoiceObservation, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_observation(v, depth)?;
+    decode_choice_observation_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_choice_observation_document(v: &ChoiceObservation) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_choice_observation_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_choice_observation_document(data: &[u8]) -> Result<ChoiceObservation, Refusal> {
+    let (v, n) = decode_choice_observation_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_choice_acknowledgement(v: &ChoiceAcknowledgement, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_choice_acknowledgement(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_choice_acknowledgement_at(data: &[u8], depth: i32, limit: i32) -> Result<(ChoiceAcknowledgement, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_choice_acknowledgement(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_choice_acknowledgement(v: &ChoiceAcknowledgement, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_acknowledgement(v, depth)?;
+    decode_choice_acknowledgement_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_choice_acknowledgement_at(v: &ChoiceAcknowledgement, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_acknowledgement(v, depth)?;
+    decode_choice_acknowledgement_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_choice_acknowledgement_document(v: &ChoiceAcknowledgement) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_choice_acknowledgement_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_choice_acknowledgement_document(data: &[u8]) -> Result<ChoiceAcknowledgement, Refusal> {
+    let (v, n) = decode_choice_acknowledgement_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_choice_record(v: &ChoiceRecord, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_choice_record(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_choice_record_at(data: &[u8], depth: i32, limit: i32) -> Result<(ChoiceRecord, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_choice_record(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_choice_record(v: &ChoiceRecord, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_record(v, depth)?;
+    decode_choice_record_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_choice_record_at(v: &ChoiceRecord, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_record(v, depth)?;
+    decode_choice_record_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_choice_record_document(v: &ChoiceRecord) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_choice_record_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_choice_record_document(data: &[u8]) -> Result<ChoiceRecord, Refusal> {
+    let (v, n) = decode_choice_record_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_choice_page(v: &ChoicePage, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_choice_page(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_choice_page_at(data: &[u8], depth: i32, limit: i32) -> Result<(ChoicePage, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_choice_page(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_choice_page(v: &ChoicePage, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_page(v, depth)?;
+    decode_choice_page_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_choice_page_at(v: &ChoicePage, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_page(v, depth)?;
+    decode_choice_page_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_choice_page_document(v: &ChoicePage) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_choice_page_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_choice_page_document(data: &[u8]) -> Result<ChoicePage, Refusal> {
+    let (v, n) = decode_choice_page_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_choice_read(v: &ChoiceRead, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_choice_read(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_choice_read_at(data: &[u8], depth: i32, limit: i32) -> Result<(ChoiceRead, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_choice_read(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_choice_read(v: &ChoiceRead, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_read(v, depth)?;
+    decode_choice_read_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_choice_read_at(v: &ChoiceRead, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_read(v, depth)?;
+    decode_choice_read_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_choice_read_document(v: &ChoiceRead) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_choice_read_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_choice_read_document(data: &[u8]) -> Result<ChoiceRead, Refusal> {
+    let (v, n) = decode_choice_read_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_choice_decision(v: &ChoiceDecision, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_choice_decision(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_choice_decision_at(data: &[u8], depth: i32, limit: i32) -> Result<(ChoiceDecision, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_choice_decision(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_choice_decision(v: &ChoiceDecision, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_decision(v, depth)?;
+    decode_choice_decision_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_choice_decision_at(v: &ChoiceDecision, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_decision(v, depth)?;
+    decode_choice_decision_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_choice_decision_document(v: &ChoiceDecision) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_choice_decision_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_choice_decision_document(data: &[u8]) -> Result<ChoiceDecision, Refusal> {
+    let (v, n) = decode_choice_decision_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_choice_details(v: &ChoiceDetails, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_choice_details(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_choice_details_at(data: &[u8], depth: i32, limit: i32) -> Result<(ChoiceDetails, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_choice_details(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_choice_details(v: &ChoiceDetails, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_details(v, depth)?;
+    decode_choice_details_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_choice_details_at(v: &ChoiceDetails, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_choice_details(v, depth)?;
+    decode_choice_details_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_choice_details_document(v: &ChoiceDetails) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_choice_details_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_choice_details_document(data: &[u8]) -> Result<ChoiceDetails, Refusal> {
+    let (v, n) = decode_choice_details_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_answer_entry(v: &AnswerEntry, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_answer_entry(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_answer_entry_at(data: &[u8], depth: i32, limit: i32) -> Result<(AnswerEntry, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_answer_entry(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_answer_entry(v: &AnswerEntry, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_answer_entry(v, depth)?;
+    decode_answer_entry_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_answer_entry_at(v: &AnswerEntry, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_answer_entry(v, depth)?;
+    decode_answer_entry_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_answer_entry_document(v: &AnswerEntry) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_answer_entry_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_answer_entry_document(data: &[u8]) -> Result<AnswerEntry, Refusal> {
+    let (v, n) = decode_answer_entry_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_answer_entry_page(v: &AnswerEntryPage, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_answer_entry_page(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_answer_entry_page_at(data: &[u8], depth: i32, limit: i32) -> Result<(AnswerEntryPage, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_answer_entry_page(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_answer_entry_page(v: &AnswerEntryPage, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_answer_entry_page(v, depth)?;
+    decode_answer_entry_page_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_answer_entry_page_at(v: &AnswerEntryPage, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_answer_entry_page(v, depth)?;
+    decode_answer_entry_page_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_answer_entry_page_document(v: &AnswerEntryPage) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_answer_entry_page_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_answer_entry_page_document(data: &[u8]) -> Result<AnswerEntryPage, Refusal> {
+    let (v, n) = decode_answer_entry_page_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_answerable_choice(v: &AnswerableChoice, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_answerable_choice(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_answerable_choice_at(data: &[u8], depth: i32, limit: i32) -> Result<(AnswerableChoice, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_answerable_choice(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_answerable_choice(v: &AnswerableChoice, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_answerable_choice(v, depth)?;
+    decode_answerable_choice_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_answerable_choice_at(v: &AnswerableChoice, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_answerable_choice(v, depth)?;
+    decode_answerable_choice_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_answerable_choice_document(v: &AnswerableChoice) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_answerable_choice_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_answerable_choice_document(data: &[u8]) -> Result<AnswerableChoice, Refusal> {
+    let (v, n) = decode_answerable_choice_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_answerable_choice_page(v: &AnswerableChoicePage, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_answerable_choice_page(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_answerable_choice_page_at(data: &[u8], depth: i32, limit: i32) -> Result<(AnswerableChoicePage, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_answerable_choice_page(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_answerable_choice_page(v: &AnswerableChoicePage, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_answerable_choice_page(v, depth)?;
+    decode_answerable_choice_page_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_answerable_choice_page_at(v: &AnswerableChoicePage, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_answerable_choice_page(v, depth)?;
+    decode_answerable_choice_page_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_answerable_choice_page_document(v: &AnswerableChoicePage) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_answerable_choice_page_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_answerable_choice_page_document(data: &[u8]) -> Result<AnswerableChoicePage, Refusal> {
+    let (v, n) = decode_answerable_choice_page_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_responder_decision(v: &ResponderDecision, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_responder_decision(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_responder_decision_at(data: &[u8], depth: i32, limit: i32) -> Result<(ResponderDecision, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_responder_decision(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_responder_decision(v: &ResponderDecision, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_responder_decision(v, depth)?;
+    decode_responder_decision_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_responder_decision_at(v: &ResponderDecision, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_responder_decision(v, depth)?;
+    decode_responder_decision_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_responder_decision_document(v: &ResponderDecision) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_responder_decision_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_responder_decision_document(data: &[u8]) -> Result<ResponderDecision, Refusal> {
+    let (v, n) = decode_responder_decision_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_permission_intent(v: &PermissionIntent, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_permission_intent(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_permission_intent_at(data: &[u8], depth: i32, limit: i32) -> Result<(PermissionIntent, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_permission_intent(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_permission_intent(v: &PermissionIntent, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_permission_intent(v, depth)?;
+    decode_permission_intent_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_permission_intent_at(v: &PermissionIntent, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_permission_intent(v, depth)?;
+    decode_permission_intent_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_permission_intent_document(v: &PermissionIntent) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_permission_intent_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_permission_intent_document(data: &[u8]) -> Result<PermissionIntent, Refusal> {
+    let (v, n) = decode_permission_intent_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_permission_observation(v: &PermissionObservation, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_permission_observation(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_permission_observation_at(data: &[u8], depth: i32, limit: i32) -> Result<(PermissionObservation, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_permission_observation(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_permission_observation(v: &PermissionObservation, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_permission_observation(v, depth)?;
+    decode_permission_observation_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_permission_observation_at(v: &PermissionObservation, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_permission_observation(v, depth)?;
+    decode_permission_observation_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_permission_observation_document(v: &PermissionObservation) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_permission_observation_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_permission_observation_document(data: &[u8]) -> Result<PermissionObservation, Refusal> {
+    let (v, n) = decode_permission_observation_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_typed_permission_details(v: &TypedPermissionDetails, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_typed_permission_details(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_typed_permission_details_at(data: &[u8], depth: i32, limit: i32) -> Result<(TypedPermissionDetails, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_typed_permission_details(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_typed_permission_details(v: &TypedPermissionDetails, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_typed_permission_details(v, depth)?;
+    decode_typed_permission_details_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_typed_permission_details_at(v: &TypedPermissionDetails, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_typed_permission_details(v, depth)?;
+    decode_typed_permission_details_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_typed_permission_details_document(v: &TypedPermissionDetails) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_typed_permission_details_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_typed_permission_details_document(data: &[u8]) -> Result<TypedPermissionDetails, Refusal> {
+    let (v, n) = decode_typed_permission_details_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_permission_display_selection(v: &PermissionDisplaySelection, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_permission_display_selection(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_permission_display_selection_at(data: &[u8], depth: i32, limit: i32) -> Result<(PermissionDisplaySelection, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_permission_display_selection(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_permission_display_selection(v: &PermissionDisplaySelection, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_permission_display_selection(v, depth)?;
+    decode_permission_display_selection_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_permission_display_selection_at(v: &PermissionDisplaySelection, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_permission_display_selection(v, depth)?;
+    decode_permission_display_selection_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_permission_display_selection_document(v: &PermissionDisplaySelection) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_permission_display_selection_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_permission_display_selection_document(data: &[u8]) -> Result<PermissionDisplaySelection, Refusal> {
+    let (v, n) = decode_permission_display_selection_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_permission_display(v: &PermissionDisplay, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_permission_display(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_permission_display_at(data: &[u8], depth: i32, limit: i32) -> Result<(PermissionDisplay, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_permission_display(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_permission_display(v: &PermissionDisplay, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_permission_display(v, depth)?;
+    decode_permission_display_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_permission_display_at(v: &PermissionDisplay, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_permission_display(v, depth)?;
+    decode_permission_display_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_permission_display_document(v: &PermissionDisplay) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_permission_display_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_permission_display_document(data: &[u8]) -> Result<PermissionDisplay, Refusal> {
+    let (v, n) = decode_permission_display_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_notification_action(v: &NotificationAction, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_notification_action(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_notification_action_at(data: &[u8], depth: i32, limit: i32) -> Result<(NotificationAction, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_notification_action(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_notification_action(v: &NotificationAction, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_action(v, depth)?;
+    decode_notification_action_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_notification_action_at(v: &NotificationAction, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_action(v, depth)?;
+    decode_notification_action_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_notification_action_document(v: &NotificationAction) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_notification_action_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_notification_action_document(data: &[u8]) -> Result<NotificationAction, Refusal> {
+    let (v, n) = decode_notification_action_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_notification_request(v: &NotificationRequest, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_notification_request(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_notification_request_at(data: &[u8], depth: i32, limit: i32) -> Result<(NotificationRequest, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_notification_request(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_notification_request(v: &NotificationRequest, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_request(v, depth)?;
+    decode_notification_request_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_notification_request_at(v: &NotificationRequest, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_request(v, depth)?;
+    decode_notification_request_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_notification_request_document(v: &NotificationRequest) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_notification_request_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_notification_request_document(data: &[u8]) -> Result<NotificationRequest, Refusal> {
+    let (v, n) = decode_notification_request_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_notification_result(v: &NotificationResult, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_notification_result(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_notification_result_at(data: &[u8], depth: i32, limit: i32) -> Result<(NotificationResult, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_notification_result(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_notification_result(v: &NotificationResult, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_result(v, depth)?;
+    decode_notification_result_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_notification_result_at(v: &NotificationResult, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_result(v, depth)?;
+    decode_notification_result_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_notification_result_document(v: &NotificationResult) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_notification_result_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_notification_result_document(data: &[u8]) -> Result<NotificationResult, Refusal> {
+    let (v, n) = decode_notification_result_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_notification_observation(v: &NotificationObservation, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_notification_observation(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_notification_observation_at(data: &[u8], depth: i32, limit: i32) -> Result<(NotificationObservation, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_notification_observation(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_notification_observation(v: &NotificationObservation, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_observation(v, depth)?;
+    decode_notification_observation_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_notification_observation_at(v: &NotificationObservation, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_observation(v, depth)?;
+    decode_notification_observation_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_notification_observation_document(v: &NotificationObservation) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_notification_observation_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_notification_observation_document(data: &[u8]) -> Result<NotificationObservation, Refusal> {
+    let (v, n) = decode_notification_observation_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_notification_record(v: &NotificationRecord, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_notification_record(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_notification_record_at(data: &[u8], depth: i32, limit: i32) -> Result<(NotificationRecord, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_notification_record(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_notification_record(v: &NotificationRecord, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_record(v, depth)?;
+    decode_notification_record_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_notification_record_at(v: &NotificationRecord, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_record(v, depth)?;
+    decode_notification_record_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_notification_record_document(v: &NotificationRecord) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_notification_record_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_notification_record_document(data: &[u8]) -> Result<NotificationRecord, Refusal> {
+    let (v, n) = decode_notification_record_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_notification_page(v: &NotificationPage, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_notification_page(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_notification_page_at(data: &[u8], depth: i32, limit: i32) -> Result<(NotificationPage, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_notification_page(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_notification_page(v: &NotificationPage, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_page(v, depth)?;
+    decode_notification_page_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_notification_page_at(v: &NotificationPage, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_page(v, depth)?;
+    decode_notification_page_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_notification_page_document(v: &NotificationPage) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_notification_page_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_notification_page_document(data: &[u8]) -> Result<NotificationPage, Refusal> {
+    let (v, n) = decode_notification_page_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_notification_read(v: &NotificationRead, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_notification_read(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_notification_read_at(data: &[u8], depth: i32, limit: i32) -> Result<(NotificationRead, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_notification_read(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_notification_read(v: &NotificationRead, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_read(v, depth)?;
+    decode_notification_read_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_notification_read_at(v: &NotificationRead, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_read(v, depth)?;
+    decode_notification_read_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_notification_read_document(v: &NotificationRead) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_notification_read_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_notification_read_document(data: &[u8]) -> Result<NotificationRead, Refusal> {
+    let (v, n) = decode_notification_read_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_notification_decision(v: &NotificationDecision, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_notification_decision(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_notification_decision_at(data: &[u8], depth: i32, limit: i32) -> Result<(NotificationDecision, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_notification_decision(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_notification_decision(v: &NotificationDecision, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_decision(v, depth)?;
+    decode_notification_decision_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_notification_decision_at(v: &NotificationDecision, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notification_decision(v, depth)?;
+    decode_notification_decision_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_notification_decision_document(v: &NotificationDecision) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_notification_decision_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_notification_decision_document(data: &[u8]) -> Result<NotificationDecision, Refusal> {
+    let (v, n) = decode_notification_decision_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_notifier_day(v: &NotifierDay, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_notifier_day(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_notifier_day_at(data: &[u8], depth: i32, limit: i32) -> Result<(NotifierDay, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_notifier_day(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_notifier_day(v: &NotifierDay, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notifier_day(v, depth)?;
+    decode_notifier_day_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_notifier_day_at(v: &NotifierDay, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notifier_day(v, depth)?;
+    decode_notifier_day_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_notifier_day_document(v: &NotifierDay) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_notifier_day_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_notifier_day_document(data: &[u8]) -> Result<NotifierDay, Refusal> {
+    let (v, n) = decode_notifier_day_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_notifier_count(v: &NotifierCount, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_notifier_count(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_notifier_count_at(data: &[u8], depth: i32, limit: i32) -> Result<(NotifierCount, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_notifier_count(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_notifier_count(v: &NotifierCount, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notifier_count(v, depth)?;
+    decode_notifier_count_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_notifier_count_at(v: &NotifierCount, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notifier_count(v, depth)?;
+    decode_notifier_count_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_notifier_count_document(v: &NotifierCount) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_notifier_count_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_notifier_count_document(data: &[u8]) -> Result<NotifierCount, Refusal> {
+    let (v, n) = decode_notifier_count_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+fn named_encode_notifier_page(v: &NotifierPage, depth: i32) -> Result<Vec<u8>, Refusal> {
+    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let mut out = Vec::new();
+        enc_notifier_page(&mut out, v, depth);
+        out
+    })) {
+        Ok(out) => Ok(out),
+        Err(p) => match p.downcast::<Refusal>() {
+            Ok(e) => Err(*e),
+            Err(p) => std::panic::resume_unwind(p),
+        },
+    }
+}
+
+fn decode_notifier_page_at(data: &[u8], depth: i32, limit: i32) -> Result<(NotifierPage, usize), Refusal> {
+    let mut r = Reader { buf: data, pos: 0, depth, limit: if limit < DEPTH_LIMIT { limit } else { DEPTH_LIMIT } };
+    if depth < 0 || limit < 1 {
+        return r.refuse("depth_exceeded");
+    }
+    r.skip_ws();
+    let v = decode_notifier_page(&mut r)?;
+    Ok((v, r.pos))
+}
+
+fn check_notifier_page(v: &NotifierPage, depth: i32, limit: i32) -> Result<(), Refusal> {
+    if depth < 0 || limit < 1 {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notifier_page(v, depth)?;
+    decode_notifier_page_at(&out, depth, limit).map(|_| ())
+}
+
+fn encode_notifier_page_at(v: &NotifierPage, depth: i32) -> Result<Vec<u8>, Refusal> {
+    if !(0..DEPTH_LIMIT).contains(&depth) {
+        return Err(Refusal { word: "depth_exceeded", offset: 0 });
+    }
+    let out = named_encode_notifier_page(v, depth)?;
+    decode_notifier_page_at(&out, depth, DEPTH_LIMIT)?;
+    Ok(out)
+}
+
+pub fn encode_notifier_page_document(v: &NotifierPage) -> Result<Vec<u8>, Refusal> {
+    let mut out = encode_notifier_page_at(v, 0)?;
+    out.push(b'\n');
+    Ok(out)
+}
+
+pub fn decode_notifier_page_document(data: &[u8]) -> Result<NotifierPage, Refusal> {
+    let (v, n) = decode_notifier_page_at(data, 0, DEPTH_LIMIT)?;
+    let mut r = Reader { buf: data, pos: n, depth: 0, limit: DEPTH_LIMIT };
+    r.skip_ws();
+    if r.pos != data.len() {
+        return r.refuse("trailing_bytes");
+    }
+    Ok(v)
+}
+
+/// Items generated crates that include this one, and conformance drivers,
+/// reach. Nothing here is API; it may change in any release.
+pub mod internal {
+    pub fn decode_question_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::Question, usize), super::Refusal> {
+        super::decode_question_at(data, depth, limit)
+    }
+
+    pub fn check_question(v: &super::Question, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_question(v, depth, limit)
+    }
+
+    pub fn encode_question_at(v: &super::Question, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_question_at(v, depth)
+    }
+
+    pub fn decode_request_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::Request, usize), super::Refusal> {
+        super::decode_request_at(data, depth, limit)
+    }
+
+    pub fn check_request(v: &super::Request, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_request(v, depth, limit)
+    }
+
+    pub fn encode_request_at(v: &super::Request, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_request_at(v, depth)
+    }
+
+    pub fn decode_answer_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::Answer, usize), super::Refusal> {
+        super::decode_answer_at(data, depth, limit)
+    }
+
+    pub fn check_answer(v: &super::Answer, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_answer(v, depth, limit)
+    }
+
+    pub fn encode_answer_at(v: &super::Answer, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_answer_at(v, depth)
+    }
+
+    pub fn decode_record_metadata_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::RecordMetadata, usize), super::Refusal> {
+        super::decode_record_metadata_at(data, depth, limit)
+    }
+
+    pub fn check_record_metadata(v: &super::RecordMetadata, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_record_metadata(v, depth, limit)
+    }
+
+    pub fn encode_record_metadata_at(v: &super::RecordMetadata, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_record_metadata_at(v, depth)
+    }
+
+    pub fn decode_response_metadata_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ResponseMetadata, usize), super::Refusal> {
+        super::decode_response_metadata_at(data, depth, limit)
+    }
+
+    pub fn check_response_metadata(v: &super::ResponseMetadata, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_response_metadata(v, depth, limit)
+    }
+
+    pub fn encode_response_metadata_at(v: &super::ResponseMetadata, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_response_metadata_at(v, depth)
+    }
+
+    pub fn decode_application_question_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ApplicationQuestion, usize), super::Refusal> {
+        super::decode_application_question_at(data, depth, limit)
+    }
+
+    pub fn check_application_question(v: &super::ApplicationQuestion, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_application_question(v, depth, limit)
+    }
+
+    pub fn encode_application_question_at(v: &super::ApplicationQuestion, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_application_question_at(v, depth)
+    }
+
+    pub fn decode_question_observation_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::QuestionObservation, usize), super::Refusal> {
+        super::decode_question_observation_at(data, depth, limit)
+    }
+
+    pub fn check_question_observation(v: &super::QuestionObservation, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_question_observation(v, depth, limit)
+    }
+
+    pub fn encode_question_observation_at(v: &super::QuestionObservation, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_question_observation_at(v, depth)
+    }
+
+    pub fn decode_operator_page_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::OperatorPage, usize), super::Refusal> {
+        super::decode_operator_page_at(data, depth, limit)
+    }
+
+    pub fn check_operator_page(v: &super::OperatorPage, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_operator_page(v, depth, limit)
+    }
+
+    pub fn encode_operator_page_at(v: &super::OperatorPage, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_operator_page_at(v, depth)
+    }
+
+    pub fn decode_operator_decision_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::OperatorDecision, usize), super::Refusal> {
+        super::decode_operator_decision_at(data, depth, limit)
+    }
+
+    pub fn check_operator_decision(v: &super::OperatorDecision, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_operator_decision(v, depth, limit)
+    }
+
+    pub fn encode_operator_decision_at(v: &super::OperatorDecision, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_operator_decision_at(v, depth)
+    }
+
+    pub fn decode_operator_retirement_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::OperatorRetirement, usize), super::Refusal> {
+        super::decode_operator_retirement_at(data, depth, limit)
+    }
+
+    pub fn check_operator_retirement(v: &super::OperatorRetirement, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_operator_retirement(v, depth, limit)
+    }
+
+    pub fn encode_operator_retirement_at(v: &super::OperatorRetirement, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_operator_retirement_at(v, depth)
+    }
+
+    pub fn decode_operator_question_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::OperatorQuestion, usize), super::Refusal> {
+        super::decode_operator_question_at(data, depth, limit)
+    }
+
+    pub fn check_operator_question(v: &super::OperatorQuestion, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_operator_question(v, depth, limit)
+    }
+
+    pub fn encode_operator_question_at(v: &super::OperatorQuestion, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_operator_question_at(v, depth)
+    }
+
+    pub fn decode_attributed_question_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::AttributedQuestion, usize), super::Refusal> {
+        super::decode_attributed_question_at(data, depth, limit)
+    }
+
+    pub fn check_attributed_question(v: &super::AttributedQuestion, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_attributed_question(v, depth, limit)
+    }
+
+    pub fn encode_attributed_question_at(v: &super::AttributedQuestion, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_attributed_question_at(v, depth)
+    }
+
+    pub fn decode_permission_target_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::PermissionTarget, usize), super::Refusal> {
+        super::decode_permission_target_at(data, depth, limit)
+    }
+
+    pub fn check_permission_target(v: &super::PermissionTarget, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_permission_target(v, depth, limit)
+    }
+
+    pub fn encode_permission_target_at(v: &super::PermissionTarget, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_permission_target_at(v, depth)
+    }
+
+    pub fn decode_permission_request_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::PermissionRequest, usize), super::Refusal> {
+        super::decode_permission_request_at(data, depth, limit)
+    }
+
+    pub fn check_permission_request(v: &super::PermissionRequest, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_permission_request(v, depth, limit)
+    }
+
+    pub fn encode_permission_request_at(v: &super::PermissionRequest, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_permission_request_at(v, depth)
+    }
+
+    pub fn decode_question_details_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::QuestionDetails, usize), super::Refusal> {
+        super::decode_question_details_at(data, depth, limit)
+    }
+
+    pub fn check_question_details(v: &super::QuestionDetails, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_question_details(v, depth, limit)
+    }
+
+    pub fn encode_question_details_at(v: &super::QuestionDetails, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_question_details_at(v, depth)
+    }
+
+    pub fn decode_question_asker_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::QuestionAsker, usize), super::Refusal> {
+        super::decode_question_asker_at(data, depth, limit)
+    }
+
+    pub fn check_question_asker(v: &super::QuestionAsker, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_question_asker(v, depth, limit)
+    }
+
+    pub fn encode_question_asker_at(v: &super::QuestionAsker, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_question_asker_at(v, depth)
+    }
+
+    pub fn decode_request_ref_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::RequestRef, usize), super::Refusal> {
+        super::decode_request_ref_at(data, depth, limit)
+    }
+
+    pub fn check_request_ref(v: &super::RequestRef, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_request_ref(v, depth, limit)
+    }
+
+    pub fn encode_request_ref_at(v: &super::RequestRef, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_request_ref_at(v, depth)
+    }
+
+    pub fn decode_choice_option_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ChoiceOption, usize), super::Refusal> {
+        super::decode_choice_option_at(data, depth, limit)
+    }
+
+    pub fn check_choice_option(v: &super::ChoiceOption, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_choice_option(v, depth, limit)
+    }
+
+    pub fn encode_choice_option_at(v: &super::ChoiceOption, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_choice_option_at(v, depth)
+    }
+
+    pub fn decode_choice_request_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ChoiceRequest, usize), super::Refusal> {
+        super::decode_choice_request_at(data, depth, limit)
+    }
+
+    pub fn check_choice_request(v: &super::ChoiceRequest, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_choice_request(v, depth, limit)
+    }
+
+    pub fn encode_choice_request_at(v: &super::ChoiceRequest, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_choice_request_at(v, depth)
+    }
+
+    pub fn decode_choice_answer_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ChoiceAnswer, usize), super::Refusal> {
+        super::decode_choice_answer_at(data, depth, limit)
+    }
+
+    pub fn check_choice_answer(v: &super::ChoiceAnswer, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_choice_answer(v, depth, limit)
+    }
+
+    pub fn encode_choice_answer_at(v: &super::ChoiceAnswer, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_choice_answer_at(v, depth)
+    }
+
+    pub fn decode_choice_observation_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ChoiceObservation, usize), super::Refusal> {
+        super::decode_choice_observation_at(data, depth, limit)
+    }
+
+    pub fn check_choice_observation(v: &super::ChoiceObservation, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_choice_observation(v, depth, limit)
+    }
+
+    pub fn encode_choice_observation_at(v: &super::ChoiceObservation, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_choice_observation_at(v, depth)
+    }
+
+    pub fn decode_choice_acknowledgement_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ChoiceAcknowledgement, usize), super::Refusal> {
+        super::decode_choice_acknowledgement_at(data, depth, limit)
+    }
+
+    pub fn check_choice_acknowledgement(v: &super::ChoiceAcknowledgement, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_choice_acknowledgement(v, depth, limit)
+    }
+
+    pub fn encode_choice_acknowledgement_at(v: &super::ChoiceAcknowledgement, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_choice_acknowledgement_at(v, depth)
+    }
+
+    pub fn decode_choice_record_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ChoiceRecord, usize), super::Refusal> {
+        super::decode_choice_record_at(data, depth, limit)
+    }
+
+    pub fn check_choice_record(v: &super::ChoiceRecord, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_choice_record(v, depth, limit)
+    }
+
+    pub fn encode_choice_record_at(v: &super::ChoiceRecord, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_choice_record_at(v, depth)
+    }
+
+    pub fn decode_choice_page_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ChoicePage, usize), super::Refusal> {
+        super::decode_choice_page_at(data, depth, limit)
+    }
+
+    pub fn check_choice_page(v: &super::ChoicePage, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_choice_page(v, depth, limit)
+    }
+
+    pub fn encode_choice_page_at(v: &super::ChoicePage, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_choice_page_at(v, depth)
+    }
+
+    pub fn decode_choice_read_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ChoiceRead, usize), super::Refusal> {
+        super::decode_choice_read_at(data, depth, limit)
+    }
+
+    pub fn check_choice_read(v: &super::ChoiceRead, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_choice_read(v, depth, limit)
+    }
+
+    pub fn encode_choice_read_at(v: &super::ChoiceRead, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_choice_read_at(v, depth)
+    }
+
+    pub fn decode_choice_decision_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ChoiceDecision, usize), super::Refusal> {
+        super::decode_choice_decision_at(data, depth, limit)
+    }
+
+    pub fn check_choice_decision(v: &super::ChoiceDecision, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_choice_decision(v, depth, limit)
+    }
+
+    pub fn encode_choice_decision_at(v: &super::ChoiceDecision, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_choice_decision_at(v, depth)
+    }
+
+    pub fn decode_choice_details_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ChoiceDetails, usize), super::Refusal> {
+        super::decode_choice_details_at(data, depth, limit)
+    }
+
+    pub fn check_choice_details(v: &super::ChoiceDetails, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_choice_details(v, depth, limit)
+    }
+
+    pub fn encode_choice_details_at(v: &super::ChoiceDetails, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_choice_details_at(v, depth)
+    }
+
+    pub fn decode_answer_entry_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::AnswerEntry, usize), super::Refusal> {
+        super::decode_answer_entry_at(data, depth, limit)
+    }
+
+    pub fn check_answer_entry(v: &super::AnswerEntry, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_answer_entry(v, depth, limit)
+    }
+
+    pub fn encode_answer_entry_at(v: &super::AnswerEntry, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_answer_entry_at(v, depth)
+    }
+
+    pub fn decode_answer_entry_page_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::AnswerEntryPage, usize), super::Refusal> {
+        super::decode_answer_entry_page_at(data, depth, limit)
+    }
+
+    pub fn check_answer_entry_page(v: &super::AnswerEntryPage, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_answer_entry_page(v, depth, limit)
+    }
+
+    pub fn encode_answer_entry_page_at(v: &super::AnswerEntryPage, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_answer_entry_page_at(v, depth)
+    }
+
+    pub fn decode_answerable_choice_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::AnswerableChoice, usize), super::Refusal> {
+        super::decode_answerable_choice_at(data, depth, limit)
+    }
+
+    pub fn check_answerable_choice(v: &super::AnswerableChoice, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_answerable_choice(v, depth, limit)
+    }
+
+    pub fn encode_answerable_choice_at(v: &super::AnswerableChoice, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_answerable_choice_at(v, depth)
+    }
+
+    pub fn decode_answerable_choice_page_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::AnswerableChoicePage, usize), super::Refusal> {
+        super::decode_answerable_choice_page_at(data, depth, limit)
+    }
+
+    pub fn check_answerable_choice_page(v: &super::AnswerableChoicePage, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_answerable_choice_page(v, depth, limit)
+    }
+
+    pub fn encode_answerable_choice_page_at(v: &super::AnswerableChoicePage, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_answerable_choice_page_at(v, depth)
+    }
+
+    pub fn decode_responder_decision_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::ResponderDecision, usize), super::Refusal> {
+        super::decode_responder_decision_at(data, depth, limit)
+    }
+
+    pub fn check_responder_decision(v: &super::ResponderDecision, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_responder_decision(v, depth, limit)
+    }
+
+    pub fn encode_responder_decision_at(v: &super::ResponderDecision, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_responder_decision_at(v, depth)
+    }
+
+    pub fn decode_permission_intent_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::PermissionIntent, usize), super::Refusal> {
+        super::decode_permission_intent_at(data, depth, limit)
+    }
+
+    pub fn check_permission_intent(v: &super::PermissionIntent, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_permission_intent(v, depth, limit)
+    }
+
+    pub fn encode_permission_intent_at(v: &super::PermissionIntent, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_permission_intent_at(v, depth)
+    }
+
+    pub fn decode_permission_observation_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::PermissionObservation, usize), super::Refusal> {
+        super::decode_permission_observation_at(data, depth, limit)
+    }
+
+    pub fn check_permission_observation(v: &super::PermissionObservation, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_permission_observation(v, depth, limit)
+    }
+
+    pub fn encode_permission_observation_at(v: &super::PermissionObservation, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_permission_observation_at(v, depth)
+    }
+
+    pub fn decode_typed_permission_details_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::TypedPermissionDetails, usize), super::Refusal> {
+        super::decode_typed_permission_details_at(data, depth, limit)
+    }
+
+    pub fn check_typed_permission_details(v: &super::TypedPermissionDetails, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_typed_permission_details(v, depth, limit)
+    }
+
+    pub fn encode_typed_permission_details_at(v: &super::TypedPermissionDetails, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_typed_permission_details_at(v, depth)
+    }
+
+    pub fn decode_permission_display_selection_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::PermissionDisplaySelection, usize), super::Refusal> {
+        super::decode_permission_display_selection_at(data, depth, limit)
+    }
+
+    pub fn check_permission_display_selection(v: &super::PermissionDisplaySelection, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_permission_display_selection(v, depth, limit)
+    }
+
+    pub fn encode_permission_display_selection_at(v: &super::PermissionDisplaySelection, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_permission_display_selection_at(v, depth)
+    }
+
+    pub fn decode_permission_display_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::PermissionDisplay, usize), super::Refusal> {
+        super::decode_permission_display_at(data, depth, limit)
+    }
+
+    pub fn check_permission_display(v: &super::PermissionDisplay, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_permission_display(v, depth, limit)
+    }
+
+    pub fn encode_permission_display_at(v: &super::PermissionDisplay, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_permission_display_at(v, depth)
+    }
+
+    pub fn decode_notification_action_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::NotificationAction, usize), super::Refusal> {
+        super::decode_notification_action_at(data, depth, limit)
+    }
+
+    pub fn check_notification_action(v: &super::NotificationAction, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_notification_action(v, depth, limit)
+    }
+
+    pub fn encode_notification_action_at(v: &super::NotificationAction, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_notification_action_at(v, depth)
+    }
+
+    pub fn decode_notification_request_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::NotificationRequest, usize), super::Refusal> {
+        super::decode_notification_request_at(data, depth, limit)
+    }
+
+    pub fn check_notification_request(v: &super::NotificationRequest, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_notification_request(v, depth, limit)
+    }
+
+    pub fn encode_notification_request_at(v: &super::NotificationRequest, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_notification_request_at(v, depth)
+    }
+
+    pub fn decode_notification_result_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::NotificationResult, usize), super::Refusal> {
+        super::decode_notification_result_at(data, depth, limit)
+    }
+
+    pub fn check_notification_result(v: &super::NotificationResult, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_notification_result(v, depth, limit)
+    }
+
+    pub fn encode_notification_result_at(v: &super::NotificationResult, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_notification_result_at(v, depth)
+    }
+
+    pub fn decode_notification_observation_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::NotificationObservation, usize), super::Refusal> {
+        super::decode_notification_observation_at(data, depth, limit)
+    }
+
+    pub fn check_notification_observation(v: &super::NotificationObservation, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_notification_observation(v, depth, limit)
+    }
+
+    pub fn encode_notification_observation_at(v: &super::NotificationObservation, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_notification_observation_at(v, depth)
+    }
+
+    pub fn decode_notification_record_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::NotificationRecord, usize), super::Refusal> {
+        super::decode_notification_record_at(data, depth, limit)
+    }
+
+    pub fn check_notification_record(v: &super::NotificationRecord, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_notification_record(v, depth, limit)
+    }
+
+    pub fn encode_notification_record_at(v: &super::NotificationRecord, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_notification_record_at(v, depth)
+    }
+
+    pub fn decode_notification_page_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::NotificationPage, usize), super::Refusal> {
+        super::decode_notification_page_at(data, depth, limit)
+    }
+
+    pub fn check_notification_page(v: &super::NotificationPage, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_notification_page(v, depth, limit)
+    }
+
+    pub fn encode_notification_page_at(v: &super::NotificationPage, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_notification_page_at(v, depth)
+    }
+
+    pub fn decode_notification_read_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::NotificationRead, usize), super::Refusal> {
+        super::decode_notification_read_at(data, depth, limit)
+    }
+
+    pub fn check_notification_read(v: &super::NotificationRead, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_notification_read(v, depth, limit)
+    }
+
+    pub fn encode_notification_read_at(v: &super::NotificationRead, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_notification_read_at(v, depth)
+    }
+
+    pub fn decode_notification_decision_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::NotificationDecision, usize), super::Refusal> {
+        super::decode_notification_decision_at(data, depth, limit)
+    }
+
+    pub fn check_notification_decision(v: &super::NotificationDecision, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_notification_decision(v, depth, limit)
+    }
+
+    pub fn encode_notification_decision_at(v: &super::NotificationDecision, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_notification_decision_at(v, depth)
+    }
+
+    pub fn decode_notifier_day_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::NotifierDay, usize), super::Refusal> {
+        super::decode_notifier_day_at(data, depth, limit)
+    }
+
+    pub fn check_notifier_day(v: &super::NotifierDay, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_notifier_day(v, depth, limit)
+    }
+
+    pub fn encode_notifier_day_at(v: &super::NotifierDay, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_notifier_day_at(v, depth)
+    }
+
+    pub fn decode_notifier_count_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::NotifierCount, usize), super::Refusal> {
+        super::decode_notifier_count_at(data, depth, limit)
+    }
+
+    pub fn check_notifier_count(v: &super::NotifierCount, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_notifier_count(v, depth, limit)
+    }
+
+    pub fn encode_notifier_count_at(v: &super::NotifierCount, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_notifier_count_at(v, depth)
+    }
+
+    pub fn decode_notifier_page_at(data: &[u8], depth: i32, limit: i32) -> Result<(super::NotifierPage, usize), super::Refusal> {
+        super::decode_notifier_page_at(data, depth, limit)
+    }
+
+    pub fn check_notifier_page(v: &super::NotifierPage, depth: i32, limit: i32) -> Result<(), super::Refusal> {
+        super::check_notifier_page(v, depth, limit)
+    }
+
+    pub fn encode_notifier_page_at(v: &super::NotifierPage, depth: i32) -> Result<Vec<u8>, super::Refusal> {
+        super::encode_notifier_page_at(v, depth)
     }
 }

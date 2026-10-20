@@ -115,6 +115,56 @@ func TestApplicationQuestionContentAndCapacity(t *testing.T) {
 		t.Fatal(got, o, e)
 	}
 }
+
+func TestContentReplaceAttemptIsIdempotentButOnceDoesNotCarryToNextAttempt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "application.json")
+	b, err := LoadApplicationBook(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slots := map[string]string{
+		"target": "model.safetensors", "replacement": "model-klein.safetensors", "code": "R7KD", "until": "2026-09-29 14:30 UTC",
+	}
+	missing := map[string]string{"target": slots["target"], "replacement": slots["replacement"], "until": slots["until"]}
+	if _, outcome, err := b.AskApplication("attempt-scope", "ComfyUI", "missing-slot", "content.replace", missing, listen.Seen{}); err != nil || outcome != "invalid" {
+		t.Fatalf("missing declared slot must be refused: outcome=%q err=%v", outcome, err)
+	}
+	extra := map[string]string{"target": slots["target"], "replacement": slots["replacement"], "code": slots["code"], "until": slots["until"], "custom": "text"}
+	if _, outcome, err := b.AskApplication("attempt-scope", "ComfyUI", "extra-slot", "content.replace", extra, listen.Seen{}); err != nil || outcome != "invalid" {
+		t.Fatalf("arbitrary extra slot must be refused: outcome=%q err=%v", outcome, err)
+	}
+	first, outcome, err := b.AskApplication("attempt-scope", "ComfyUI", "replace-1", "content.replace", slots, listen.Seen{})
+	if err != nil || outcome != "pending" {
+		t.Fatalf("first ask: outcome=%q err=%v", outcome, err)
+	}
+	if first.About != slots["target"] || first.Text != "ComfyUI requests a one-time replacement of model.safetensors with model-klein.safetensors. Request R7KD expires 2026-09-29 14:30 UTC." {
+		t.Fatalf("record does not use the service-owned target and wording: %+v", first)
+	}
+	replay, outcome, err := b.AskApplication("attempt-scope", "ComfyUI", "replace-1", "content.replace", slots, listen.Seen{})
+	if err != nil || outcome != "pending" || replay.ID != first.ID {
+		t.Fatalf("same attempt must replay its one pending question: record=%+v outcome=%q err=%v", replay, outcome, err)
+	}
+	answered, err := b.Answer(first.ID, "once")
+	if err != nil || !answered.Yes || answered.Kept || answered.Option != "once" {
+		t.Fatalf("once answer must permit this attempt without being kept: %+v err=%v", answered, err)
+	}
+	replay, outcome, err = b.AskApplication("attempt-scope", "ComfyUI", "replace-1", "content.replace", slots, listen.Seen{})
+	if err != nil || outcome != "answered" || replay.ID != first.ID || replay.Option != "once" {
+		t.Fatalf("same attempt must recover its once answer: record=%+v outcome=%q err=%v", replay, outcome, err)
+	}
+	second, outcome, err := b.AskApplication("attempt-scope", "ComfyUI", "replace-2", "content.replace", slots, listen.Seen{})
+	if err != nil || outcome != "pending" || second.ID == first.ID {
+		t.Fatalf("a new replacement attempt must ask again after once: record=%+v outcome=%q err=%v", second, outcome, err)
+	}
+	if _, err := b.Answer(second.ID, "never"); err != nil {
+		t.Fatal(err)
+	}
+	third, outcome, err := b.AskApplication("attempt-scope", "ComfyUI", "replace-3", "content.replace", slots, listen.Seen{})
+	if err != nil || outcome != "answered" || third.ID != second.ID || third.Yes || !third.Kept || third.Option != "never" {
+		t.Fatalf("the existing never answer must remain kept for this content/scope: record=%+v outcome=%q err=%v", third, outcome, err)
+	}
+}
+
 func TestApplicationCorruptStorageRefusesWithoutWrite(t *testing.T) {
 	for _, data := range [][]byte{[]byte(`{"profile":"future","asks":null}`), []byte(`{"profile":"asks-application@1","asks":null,"profile":"asks-application@1"}`), bytes.Repeat([]byte{' '}, MaxApplicationBytes+1)} {
 		path := filepath.Join(t.TempDir(), "application.json")

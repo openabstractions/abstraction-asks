@@ -19,6 +19,10 @@ type receiver struct {
 	call *listen.FramedCall
 }
 
+// callerScope derives the admission subject from the receiving account and
+// the bound program (ASK-A1). It returns the scope and that program, the
+// clean absolute path the platform proved; records keep the program and
+// derive their display name from it (asks.AskerDisplay).
 func callerScope(p *identity.Peer, owner string) (string, string, error) {
 	if p == nil {
 		return "", "", errors.New("asks: caller required")
@@ -43,7 +47,7 @@ func callerScope(p *identity.Peer, owner string) (string, string, error) {
 	path = filepath.Clean(path)
 	data, _ := json.Marshal([]string{"asks-owner-program@1", u.Kind, principal, path})
 	sum := sha256.Sum256(data)
-	return "asks-owner-program@1:" + hex.EncodeToString(sum[:]), filepath.Base(path), nil
+	return "asks-owner-program@1:" + hex.EncodeToString(sum[:]), path, nil
 }
 func (r *receiver) scope() (string, string, error) {
 	p, e := r.call.Peer()
@@ -67,7 +71,10 @@ func observation(record asks.Record, outcome string, e error) wire.QuestionObser
 	return result
 }
 func (r *receiver) Ask(q wire.ApplicationQuestion) (wire.QuestionObservation, error) {
-	scope, display, e := r.scope()
+	if asks.RuntimeOnlyKey(q.Key) {
+		return wire.QuestionObservation{Outcome: wire.ObservationOutcomeForbidden}, nil
+	}
+	scope, program, e := r.scope()
 	if e != nil {
 		return wire.QuestionObservation{Outcome: wire.ObservationOutcomeForbidden}, nil
 	}
@@ -88,7 +95,14 @@ func (r *receiver) Ask(q wire.ApplicationQuestion) (wire.QuestionObservation, er
 			return wire.QuestionObservation{Outcome: wire.ObservationOutcomeForbidden}, nil
 		}
 	}
-	record, outcome, e := r.host.book.AskApplication(scope, display, q.RequestKey, q.Key, q.Slots, r.call.Caller)
+	// The publisher is the code signer of the peer this call bound (ASK-A6).
+	publisher := asks.Publisher{}
+	if peer, err := r.call.Peer(); err == nil {
+		if code, proof := peer.Code.Get(); proof > identity.ProofNone {
+			publisher = asks.CodePublisher(code)
+		}
+	}
+	record, outcome, e := r.host.book.AskApplicationAs(scope, program, q.RequestKey, q.Key, q.Slots, r.call.Caller, publisher)
 	return observation(record, outcome, e), nil
 }
 func (r *receiver) Observe(key string, waitMS int64) (wire.QuestionObservation, error) {

@@ -100,6 +100,9 @@ func pageRefusal(outcome wire.OperatorPageOutcome) wire.OperatorPage {
 	return wire.OperatorPage{Outcome: outcome, Records: []wire.RecordMetadata{}}
 }
 func (r *operatorReceiver) ListQuestions(cursor string, limit int64) (wire.OperatorPage, error) {
+	return r.listQuestions(cursor, limit, false)
+}
+func (r *operatorReceiver) listQuestions(cursor string, limit int64, typed bool) (wire.OperatorPage, error) {
 	scope, err := r.authorize()
 	if err != nil {
 		return pageRefusal(operatorPageError(err)), nil
@@ -111,8 +114,18 @@ func (r *operatorReceiver) ListQuestions(cursor string, limit int64) (wire.Opera
 	if err != nil {
 		return pageRefusal(wire.OperatorPageOutcomeUnavailable), nil
 	}
+	filtered := records[:0]
+	for _, record := range records {
+		if (record.TypedPermission != nil) == typed {
+			filtered = append(filtered, record)
+		}
+	}
+	records = filtered
 	sum := sha256.Sum256([]byte(scope))
 	prefix := r.host.operatorEpoch + ":" + hex.EncodeToString(sum[:]) + ":" + revision + ":"
+	if typed {
+		prefix = "typed:" + prefix
+	}
 	offset := 0
 	if cursor != "" {
 		word, ok := strings.CutPrefix(cursor, prefix)
@@ -153,6 +166,11 @@ func (r *operatorReceiver) RetireQuestion(id string) (wire.OperatorRetirement, e
 	if _, err := r.authorize(); err != nil {
 		return wire.OperatorRetirement{Outcome: operatorRetirementError(err)}, nil
 	}
+	if record, found, err := r.host.book.ApplicationRecord(id); err != nil {
+		return wire.OperatorRetirement{Outcome: wire.OperatorRetirementOutcomeUnavailable}, nil
+	} else if found && record.TypedPermission != nil {
+		return wire.OperatorRetirement{Outcome: wire.OperatorRetirementOutcomeInvalid}, nil
+	}
 	record, outcome, err := r.host.book.RetireApplicationAuthorized(id, func() error { _, err := r.authorize(); return err })
 	if err != nil {
 		return wire.OperatorRetirement{Outcome: operatorRetirementError(err)}, nil
@@ -168,11 +186,110 @@ func (r *operatorReceiver) RetireQuestion(id string) (wire.OperatorRetirement, e
 	}
 	return result, nil
 }
+
+// ReadQuestionAsker reads trusted details and the bound asking program from
+// the same occurrence (ASK-O11). Only found carries a program.
+func (r *operatorReceiver) ReadQuestionAsker(id string) (wire.QuestionAsker, error) {
+	details, record := r.readDetails(id)
+	return wire.QuestionAsker{Details: details, Program: record.AskerProgram}, nil
+}
+
+// readDetails reads one occurrence for an authorized operator. The record is
+// the zero value unless the outcome is found.
+func (r *operatorReceiver) readDetails(id string) (wire.QuestionDetails, asks.Record) {
+	refused := func(outcome wire.OperatorQuestionOutcome) (wire.QuestionDetails, asks.Record) {
+		return wire.QuestionDetails{Question: wire.AttributedQuestion{Question: wire.OperatorQuestion{Outcome: outcome}}}, asks.Record{}
+	}
+	if _, err := r.authorize(); err != nil {
+		return refused(operatorQuestionError(err))
+	}
+	if !asks.ValidRequestKey(id) {
+		return refused(wire.OperatorQuestionOutcomeInvalid)
+	}
+	record, found, err := r.host.book.ApplicationRecord(id)
+	if err != nil {
+		return refused(wire.OperatorQuestionOutcomeUnavailable)
+	}
+	if !found {
+		return refused(wire.OperatorQuestionOutcomeUnknown)
+	}
+	if _, err := r.authorize(); err != nil {
+		return refused(operatorQuestionError(err))
+	}
+	result := wire.QuestionDetails{Question: attributedRecord(record)}
+	if record.TypedPermission != nil {
+		return refused(wire.OperatorQuestionOutcomeInvalid)
+	}
+	if record.Key == asks.FirstUseKey {
+		permission, ok := asks.PermissionForRecord(r.host.owner, record)
+		if !ok {
+			return refused(wire.OperatorQuestionOutcomeUnavailable)
+		}
+		result.Permission = &permission
+	}
+	return result, record
+}
+
+// ReadAttributedQuestion reads recorded metadata and provenance (ASK-O7).
+// Permission recovery belongs to ReadQuestionAsker.
+func (r *operatorReceiver) ReadAttributedQuestion(id string) (wire.AttributedQuestion, error) {
+	if _, err := r.authorize(); err != nil {
+		return wire.AttributedQuestion{Question: wire.OperatorQuestion{Outcome: operatorQuestionError(err)}}, nil
+	}
+	if !asks.ValidRequestKey(id) {
+		return wire.AttributedQuestion{Question: wire.OperatorQuestion{Outcome: wire.OperatorQuestionOutcomeInvalid}}, nil
+	}
+	record, found, err := r.host.book.ApplicationRecord(id)
+	if err != nil {
+		return wire.AttributedQuestion{Question: wire.OperatorQuestion{Outcome: wire.OperatorQuestionOutcomeUnavailable}}, nil
+	}
+	if !found {
+		return wire.AttributedQuestion{Question: wire.OperatorQuestion{Outcome: wire.OperatorQuestionOutcomeUnknown}}, nil
+	}
+	if _, err = r.authorize(); err != nil {
+		return wire.AttributedQuestion{Question: wire.OperatorQuestion{Outcome: operatorQuestionError(err)}}, nil
+	}
+	if record.TypedPermission != nil {
+		return wire.AttributedQuestion{Question: wire.OperatorQuestion{Outcome: wire.OperatorQuestionOutcomeInvalid}}, nil
+	}
+	return attributedRecord(record), nil
+}
+
+func attributedRecord(record asks.Record) wire.AttributedQuestion {
+	value := operatorMetadata(record)
+	read := wire.OperatorQuestion{Outcome: wire.OperatorQuestionOutcomeFound, Record: &value,
+		Publisher: record.Publisher, PublisherTrusted: record.PublisherTrusted,
+		ProgramDescription: record.ProgramDescription, ProgramOriginalName: record.ProgramOriginalName}
+	if by, ok := wire.ParseAnswerer(record.AnsweredBy); ok && !record.Pending() {
+		read.AnsweredBy = &by
+	}
+	return wire.AttributedQuestion{Question: read, Answerer: record.Answerer}
+}
+func operatorQuestionError(err error) wire.OperatorQuestionOutcome {
+	if errors.Is(err, ErrOperatorForbidden) {
+		return wire.OperatorQuestionOutcomeForbidden
+	}
+	return wire.OperatorQuestionOutcomeUnavailable
+}
 func (r *operatorReceiver) AnswerQuestion(id, option string) (wire.OperatorDecision, error) {
+	return r.answer(id, option, func(id, option string, authorize func() error) (asks.Record, string, error) {
+		return r.host.book.AnswerLegacyApplicationAuthorized(id, option, false, authorize)
+	})
+}
+
+// AnswerQuestionIfPending records option only while the question is pending
+// (ASK-O8); an answered question is conflict and nothing is replayed.
+func (r *operatorReceiver) AnswerQuestionIfPending(id, option string) (wire.OperatorDecision, error) {
+	return r.answer(id, option, func(id, option string, authorize func() error) (asks.Record, string, error) {
+		return r.host.book.AnswerLegacyApplicationAuthorized(id, option, true, authorize)
+	})
+}
+
+func (r *operatorReceiver) answer(id, option string, record func(id, option string, authorize func() error) (asks.Record, string, error)) (wire.OperatorDecision, error) {
 	if _, err := r.authorize(); err != nil {
 		return wire.OperatorDecision{Outcome: operatorDecisionError(err)}, nil
 	}
-	record, outcome, err := r.host.book.AnswerApplicationAuthorized(id, option, func() error { _, err := r.authorize(); return err })
+	answered, outcome, err := record(id, option, func() error { _, err := r.authorize(); return err })
 	if err != nil {
 		return wire.OperatorDecision{Outcome: operatorDecisionError(err)}, nil
 	}
@@ -182,7 +299,7 @@ func (r *operatorReceiver) AnswerQuestion(id, option string) (wire.OperatorDecis
 	}
 	result := wire.OperatorDecision{Outcome: parsed}
 	if parsed == wire.OperatorDecisionOutcomeAnswered {
-		value := operatorMetadata(record)
+		value := operatorMetadata(answered)
 		result.Record = &value
 	}
 	return result, nil

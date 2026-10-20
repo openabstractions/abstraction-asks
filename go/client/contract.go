@@ -10,6 +10,31 @@ import (
 
 type Answer = wire.Answer
 
+type ResponderDecision = wire.ResponderDecision
+type ResponderEffectOutcome = wire.ResponderEffectOutcome
+
+const (
+	ResponderEffectOutcomeNone        = wire.ResponderEffectOutcomeNone
+	ResponderEffectOutcomeApplied     = wire.ResponderEffectOutcomeApplied
+	ResponderEffectOutcomeConflict    = wire.ResponderEffectOutcomeConflict
+	ResponderEffectOutcomeForbidden   = wire.ResponderEffectOutcomeForbidden
+	ResponderEffectOutcomeUnavailable = wire.ResponderEffectOutcomeUnavailable
+)
+
+func ResponderEffectOutcomeValues() []ResponderEffectOutcome {
+	return wire.ResponderEffectOutcomeValues()
+}
+
+type Answerer = wire.Answerer
+
+const (
+	AnswererOperator  = wire.AnswererOperator
+	AnswererResponder = wire.AnswererResponder
+)
+
+// AnswererValues returns every member of Answerer in declaration order, in a new slice.
+func AnswererValues() []Answerer { return wire.AnswererValues() }
+
 type ObservationOutcome = wire.ObservationOutcome
 
 const (
@@ -58,6 +83,28 @@ const (
 
 // OperatorPageOutcomeValues returns every member of OperatorPageOutcome in declaration order, in a new slice.
 func OperatorPageOutcomeValues() []OperatorPageOutcome { return wire.OperatorPageOutcomeValues() }
+
+type OperatorQuestion = wire.OperatorQuestion
+type AttributedQuestion = wire.AttributedQuestion
+type QuestionDetails = wire.QuestionDetails
+type QuestionAsker = wire.QuestionAsker
+type PermissionRequest = wire.PermissionRequest
+type PermissionTarget = wire.PermissionTarget
+
+type OperatorQuestionOutcome = wire.OperatorQuestionOutcome
+
+const (
+	OperatorQuestionOutcomeFound       = wire.OperatorQuestionOutcomeFound
+	OperatorQuestionOutcomeUnknown     = wire.OperatorQuestionOutcomeUnknown
+	OperatorQuestionOutcomeInvalid     = wire.OperatorQuestionOutcomeInvalid
+	OperatorQuestionOutcomeForbidden   = wire.OperatorQuestionOutcomeForbidden
+	OperatorQuestionOutcomeUnavailable = wire.OperatorQuestionOutcomeUnavailable
+)
+
+// OperatorQuestionOutcomeValues returns every member of OperatorQuestionOutcome in declaration order, in a new slice.
+func OperatorQuestionOutcomeValues() []OperatorQuestionOutcome {
+	return wire.OperatorQuestionOutcomeValues()
+}
 
 type OperatorRetirement = wire.OperatorRetirement
 

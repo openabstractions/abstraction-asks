@@ -23,6 +23,12 @@ const (
 // Option.Kept alone: whether the choice permits or refuses the asker, and
 // whether the service remembers it or asks again next time.
 func optionMeaning(o Option) string {
+	switch o.Name {
+	case "keep":
+		return "`keep`: the app stays registered, confirmed"
+	case "remove":
+		return "`remove`: the app's entry is removed and it may not register itself again"
+	}
 	verb := "refused"
 	if o.Yes {
 		verb = "permitted"
@@ -35,12 +41,84 @@ func optionMeaning(o Option) string {
 }
 
 func questionRow(q Question) string {
-	options := append(append([]Option{}, q.Options...), Never)
-	meanings := make([]string, len(options))
-	for i, o := range options {
-		meanings[i] = optionMeaning(o)
+	var meanings []string
+	for _, name := range q.OptionNames() {
+		o, _ := q.Option(name)
+		meanings = append(meanings, optionMeaning(o))
 	}
 	return fmt.Sprintf("| `%s` | `%s` | %s |", q.Key, q.Text, strings.Join(meanings, " · "))
+}
+
+func TestContentReplaceQuestionHasExactServiceOwnedPromptAndOneTimeChoice(t *testing.T) {
+	q, ok := Find("content.replace")
+	if !ok {
+		t.Fatal("content.replace missing from the fixed catalogue")
+	}
+	if q.Text != "{asker} requests a one-time replacement of {target} with {replacement}. Request {code} expires {until}." || q.About != "target" {
+		t.Fatalf("unexpected service-owned question: %+v", q)
+	}
+	if len(q.Options) != 1 || q.Options[0] != (Option{Name: "once", Yes: true}) {
+		t.Fatalf("content.replace must offer only a non-kept allow-once option: %+v", q.Options)
+	}
+	if option, ok := q.Option("never"); !ok || option != Never {
+		t.Fatalf("the standard never refusal must remain available: %+v ok=%v", option, ok)
+	}
+	text, err := q.Render(Ask{Asker: "ComfyUI", Key: q.Key, Slots: map[string]string{
+		"target": "model.safetensors", "replacement": "model-klein.safetensors", "code": "R7KD", "until": "2026-09-29 14:30 UTC",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "ComfyUI requests a one-time replacement of model.safetensors with model-klein.safetensors. Request R7KD expires 2026-09-29 14:30 UTC."
+	if text != want {
+		t.Fatalf("rendered prompt %q, want %q", text, want)
+	}
+}
+
+func TestOpenCodeProjectQuestionIsOneTimeFolderAccess(t *testing.T) {
+	q, ok := Find("opencode.project.edit")
+	if !ok || q.About != "folder" || !strings.Contains(q.Text, "edit and delete") || !strings.Contains(q.Text, "including its subfolders") {
+		t.Fatalf("folder disclosure missing: %+v", q)
+	}
+	once, ok := q.Option("once")
+	if !ok || !once.Yes || once.Kept {
+		t.Fatalf("folder permission must be one-time: %+v", once)
+	}
+	if _, ok := q.Option("allow"); ok {
+		t.Fatal("folder grant offers a persistent allow")
+	}
+}
+
+// TestSystemAccessQuestionIsOnceAndRuntimeOnly is ASK-S1: one-time, no
+// persistent allow, names the administrator prompt, and only a runtime
+// admits it.
+func TestSystemAccessQuestionIsOnceAndRuntimeOnly(t *testing.T) {
+	q, ok := Find(SystemSecurityLogKey)
+	if !ok || q.About != "code" || !strings.Contains(q.Text, "Windows asks for administrator approval next") {
+		t.Fatalf("system-access question: %+v", q)
+	}
+	once, ok := q.Option("once")
+	if !ok || !once.Yes || once.Kept {
+		t.Fatalf("once must be one-time: %+v", once)
+	}
+	if _, ok := q.Option("allow"); ok {
+		t.Fatal("the system-access question offers a persistent allow")
+	}
+	if refuse, ok := q.Option("refuse"); !ok || refuse.Yes {
+		t.Fatalf("refuse: %+v", refuse)
+	}
+	for _, key := range []string{FirstUseKey, TypedPermissionKey, SystemSecurityLogKey} {
+		if !RuntimeOnlyKey(key) {
+			t.Fatalf("%s is admitted by applications", key)
+		}
+	}
+	if RuntimeOnlyKey("download.reach") {
+		t.Fatal("an application question became runtime-only")
+	}
+	text, err := q.Render(Ask{Asker: "reader.exe", Key: q.Key, Slots: map[string]string{"code": "a1b2c3d4", "until": "2026-10-07T12:15:00Z"}})
+	if err != nil || text != "reader.exe wants to read one page of the Windows Security log. Windows asks for administrator approval next. Request a1b2c3d4 expires 2026-10-07T12:15:00Z." {
+		t.Fatalf("%q %v", text, err)
+	}
 }
 
 // expectedTable renders the catalogue block README.md must carry between

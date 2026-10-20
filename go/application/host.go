@@ -30,10 +30,23 @@ type Host struct {
 	slots     chan struct{}
 	OnError   func(error)
 	// Assign before Serve. Called when admission stops, before calls drain.
-	OnStopped     func()
-	operator      AuthorizeOperator
-	operatorEpoch string
-	askPolicy     AskPolicy
+	OnStopped func()
+	operator  AuthorizeOperator
+	responder AuthorizeResponder
+	// choiceResponder checks an enrolled assistant answering a shared
+	// ordinary choice (ASK-R9).
+	choiceResponder AuthorizeChoiceResponder
+	// answeringRequest asks for an answerer's enrollment (ASK-R10).
+	answeringRequest RequestAnswering
+	operatorEpoch    string
+	askPolicy        AskPolicy
+	permission       PreparePermission
+	// Notification configuration (ASK-N1..N7) and the per-epoch key that
+	// binds presentation tokens.
+	notificationPolicy  NotificationPolicy
+	notificationBlocked NotificationBlocked
+	operationOwner      OperationOwner
+	presentationKey     [32]byte
 }
 
 // Listen requires a separate application-profile Book owned by this host.
@@ -52,12 +65,16 @@ func Listen(endpoint string, book *asks.Book) (*Host, error) {
 	if _, e = rand.Read(epoch[:]); e != nil {
 		return nil, e
 	}
+	var key [32]byte
+	if _, e = rand.Read(key[:]); e != nil {
+		return nil, e
+	}
 	l, e := listen.ListenFramed(endpoint, listen.Program)
 	if e != nil {
 		return nil, e
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Host{listener: listen.Sessions(l, listen.SessionOptions{MaxSessions: 32}), owner: owner.Uid, book: book, ctx: ctx, cancel: cancel, slots: make(chan struct{}, 32), operatorEpoch: hex.EncodeToString(epoch[:])}, nil
+	return &Host{listener: listen.Sessions(l, listen.SessionOptions{MaxSessions: 32}), owner: owner.Uid, book: book, ctx: ctx, cancel: cancel, slots: make(chan struct{}, 32), operatorEpoch: hex.EncodeToString(epoch[:]), presentationKey: key}, nil
 }
 func (h *Host) Close() error {
 	var e error
@@ -110,7 +127,13 @@ func (h *Host) Serve(ctx context.Context) error {
 				var reply []byte
 				reply, e = wire.ServeEndpoint(call.Frame, "openabstractions", "",
 					&wire.QuestionApplicationDispatcher{Handler: &receiver{host: h, call: call}},
-					&wire.QuestionOperatorDispatcher{Handler: &operatorReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()}})
+					&wire.ChoiceApplicationDispatcher{Handler: &choiceReceiver{receiver{host: h, call: call}}},
+					&wire.PermissionApplicationDispatcher{Handler: &permissionReceiver{receiver{host: h, call: call}}},
+					&wire.PermissionOperatorDispatcher{Handler: &permissionOperatorReceiver{operatorReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()}}},
+					&wire.QuestionOperatorDispatcher{Handler: &operatorReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()}},
+					&wire.QuestionResponderDispatcher{Handler: &responderReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()}},
+					&wire.NotificationApplicationDispatcher{Handler: &notificationReceiver{receiver{host: h, call: call}}},
+					&wire.NotificationOperatorDispatcher{Handler: &notificationOperatorReceiver{operatorReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()}}})
 				if e == nil {
 					e = call.Reply(reply)
 				}

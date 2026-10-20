@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
 	cas "github.com/openabstractions/abstraction-cas/go"
 	"github.com/openabstractions/abstraction-identity/listen"
 )
@@ -21,10 +22,41 @@ var (
 	ErrNoRecord       = errors.New("asks: no record under that id")
 )
 
+// legacyDelegatedAnswer is the private version 7/8 storage shape. Reads migrate
+// it into AnswerEntry; the public answer audit has one response type.
+type legacyDelegatedAnswer struct {
+	ID               string `json:"id"`
+	Asker            string `json:"asker"`
+	AskerProgram     string `json:"asker_program,omitempty"`
+	Publisher        string `json:"publisher,omitempty"`
+	PublisherTrusted bool   `json:"publisher_trusted,omitempty"`
+	Title            string `json:"title"`
+	Option           string `json:"option"`
+	Label            string `json:"label"`
+	Answerer         string `json:"answerer"`
+	AnsweredMs       int64  `json:"answered_ms"`
+}
+
 type book struct {
-	Asks       []*Record              `json:"asks"`
-	Profile    string                 `json:"profile,omitempty"`
-	Admissions []applicationAdmission `json:"admissions,omitempty"`
+	Asks         []*Record              `json:"asks"`
+	Profile      string                 `json:"profile,omitempty"`
+	Admissions   []applicationAdmission `json:"admissions,omitempty"`
+	Choices      []choiceAdmission      `json:"choices,omitempty"`
+	ChoiceTimeMs int64                  `json:"choice_time_ms,omitempty"`
+	// Delegated is version 7 and 8's audit of assistants' answers to shared
+	// ordinary choices; a read moves it into Answers.
+	Delegated        []legacyDelegatedAnswer `json:"delegated,omitempty"`
+	DelegatedSinceMs int64                   `json:"delegated_since_ms,omitempty"`
+	// Answers is the bounded audit of every answer recorded through
+	// operator@1 or responder@1, oldest first (ASK-O13, ASK-O15);
+	// AnswersSinceMs is the time at or before which an entry was evicted by
+	// the bound, zero for none.
+	Answers        []wire.AnswerEntry `json:"answers,omitempty"`
+	AnswersSinceMs int64              `json:"answers_since_ms,omitempty"`
+	// Notifications and Notifiers form the separately bounded notification
+	// partition (ASK-N1, ASK-N6); they share the ordinary time floor.
+	Notifications []notificationAdmission `json:"notifications,omitempty"`
+	Notifiers     []notifier              `json:"notifiers,omitempty"`
 }
 
 type Book struct {
@@ -32,6 +64,11 @@ type Book struct {
 	path        string
 	decided     map[string]chan struct{}
 	application bool
+	// lifetime is how long an application-profile question stays pending
+	// (ASK-A7); zero means DefaultPendingLifetime. now is the clock.
+	lifetime time.Duration
+	now      func() time.Time
+	owner    string
 }
 
 func LoadBook(path string) (*Book, error) {
@@ -90,6 +127,9 @@ func random(n int) string {
 }
 
 func (b *Book) Ask(a Ask, via listen.Seen) (Record, bool, error) {
+	if a.Key == TypedPermissionKey {
+		return Record{}, false, ErrTypedPermissionRequired
+	}
 	if b.application {
 		return Record{}, false, errors.New("asks: use caller-bound application admission")
 	}
@@ -149,7 +189,8 @@ func (b *Book) decidedLocked(id string) chan struct{} {
 	if !ok {
 		ch = make(chan struct{})
 		b.decided[id] = ch
-		if r, ok := b.get(id); !ok || !r.Pending() {
+		r, ok := b.get(id)
+		if (!ok || !r.Pending()) && !b.choicePending(id) && !b.notificationPending(id) {
 			close(ch)
 		}
 	}
@@ -173,6 +214,9 @@ func (b *Book) Answer(id, option string) (Record, error) {
 			return ErrNothingPending
 		}
 		r := f.Asks[i]
+		if r.TypedPermission != nil {
+			return ErrTypedPermissionRequired
+		}
 		q, _ := Find(r.Key)
 		o, ok := q.Option(option)
 		if !ok {
@@ -210,6 +254,9 @@ func (b *Book) Forget(id string) error {
 		i := f.index(id)
 		if i < 0 {
 			return ErrNoRecord
+		}
+		if f.Asks[i].TypedPermission != nil {
+			return ErrTypedPermissionRequired
 		}
 		f.Asks = slices.Delete(f.Asks, i, i+1)
 		return nil

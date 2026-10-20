@@ -8,3 +8,4 @@ path = "../rs/abstraction/asks/api/rec.rs"
 
 [dependencies]
 abstraction-frame = { path = "../../abstraction-identity/rust-frame" }
+abstraction-rights-api = { path = "../../abstraction-rights/rust" }

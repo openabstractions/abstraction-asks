@@ -1,0 +1,95 @@
+{
+  "format": "openabstractions-rights@1",
+  "owner": "abstraction.asks",
+  "generated": "Do not edit. Run rights-catalogue --write from the existing compiled catalogue.",
+  "source": "github.com/openabstractions/abstraction-facade/go/grants",
+  "availability": "Compiled catalogue reference: served and selector support use the named receiving-service context. Connected-runtime discovery supplies current availability. Facade Applications is experimental. Definitions grant no access.",
+  "compiled_receivers": {
+    "credentials": true,
+    "application_logs": true
+  },
+  "definitions": [
+    {
+      "definition": {
+        "action": "abstraction.asks/notification.post",
+        "owner_contract": "abstraction.asks/notification@1",
+        "operations": [
+          "abstraction.asks/notification@1#Post",
+          "abstraction.asks/notification-operator@1#Act"
+        ],
+        "resource_profile": "abstraction.rights/legacy-exact-string@1",
+        "resource_type": "string (legacy exact resource)",
+        "enforced_by": [
+          "abstraction.asks/notification@1",
+          "abstraction.asks/notification-operator@1"
+        ],
+        "disclosure": "Post the caller's own one-way notification with attributed text and up to two actions; an action records application intent only. A block also refuses actions on posted notifications.",
+        "lifecycle": "Every notification of one program in the receiving account; within service rate and live bounds.",
+        "first_use": "none",
+        "served": true
+      },
+      "label": "abstraction.asks/notification.post",
+      "supported_selectors": [],
+      "first_use_selectors": [],
+      "collection": "Every notification of one program in the receiving account; within service rate and live bounds.",
+      "all_effect": "",
+      "request_type": "string (legacy exact resource)"
+    },
+    {
+      "definition": {
+        "action": "abstraction.asks/question.answer",
+        "owner_contract": "abstraction.asks/responder@1",
+        "operations": [
+          "abstraction.asks/responder@1#ListAnswerable",
+          "abstraction.asks/responder@1#Answer",
+          "abstraction.asks/responder@1#ListChoices",
+          "abstraction.asks/responder@1#AnswerChoice",
+          "abstraction.asks/responder@1#RequestAnswering"
+        ],
+        "resource_profile": "abstraction.rights/legacy-exact-string@1",
+        "resource_type": "string (legacy exact resource)",
+        "enforced_by": [
+          "abstraction.asks/responder@1"
+        ],
+        "disclosure": "List answerable; apply attributed allow/refusal under enrollment and renew expiry; paired allows atomic. List shared ordinary choices and record a shared option; audited, no OA permission effect. The enrollment on apps is asked at first use and answered by the person only.",
+        "lifecycle": "apps = every current and later app in receiving account; routine admitted first-use requests and the options apps share in ordinary choices only. Lapses 30 days after the last answer; Stop ends it.",
+        "first_use": "exact",
+        "served": true
+      },
+      "label": "abstraction.asks/question.answer",
+      "supported_selectors": [],
+      "first_use_selectors": [],
+      "collection": "apps = every current and later app in receiving account; routine admitted first-use requests and the options apps share in ordinary choices only. Lapses 30 days after the last answer; Stop ends it.",
+      "all_effect": "",
+      "request_type": "string (legacy exact resource)"
+    },
+    {
+      "definition": {
+        "action": "abstraction.asks/question.ask",
+        "owner_contract": "abstraction.asks/application@1",
+        "operations": [
+          "abstraction.asks/application@1#Ask",
+          "abstraction.asks/application@2#Ask",
+          "abstraction.asks/application@2#ShareChoice"
+        ],
+        "resource_profile": "abstraction.rights/legacy-exact-string@1",
+        "resource_type": "string (legacy exact resource)",
+        "enforced_by": [
+          "abstraction.asks/application@1",
+          "abstraction.asks/application@2"
+        ],
+        "disclosure": "Admit or replay caller-owned question; question admission itself grants no resource authority. Admit/replay choice; supplied option IDs confer no OA permission.",
+        "lifecycle": "All catalogue questions; one receiving account. Ordinary app-owned intent; one receiving account.",
+        "first_use": "none",
+        "served": true
+      },
+      "label": "abstraction.asks/question.ask",
+      "supported_selectors": [],
+      "first_use_selectors": [],
+      "collection": "All catalogue questions; one receiving account. Ordinary app-owned intent; one receiving account.",
+      "all_effect": "",
+      "request_type": "string (legacy exact resource)"
+    }
+  ],
+  "bundles": []
+}
