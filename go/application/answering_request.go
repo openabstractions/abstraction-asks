@@ -35,6 +35,12 @@ func (r *responderReceiver) RequestAnswering() (rwire.Decision, error) {
 	if err != nil {
 		return rwire.Decision{Outcome: rwire.DecisionOutcomeForbidden}, nil
 	}
+	if err := r.prepare(); err != nil {
+		if errors.Is(err, ErrResponderForbidden) {
+			return rwire.Decision{Outcome: rwire.DecisionOutcomeForbidden}, nil
+		}
+		return rwire.Decision{Outcome: rwire.DecisionOutcomeUnavailable}, nil
+	}
 	return r.host.answeringRequest(r.ctx, peer), nil
 }
 

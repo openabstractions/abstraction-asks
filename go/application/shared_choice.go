@@ -84,6 +84,12 @@ func (r *responderReceiver) ListChoices(cursor string, limit int64) (wire.Answer
 	if len(cursor) > 256 || !utf8.ValidString(cursor) || limit < 1 || limit > 64 {
 		return answerableRefusal(wire.OperatorPageOutcomeInvalid), nil
 	}
+	if err := r.prepare(); err != nil {
+		if errors.Is(err, ErrResponderForbidden) {
+			return answerableRefusal(wire.OperatorPageOutcomeForbidden), nil
+		}
+		return answerableRefusal(wire.OperatorPageOutcomeUnavailable), nil
+	}
 	candidates, revision, err := r.host.book.SharedChoices()
 	if err != nil {
 		return answerableRefusal(wire.OperatorPageOutcomeUnavailable), nil
@@ -157,6 +163,12 @@ func (r *responderReceiver) AnswerChoice(id, option string) (wire.ChoiceDecision
 	if err != nil {
 		return refused(wire.ChoiceDecisionOutcomeForbidden)
 	}
+	if err := r.prepare(); err != nil {
+		if errors.Is(err, ErrResponderForbidden) {
+			return refused(wire.ChoiceDecisionOutcomeForbidden)
+		}
+		return refused(wire.ChoiceDecisionOutcomeUnavailable)
+	}
 	var effect ChoiceResponderEffect
 	result, recorded, err := r.host.book.AnswerSharedChoice(id, option, answerer, func(c asks.ChoiceCandidate) error {
 		var e error
@@ -174,6 +186,9 @@ func (r *responderReceiver) AnswerChoice(id, option string) (wire.ChoiceDecision
 	}
 	if recorded && effect != nil {
 		effect(r.ctx)
+	}
+	if result.Outcome == wire.ChoiceDecisionOutcomeAnswered && result.Record != nil && result.Record.Answer != nil {
+		r.notifyAnswered(result.Record.ID, result.Record.Answer.AnsweredMs, true)
 	}
 	return result, nil
 }

@@ -822,24 +822,206 @@ inline constexpr std::string_view kServiceErrorCodeUnknownService = "unknown_ser
 inline constexpr std::string_view kServiceErrorCodeUnknownMethod = "unknown_method";
 inline constexpr std::string_view kServiceErrorCodeWrongMode = "wrong_mode";
 
+enum class EndpointServiceReadiness : std::int32_t {
+    Ready = 1,
+    NotReady = 2,
+    Unknown = 3,
+};
+
+// The member's name on the wire; empty for a value that names no member.
+inline constexpr std::string_view wire_name(EndpointServiceReadiness value) {
+    switch (value) {
+        case EndpointServiceReadiness::Ready: return "ready";
+        case EndpointServiceReadiness::NotReady: return "not_ready";
+        case EndpointServiceReadiness::Unknown: return "unknown";
+    }
+    return {};
+}
+
+// The member a wire name spells; empty for a name this vocabulary refuses.
+inline std::optional<EndpointServiceReadiness> parse_endpoint_service_readiness(std::string_view name) {
+    if (name == "ready") return EndpointServiceReadiness::Ready;
+    if (name == "not_ready") return EndpointServiceReadiness::NotReady;
+    if (name == "unknown") return EndpointServiceReadiness::Unknown;
+    return std::nullopt;
+}
+
+// A member equals its wire name, so code holding the contract's word compares directly.
+inline constexpr bool operator==(EndpointServiceReadiness value, std::string_view name) { return wire_name(value) == name; }
+inline constexpr bool operator!=(EndpointServiceReadiness value, std::string_view name) { return wire_name(value) != name; }
+inline constexpr bool operator==(std::string_view name, EndpointServiceReadiness value) { return wire_name(value) == name; }
+inline constexpr bool operator!=(std::string_view name, EndpointServiceReadiness value) { return wire_name(value) != name; }
+
+inline const std::vector<std::string> kEndpointServiceReadinessNames = {"ready", "not_ready", "unknown"};
+
+inline const std::vector<std::string> kEndpointRefusalSourceNames = {"rights", "credentials", "license", "terms", "identity", "os"};
+inline constexpr std::string_view kEndpointRefusalSourceRights = "rights";
+inline constexpr std::string_view kEndpointRefusalSourceCredentials = "credentials";
+inline constexpr std::string_view kEndpointRefusalSourceLicense = "license";
+inline constexpr std::string_view kEndpointRefusalSourceTerms = "terms";
+inline constexpr std::string_view kEndpointRefusalSourceIdentity = "identity";
+inline constexpr std::string_view kEndpointRefusalSourceOs = "os";
+
+enum class EndpointRefusalDecision : std::int32_t {
+    Denied = 1,
+    NotGranted = 2,
+    PersonOnly = 3,
+};
+
+// The member's name on the wire; empty for a value that names no member.
+inline constexpr std::string_view wire_name(EndpointRefusalDecision value) {
+    switch (value) {
+        case EndpointRefusalDecision::Denied: return "denied";
+        case EndpointRefusalDecision::NotGranted: return "not_granted";
+        case EndpointRefusalDecision::PersonOnly: return "person_only";
+    }
+    return {};
+}
+
+// The member a wire name spells; empty for a name this vocabulary refuses.
+inline std::optional<EndpointRefusalDecision> parse_endpoint_refusal_decision(std::string_view name) {
+    if (name == "denied") return EndpointRefusalDecision::Denied;
+    if (name == "not_granted") return EndpointRefusalDecision::NotGranted;
+    if (name == "person_only") return EndpointRefusalDecision::PersonOnly;
+    return std::nullopt;
+}
+
+// A member equals its wire name, so code holding the contract's word compares directly.
+inline constexpr bool operator==(EndpointRefusalDecision value, std::string_view name) { return wire_name(value) == name; }
+inline constexpr bool operator!=(EndpointRefusalDecision value, std::string_view name) { return wire_name(value) != name; }
+inline constexpr bool operator==(std::string_view name, EndpointRefusalDecision value) { return wire_name(value) == name; }
+inline constexpr bool operator!=(std::string_view name, EndpointRefusalDecision value) { return wire_name(value) != name; }
+
+inline const std::vector<std::string> kEndpointRefusalDecisionNames = {"denied", "not_granted", "person_only"};
+
+enum class EndpointRefusalAsk : std::int32_t {
+    Available = 1,
+    None = 2,
+};
+
+// The member's name on the wire; empty for a value that names no member.
+inline constexpr std::string_view wire_name(EndpointRefusalAsk value) {
+    switch (value) {
+        case EndpointRefusalAsk::Available: return "available";
+        case EndpointRefusalAsk::None: return "none";
+    }
+    return {};
+}
+
+// The member a wire name spells; empty for a name this vocabulary refuses.
+inline std::optional<EndpointRefusalAsk> parse_endpoint_refusal_ask(std::string_view name) {
+    if (name == "available") return EndpointRefusalAsk::Available;
+    if (name == "none") return EndpointRefusalAsk::None;
+    return std::nullopt;
+}
+
+// A member equals its wire name, so code holding the contract's word compares directly.
+inline constexpr bool operator==(EndpointRefusalAsk value, std::string_view name) { return wire_name(value) == name; }
+inline constexpr bool operator!=(EndpointRefusalAsk value, std::string_view name) { return wire_name(value) != name; }
+inline constexpr bool operator==(std::string_view name, EndpointRefusalAsk value) { return wire_name(value) == name; }
+inline constexpr bool operator!=(std::string_view name, EndpointRefusalAsk value) { return wire_name(value) != name; }
+
+inline const std::vector<std::string> kEndpointRefusalAskNames = {"available", "none"};
+
+enum class EndpointProducerCheckState : std::int32_t {
+    Current = 1,
+    Repaired = 2,
+    Stale = 3,
+    Refused = 4,
+    Unverified = 5,
+};
+
+// The member's name on the wire; empty for a value that names no member.
+inline constexpr std::string_view wire_name(EndpointProducerCheckState value) {
+    switch (value) {
+        case EndpointProducerCheckState::Current: return "current";
+        case EndpointProducerCheckState::Repaired: return "repaired";
+        case EndpointProducerCheckState::Stale: return "stale";
+        case EndpointProducerCheckState::Refused: return "refused";
+        case EndpointProducerCheckState::Unverified: return "unverified";
+    }
+    return {};
+}
+
+// The member a wire name spells; empty for a name this vocabulary refuses.
+inline std::optional<EndpointProducerCheckState> parse_endpoint_producer_check_state(std::string_view name) {
+    if (name == "current") return EndpointProducerCheckState::Current;
+    if (name == "repaired") return EndpointProducerCheckState::Repaired;
+    if (name == "stale") return EndpointProducerCheckState::Stale;
+    if (name == "refused") return EndpointProducerCheckState::Refused;
+    if (name == "unverified") return EndpointProducerCheckState::Unverified;
+    return std::nullopt;
+}
+
+// A member equals its wire name, so code holding the contract's word compares directly.
+inline constexpr bool operator==(EndpointProducerCheckState value, std::string_view name) { return wire_name(value) == name; }
+inline constexpr bool operator!=(EndpointProducerCheckState value, std::string_view name) { return wire_name(value) != name; }
+inline constexpr bool operator==(std::string_view name, EndpointProducerCheckState value) { return wire_name(value) == name; }
+inline constexpr bool operator!=(std::string_view name, EndpointProducerCheckState value) { return wire_name(value) != name; }
+
+inline const std::vector<std::string> kEndpointProducerCheckStateNames = {"current", "repaired", "stale", "refused", "unverified"};
+
+enum class EndpointDescriptionOutcome : std::int32_t {
+    Described = 1,
+    Forbidden = 2,
+    Unavailable = 3,
+    Invalid = 4,
+    Unsupported = 5,
+};
+
+// The member's name on the wire; empty for a value that names no member.
+inline constexpr std::string_view wire_name(EndpointDescriptionOutcome value) {
+    switch (value) {
+        case EndpointDescriptionOutcome::Described: return "described";
+        case EndpointDescriptionOutcome::Forbidden: return "forbidden";
+        case EndpointDescriptionOutcome::Unavailable: return "unavailable";
+        case EndpointDescriptionOutcome::Invalid: return "invalid";
+        case EndpointDescriptionOutcome::Unsupported: return "unsupported";
+    }
+    return {};
+}
+
+// The member a wire name spells; empty for a name this vocabulary refuses.
+inline std::optional<EndpointDescriptionOutcome> parse_endpoint_description_outcome(std::string_view name) {
+    if (name == "described") return EndpointDescriptionOutcome::Described;
+    if (name == "forbidden") return EndpointDescriptionOutcome::Forbidden;
+    if (name == "unavailable") return EndpointDescriptionOutcome::Unavailable;
+    if (name == "invalid") return EndpointDescriptionOutcome::Invalid;
+    if (name == "unsupported") return EndpointDescriptionOutcome::Unsupported;
+    return std::nullopt;
+}
+
+// A member equals its wire name, so code holding the contract's word compares directly.
+inline constexpr bool operator==(EndpointDescriptionOutcome value, std::string_view name) { return wire_name(value) == name; }
+inline constexpr bool operator!=(EndpointDescriptionOutcome value, std::string_view name) { return wire_name(value) != name; }
+inline constexpr bool operator==(std::string_view name, EndpointDescriptionOutcome value) { return wire_name(value) == name; }
+inline constexpr bool operator!=(std::string_view name, EndpointDescriptionOutcome value) { return wire_name(value) != name; }
+
+inline const std::vector<std::string> kEndpointDescriptionOutcomeNames = {"described", "forbidden", "unavailable", "invalid", "unsupported"};
+
 inline const std::vector<std::string> kOperations = {"ask", "pending", "answered", "answer", "forget"};
 
 inline const std::vector<std::string> kRefusalCodes = {"internal", "invalid_request", "caller_refused", "unknown_operation", "not_administrator", "withdrawn", "unknown_question", "unknown_option", "bad_slot", "nothing_pending", "no_record"};
 
 inline const std::vector<std::string> kResourceActions = {"abstraction.asks/question.ask", "abstraction.asks/question.answer", "abstraction.asks/notification.post"};
 
-// Own Ask fields. The service owns question text/options; callers supply a
-// known key and slots. Native Ask.For carries optional peer observation
-// evidence and remains a transport supplement, never caller authority.
+// [Question](https://openabstractions.github.io/reference.html#concept-asks.question-ask)
+// projects native
+// [Ask](https://openabstractions.github.io/reference.html#concept-asks.question-ask)
+// fields. The service owns question text/options; callers supply a known key
+// and slots. Native Ask.For carries optional peer observation evidence and
+// remains a transport supplement, never caller authority.
 struct Question {
     std::string asker;
     std::string key;
     std::map<std::string, std::string> slots;
 };
 
-// Existing question operation concepts. Wait cancellation belongs to the native
-// client context. This metadata descriptor does not replace the existing
-// handwritten line transport.
+// Deprecated native question-operation request descriptor. Removal is scheduled
+// for Train B (expected 0.9.0), W2-01a.1, under TD13/TD57's stored-state and
+// declared outside-adopter retirement conditions. Wait cancellation belongs to
+// the native client context. This metadata descriptor does not replace the
+// existing handwritten line transport.
 struct Request {
     std::string op;
     std::optional<Question> ask;
@@ -857,9 +1039,12 @@ struct Answer {
     bool kept = false;
 };
 
-// Own question-history fields; timestamps retain existing RFC3339
-// representation. Native Record includes Via/For Seen evidence from shared
-// identity. Empty option means pending.
+// [RecordMetadata](https://openabstractions.github.io/reference.html#concept-asks.question-history-record)
+// projects native question-history fields; timestamps retain existing RFC3339
+// representation. Native
+// [Record](https://openabstractions.github.io/reference.html#concept-asks.question-history-record)
+// includes Via/For Seen evidence from shared identity. Empty option means
+// pending.
 struct RecordMetadata {
     std::string id;
     std::string asker;
@@ -874,9 +1059,12 @@ struct RecordMetadata {
     bool yes = false;
 };
 
-// Own response projection. Any nonempty code/error refuses, including unknown
-// future codes. Evidence supplement and existing wire handling remain native;
-// no generated complete service interface is claimed.
+// Deprecated native question-operation response descriptor. Removal is
+// scheduled for Train B (expected 0.9.0), W2-01a.1, under TD13/TD57's
+// stored-state and declared outside-adopter retirement conditions. Own response
+// projection. Any nonempty code/error refuses, including unknown future codes.
+// Evidence supplement and existing wire handling remain native; no generated
+// complete service interface is claimed.
 struct ResponseMetadata {
     std::string code;
     std::string error;
@@ -1025,6 +1213,26 @@ struct QuestionDetails {
 struct QuestionAsker {
     QuestionDetails details;
     std::string program;
+};
+
+// Immutable catalogue content retained at admission. Slots are admitted display
+// data, never instructions or authority. Permission is present only for a
+// trusted runtime first-use occurrence and retains its existing immutable exact
+// targets; this read neither grants nor applies it. An empty slot map is valid
+// for a structured first-use admission. Missing old content is not
+// reconstructed from rendered text.
+struct CatalogueContent {
+    std::map<std::string, std::string> slots;
+    std::optional<PermissionRequest> permission;
+};
+
+// Opt-in content from the same retained occurrence as question. Content is
+// present only when the Book retained it; absence explicitly means unavailable
+// structured content, including legacy occurrences. Every refusal carries no
+// content. Existing QuestionAsker and RecordMetadata stay unchanged.
+struct QuestionContent {
+    QuestionAsker question;
+    std::optional<CatalogueContent> content;
 };
 
 // Caller-created immutable ordinary request identity: key is 1..128 UTF-8 bytes
@@ -1185,6 +1393,28 @@ struct AnswerEntryPage {
     std::int64_t complete_since_ms = 0;
 };
 
+// One unchanged answer audit entry with optional content retained with that
+// answer. Content survives retirement of the original question under the same
+// audit lifetime and byte bounds. Absence explicitly means unavailable content;
+// it is never reconstructed from title text. Ordinary choices carry no
+// catalogue content.
+struct AnswerContent {
+    AnswerEntry answer;
+    std::optional<CatalogueContent> content;
+};
+
+// The existing bounded answer-audit page semantics with content included.
+// Exactly page carries entries; every refusal has no entries or cursor. The
+// completeness time, authorization and cursor binding retain ListAnswers
+// semantics.
+struct AnswerContentPage {
+    OperatorPageOutcome outcome{};
+    std::vector<AnswerContent> answers;
+    std::string next;
+    bool complete = false;
+    std::int64_t complete_since_ms = 0;
+};
+
 // A pending shared ordinary choice as an enrolled assistant may answer it:
 // options holds only the shared options, in the order the application offered
 // them. The title and labels are application-authored data and carry no
@@ -1279,6 +1509,14 @@ struct TypedPermissionDetails {
     std::string origin;
     std::string purpose;
     std::optional<PermissionDisplay> display;
+};
+
+// observation reads pending or answered with the question's id, or a refusal
+// with no answer. pending_until_ms is the Unix millisecond time a pending
+// question expires (ASK-A7) and is zero for every other outcome.
+struct PendingQuestion {
+    PermissionObservation observation;
+    std::int64_t pending_until_ms = 0;
 };
 
 // Stable application action ID, 1..64 UTF-8 bytes without controls, and a
@@ -1417,6 +1655,81 @@ struct NotifierPage {
     bool complete = false;
 };
 
+// The one refusal record every OA service carries beside a refusing outcome
+// (RIGHTS-E3; conventions CONV-E4). source names the authority that refused:
+// rights, credentials, license, terms, identity or os. decision is denied for
+// an explicit refusal, not_granted where no rule permits, and person_only where
+// only the person may answer the question. ask says whether asking can change
+// the answer: available, or none. action is the exact registered
+// <owner>/<name>; question the pending question's id; credential the
+// credential's name; retry_after_ms the earliest useful retry in milliseconds,
+// omitted when zero. Stop asking is denied with ask none. Current carriers
+// include config@2, messages@1, registry@3, endpoint@2 and chat@3, declared in
+// config.thrift, messages.thrift, registration.thrift and inference.thrift.
+// Other services adopt it in their scheduled versions.
+struct EndpointRefusalDetail {
+    std::string source;
+    EndpointRefusalDecision decision{};
+    EndpointRefusalAsk ask{};
+    std::string action;
+    std::string question;
+    std::string credential;
+    std::int64_t retry_after_ms = 0;
+};
+
+// Producer assertion validated by the runtime. Kind is the governed open
+// build-time vocabulary <owner>/<name>, not a display string or an authority
+// claim. copy identifies one copy within the kind. reason follows D87
+// domain:word:detail as open display text. checked is the producer's claimed
+// check time. Custom/unknown copies are unverified; readiness remains
+// independent. No runtime kind-registration method is introduced.
+struct EndpointProducerCheck {
+    std::string kind;
+    std::string copy;
+    EndpointProducerCheckState state{};
+    std::string reason;
+    std::string checked;
+};
+
+// endpoint@2 service observation. definition_hash is sha256: plus64 lowercase
+// hex over this service version's canonical wire form (CONV-V2), verified by
+// the definition-hash owner. reason retains readiness errors and is empty when
+// ready. capabilities remain display-only. Program-level producer checks belong
+// to EndpointDescription and are independent of service readiness.
+struct EndpointServiceState {
+    std::string service;
+    EndpointServiceReadiness readiness{};
+    std::string reason;
+    std::vector<std::string> guarantees;
+    std::map<std::string, std::string> capabilities;
+    std::string definition_hash;
+};
+
+// Complete endpoint@2 description with each advertised service's definition
+// hash and one program-level producer-check list. Checks are independent of
+// service readiness; absence means unobserved, never verified.
+// Forbidden/unavailable authority refusals carry the single Rights-owned
+// EndpointRefusalDetail; other outcomes omit it. Unsupported carries the
+// existing bounded reason with D87 unsupported:not_implemented words; no closed
+// staged-reason vocabulary is frozen. Non-described replies disclose no
+// program/version/services/checks. Endpoint@1 and its closed
+// EndpointDescription/EndpointServiceState remain unchanged. The compact value
+// ceiling excluding insignificant JSON whitespace is IPC-F1; an oversized whole
+// reply is unavailable/bound:reply_bytes without truncation.
+struct EndpointDescription {
+    EndpointDescriptionOutcome outcome{};
+    std::string program;
+    std::string version;
+    std::vector<EndpointServiceState> services;
+    std::optional<EndpointRefusalDetail> refusal;
+    std::string reason;
+    std::vector<EndpointProducerCheck> checks;
+};
+
+struct EndpointDescriptionResult {
+    EndpointDescription value;
+};
+
 // Codec machinery. Nothing here is API; it may change in any release.
 namespace detail {
 
@@ -1466,52 +1779,13 @@ inline void strs(std::string& out, const std::vector<std::string>& v, int depth)
 
 inline bool ws(unsigned char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
 
-inline void raw(std::string& out, const std::string& s, int depth) {
-    const std::size_t n = s.size();
-    for (std::size_t i = 0; i < n;) {
-        const unsigned char c = static_cast<unsigned char>(s[i]);
-        if (ws(c)) {
-            ++i;
-        } else if (c == '"') {
-            std::size_t j = i + 1;
-            while (j < n) {
-                if (s[j] == '\\') { j += 2; continue; }
-                if (s[j] == '"') { ++j; break; }
-                ++j;
-            }
-            out.append(s, i, j - i);
-            i = j;
-        } else if (c == '{' || c == '[') {
-            out += static_cast<char>(c);
-            ++i;
-            std::size_t j = i;
-            while (j < n && ws(static_cast<unsigned char>(s[j]))) ++j;
-            if (j < n && (s[j] == '}' || s[j] == ']')) {
-                out += s[j];
-                i = j + 1;
-            } else {
-                ++depth;
-                out += '\n';
-                pad(out, depth);
-            }
-        } else if (c == '}' || c == ']') {
-            --depth;
-            out += '\n';
-            pad(out, depth);
-            out += static_cast<char>(c);
-            ++i;
-        } else if (c == ',') {
-            out += ",\n";
-            pad(out, depth);
-            ++i;
-        } else if (c == ':') {
-            out += ": ";
-            ++i;
-        } else {
-            out += static_cast<char>(c);
-            ++i;
-        }
-    }
+// raw writes an opaque value's bytes as they are ([DEF-A3]).
+inline void raw(std::string& out, const std::string& s, int /*depth*/) {
+    // Whitespace around the value is not part of it.
+    std::size_t i = 0, j = s.size();
+    while (i < j && ws(static_cast<unsigned char>(s[i]))) ++i;
+    while (j > i && ws(static_cast<unsigned char>(s[j - 1]))) --j;
+    out.append(s, i, j - i);
 }
 
 // std::char_traits<char>::compare is specified to order by unsigned char, so a
@@ -1538,6 +1812,10 @@ inline void esc(std::string& out, const std::string& s) {
     for (unsigned char c : s) esc_byte(out, c);
     out += '"';
 }
+
+inline bool wide_timestamp(std::string_view);
+inline std::string normalized_timestamp(std::string_view);
+inline std::string write_timestamp(std::string_view);
 
 inline void strmap(std::string& out, const std::map<std::string, std::string>& m, int depth) {
     if (m.empty()) { out += "{}"; return; }
@@ -1586,6 +1864,25 @@ struct Reader;
 inline void enc_oa_imported3(std::string&, const OAImported3&, int);
 inline OAImported3 decode_oa_imported3(Reader&);
 
+struct CompactEncodedCounter {
+    std::size_t start, pos, count = 0;
+    bool quoted = false, escaped = false;
+    explicit CompactEncodedCounter(std::size_t at): start(at), pos(at) {}
+    void check(std::string_view out, std::size_t limit) {
+        if (out.size()-start > 1048576) throw Refusal("encoded_size", 0);
+        for (; pos < out.size(); ++pos) {
+            const auto b = out[pos];
+            if (!quoted && (b == ' ' || b == '\t' || b == '\r' || b == '\n')) continue;
+            if (++count > limit) throw Refusal("encoded_size", 0);
+            if (quoted) {
+                if (escaped) escaped = false;
+                else if (b == '\\') escaped = true;
+                else if (b == '"') quoted = false;
+            } else if (b == '"') quoted = true;
+        }
+    }
+};
+
 struct OAQuestionApplicationAskArguments {
     ApplicationQuestion question;
 };
@@ -1593,6 +1890,15 @@ struct OAQuestionApplicationAskArguments {
 struct OAQuestionApplicationObserveArguments {
     std::string request_key;
     std::int64_t wait_ms = 0;
+};
+
+struct OAQuestionOperatorReadQuestionContentArguments {
+    std::string id;
+};
+
+struct OAQuestionOperatorListAnswerContentsArguments {
+    std::string cursor;
+    std::int64_t limit = 0;
 };
 
 struct OAQuestionOperatorListChoicesArguments {
@@ -1711,6 +2017,11 @@ struct OAPermissionApplicationObserveArguments {
     std::int64_t wait_ms = 0;
 };
 
+struct OAPermissionApplicationObserveQuestionArguments {
+    std::string id;
+    std::int64_t wait_ms = 0;
+};
+
 struct OAPermissionOperatorListPermissionsArguments {
     std::string cursor;
     std::int64_t limit = 0;
@@ -1797,6 +2108,14 @@ struct OAQuestionApplicationAskResult {
 
 struct OAQuestionApplicationObserveResult {
     QuestionObservation value;
+};
+
+struct OAQuestionOperatorReadQuestionContentResult {
+    QuestionContent value;
+};
+
+struct OAQuestionOperatorListAnswerContentsResult {
+    AnswerContentPage value;
 };
 
 struct OAQuestionOperatorListChoicesResult {
@@ -1899,6 +2218,10 @@ struct OAPermissionApplicationObserveResult {
     PermissionObservation value;
 };
 
+struct OAPermissionApplicationObserveQuestionResult {
+    PendingQuestion value;
+};
+
 struct OAPermissionOperatorListPermissionsResult {
     OperatorPage value;
 };
@@ -1966,6 +2289,8 @@ inline void enc_permission_target(std::string&, const PermissionTarget&, int);
 inline void enc_permission_request(std::string&, const PermissionRequest&, int);
 inline void enc_question_details(std::string&, const QuestionDetails&, int);
 inline void enc_question_asker(std::string&, const QuestionAsker&, int);
+inline void enc_catalogue_content(std::string&, const CatalogueContent&, int);
+inline void enc_question_content(std::string&, const QuestionContent&, int);
 inline void enc_request_ref(std::string&, const RequestRef&, int);
 inline void enc_choice_option(std::string&, const ChoiceOption&, int);
 inline void enc_choice_request(std::string&, const ChoiceRequest&, int);
@@ -1979,12 +2304,15 @@ inline void enc_choice_decision(std::string&, const ChoiceDecision&, int);
 inline void enc_choice_details(std::string&, const ChoiceDetails&, int);
 inline void enc_answer_entry(std::string&, const AnswerEntry&, int);
 inline void enc_answer_entry_page(std::string&, const AnswerEntryPage&, int);
+inline void enc_answer_content(std::string&, const AnswerContent&, int);
+inline void enc_answer_content_page(std::string&, const AnswerContentPage&, int);
 inline void enc_answerable_choice(std::string&, const AnswerableChoice&, int);
 inline void enc_answerable_choice_page(std::string&, const AnswerableChoicePage&, int);
 inline void enc_responder_decision(std::string&, const ResponderDecision&, int);
 inline void enc_permission_intent(std::string&, const PermissionIntent&, int);
 inline void enc_permission_observation(std::string&, const PermissionObservation&, int);
 inline void enc_typed_permission_details(std::string&, const TypedPermissionDetails&, int);
+inline void enc_pending_question(std::string&, const PendingQuestion&, int);
 inline void enc_permission_display_selection(std::string&, const PermissionDisplaySelection&, int);
 inline void enc_permission_display(std::string&, const PermissionDisplay&, int);
 inline void enc_notification_action(std::string&, const NotificationAction&, int);
@@ -1998,8 +2326,15 @@ inline void enc_notification_decision(std::string&, const NotificationDecision&,
 inline void enc_notifier_day(std::string&, const NotifierDay&, int);
 inline void enc_notifier_count(std::string&, const NotifierCount&, int);
 inline void enc_notifier_page(std::string&, const NotifierPage&, int);
+inline void enc_endpoint_refusal_detail(std::string&, const EndpointRefusalDetail&, int);
+inline void enc_endpoint_producer_check(std::string&, const EndpointProducerCheck&, int);
+inline void enc_endpoint_service_state(std::string&, const EndpointServiceState&, int);
+inline void enc_endpoint_description(std::string&, const EndpointDescription&, int);
+inline void enc_endpoint_description_result(std::string&, const EndpointDescriptionResult&, int);
 inline void enc_oa_question_application_ask_arguments(std::string&, const OAQuestionApplicationAskArguments&, int);
 inline void enc_oa_question_application_observe_arguments(std::string&, const OAQuestionApplicationObserveArguments&, int);
+inline void enc_oa_question_operator_read_question_content_arguments(std::string&, const OAQuestionOperatorReadQuestionContentArguments&, int);
+inline void enc_oa_question_operator_list_answer_contents_arguments(std::string&, const OAQuestionOperatorListAnswerContentsArguments&, int);
 inline void enc_oa_question_operator_list_choices_arguments(std::string&, const OAQuestionOperatorListChoicesArguments&, int);
 inline void enc_oa_question_operator_read_choice_arguments(std::string&, const OAQuestionOperatorReadChoiceArguments&, int);
 inline void enc_oa_question_operator_answer_choice_arguments(std::string&, const OAQuestionOperatorAnswerChoiceArguments&, int);
@@ -2025,6 +2360,7 @@ inline void enc_oa_question_responder_request_answering_arguments(std::string&, 
 inline void enc_oa_question_responder_answer_choice_arguments(std::string&, const OAQuestionResponderAnswerChoiceArguments&, int);
 inline void enc_oa_permission_application_request_arguments(std::string&, const OAPermissionApplicationRequestArguments&, int);
 inline void enc_oa_permission_application_observe_arguments(std::string&, const OAPermissionApplicationObserveArguments&, int);
+inline void enc_oa_permission_application_observe_question_arguments(std::string&, const OAPermissionApplicationObserveQuestionArguments&, int);
 inline void enc_oa_permission_operator_list_permissions_arguments(std::string&, const OAPermissionOperatorListPermissionsArguments&, int);
 inline void enc_oa_permission_operator_read_permission_details_arguments(std::string&, const OAPermissionOperatorReadPermissionDetailsArguments&, int);
 inline void enc_oa_permission_operator_answer_permission_if_pending_arguments(std::string&, const OAPermissionOperatorAnswerPermissionIfPendingArguments&, int);
@@ -2043,6 +2379,8 @@ inline void enc_oa_service_reply(std::string&, const OAServiceReply&, int);
 inline void enc_oa_service_error(std::string&, const OAServiceError&, int);
 inline void enc_oa_question_application_ask_result(std::string&, const OAQuestionApplicationAskResult&, int);
 inline void enc_oa_question_application_observe_result(std::string&, const OAQuestionApplicationObserveResult&, int);
+inline void enc_oa_question_operator_read_question_content_result(std::string&, const OAQuestionOperatorReadQuestionContentResult&, int);
+inline void enc_oa_question_operator_list_answer_contents_result(std::string&, const OAQuestionOperatorListAnswerContentsResult&, int);
 inline void enc_oa_question_operator_list_choices_result(std::string&, const OAQuestionOperatorListChoicesResult&, int);
 inline void enc_oa_question_operator_read_choice_result(std::string&, const OAQuestionOperatorReadChoiceResult&, int);
 inline void enc_oa_question_operator_answer_choice_result(std::string&, const OAQuestionOperatorAnswerChoiceResult&, int);
@@ -2068,6 +2406,7 @@ inline void enc_oa_question_responder_request_answering_result(std::string&, con
 inline void enc_oa_question_responder_answer_choice_result(std::string&, const OAQuestionResponderAnswerChoiceResult&, int);
 inline void enc_oa_permission_application_request_result(std::string&, const OAPermissionApplicationRequestResult&, int);
 inline void enc_oa_permission_application_observe_result(std::string&, const OAPermissionApplicationObserveResult&, int);
+inline void enc_oa_permission_application_observe_question_result(std::string&, const OAPermissionApplicationObserveQuestionResult&, int);
 inline void enc_oa_permission_operator_list_permissions_result(std::string&, const OAPermissionOperatorListPermissionsResult&, int);
 inline void enc_oa_permission_operator_read_permission_details_result(std::string&, const OAPermissionOperatorReadPermissionDetailsResult&, int);
 inline void enc_oa_permission_operator_answer_permission_if_pending_result(std::string&, const OAPermissionOperatorAnswerPermissionIfPendingResult&, int);
@@ -2610,6 +2949,59 @@ inline void enc_question_asker(std::string& out, const QuestionAsker& v, int dep
     out += '}';
 }
 
+inline void enc_catalogue_content(std::string& out, const CatalogueContent& v, int depth) {
+    if (const auto n = static_cast<std::uint64_t>(v.slots.size()); n > 32ULL) throw Refusal("bad_value",0);
+    for (const auto& oaEntry : v.slots) { const auto& oaElement = oaEntry.first;
+    if (const auto n = static_cast<std::uint64_t>(oaElement.size()); n < 1ULL || n > 64ULL) throw Refusal("bad_value",0);
+    }
+    for (const auto& oaEntry : v.slots) { const auto& oaElement = oaEntry.first;
+    for (const char ch : oaElement) { const auto c = static_cast<unsigned char>(ch); if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '.' || c == '-')) throw Refusal("bad_value",0); }
+    }
+    for (const auto& oaEntry : v.slots) { const auto& oaElement = oaEntry.second;
+    if (const auto n = static_cast<std::uint64_t>(oaElement.size()); n > 800ULL) throw Refusal("bad_value",0);
+    }
+    for (const auto& oaEntry : v.slots) { const auto& oaElement = oaEntry.second;
+    for (std::size_t i = 0; i < oaElement.size(); ++i) { const auto c = static_cast<unsigned char>(oaElement[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < oaElement.size() && static_cast<unsigned char>(oaElement[i + 1]) <= 0x9f)) throw Refusal("bad_value",0); }
+    }
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "slots");
+    out += ": ";
+    strmap(out, v.slots, depth + 1);
+    if (v.permission.has_value()) {
+        out += ',';
+        out += '\n';
+        pad(out, depth + 1);
+        esc(out, "permission");
+        out += ": ";
+        enc_permission_request(out, *v.permission, depth + 1);
+    }
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
+inline void enc_question_content(std::string& out, const QuestionContent& v, int depth) {
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "question");
+    out += ": ";
+    enc_question_asker(out, v.question, depth + 1);
+    if (v.content.has_value()) {
+        out += ',';
+        out += '\n';
+        pad(out, depth + 1);
+        esc(out, "content");
+        out += ": ";
+        enc_catalogue_content(out, *v.content, depth + 1);
+    }
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
 inline void enc_request_ref(std::string& out, const RequestRef& v, int depth) {
     out += '{';
     out += '\n';
@@ -3072,6 +3464,65 @@ inline void enc_answer_entry_page(std::string& out, const AnswerEntryPage& v, in
     out += '}';
 }
 
+inline void enc_answer_content(std::string& out, const AnswerContent& v, int depth) {
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "answer");
+    out += ": ";
+    enc_answer_entry(out, v.answer, depth + 1);
+    if (v.content.has_value()) {
+        out += ',';
+        out += '\n';
+        pad(out, depth + 1);
+        esc(out, "content");
+        out += ": ";
+        enc_catalogue_content(out, *v.content, depth + 1);
+    }
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
+inline void enc_answer_content_page(std::string& out, const AnswerContentPage& v, int depth) {
+    if (const auto n = static_cast<std::uint64_t>(v.answers.size()); n > 64ULL) throw Refusal("bad_value",0);
+    if (const auto n = static_cast<std::uint64_t>(v.next.size()); n > 256ULL) throw Refusal("bad_value",0);
+    if (wire_name(v.outcome).empty()) throw Refusal("bad_enum", 0);
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out += ": ";
+    esc(out, std::string(wire_name(v.outcome)));
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "answers");
+    out += ": ";
+    enc_list<AnswerContent>(out, v.answers, depth + 1, enc_answer_content);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "next");
+    out += ": ";
+    esc(out, v.next);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "complete");
+    out += ": ";
+    out += v.complete ? "true" : "false";
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "complete_since_ms");
+    out += ": ";
+    num(out, v.complete_since_ms);
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
 inline void enc_answerable_choice(std::string& out, const AnswerableChoice& v, int depth) {
     out += '{';
     out += '\n';
@@ -3302,6 +3753,26 @@ inline void enc_typed_permission_details(std::string& out, const TypedPermission
         esc(out, "display");
         out += ": ";
         enc_permission_display(out, *v.display, depth + 1);
+    }
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
+inline void enc_pending_question(std::string& out, const PendingQuestion& v, int depth) {
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "observation");
+    out += ": ";
+    enc_permission_observation(out, v.observation, depth + 1);
+    if (v.pending_until_ms != 0) {
+        out += ',';
+        out += '\n';
+        pad(out, depth + 1);
+        esc(out, "pending_until_ms");
+        out += ": ";
+        num(out, v.pending_until_ms);
     }
     out += '\n';
     pad(out, depth);
@@ -3789,6 +4260,261 @@ inline void enc_notifier_page(std::string& out, const NotifierPage& v, int depth
     out += '}';
 }
 
+inline void enc_endpoint_refusal_detail(std::string& out, const EndpointRefusalDetail& v, int depth) {
+if(depth<0||depth>=64)throw Refusal("depth_exceeded",0);
+    if (const auto n = static_cast<std::uint64_t>(v.action.size()); n != 0 && (n < 1ULL || n > 128ULL)) throw Refusal("bad_value",0);
+    if (const auto n = static_cast<std::uint64_t>(v.question.size()); n != 0 && (n < 1ULL || n > 128ULL)) throw Refusal("bad_value",0);
+    if (const auto n = static_cast<std::uint64_t>(v.credential.size()); n != 0 && (n < 1ULL || n > 64ULL)) throw Refusal("bad_value",0);
+    if (v.retry_after_ms < 0LL || v.retry_after_ms > 86400000LL) throw Refusal("bad_value",0);
+    if (wire_name(v.decision).empty()) throw Refusal("bad_enum", 0);
+    if (wire_name(v.ask).empty()) throw Refusal("bad_enum", 0);
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "source");
+    out += ": ";
+    esc(out, v.source);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "decision");
+    out += ": ";
+    esc(out, std::string(wire_name(v.decision)));
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "ask");
+    out += ": ";
+    esc(out, std::string(wire_name(v.ask)));
+    if (!v.action.empty()) {
+        out += ',';
+        out += '\n';
+        pad(out, depth + 1);
+        esc(out, "action");
+        out += ": ";
+        esc(out, v.action);
+    }
+    if (!v.question.empty()) {
+        out += ',';
+        out += '\n';
+        pad(out, depth + 1);
+        esc(out, "question");
+        out += ": ";
+        esc(out, v.question);
+    }
+    if (!v.credential.empty()) {
+        out += ',';
+        out += '\n';
+        pad(out, depth + 1);
+        esc(out, "credential");
+        out += ": ";
+        esc(out, v.credential);
+    }
+    if (v.retry_after_ms != 0) {
+        out += ',';
+        out += '\n';
+        pad(out, depth + 1);
+        esc(out, "retry_after_ms");
+        out += ": ";
+        num(out, v.retry_after_ms);
+    }
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
+inline void enc_endpoint_producer_check(std::string& out, const EndpointProducerCheck& v, int depth) {
+if(depth<0||depth>=1000)throw Refusal("depth_exceeded",0);
+    if (const auto n = static_cast<std::uint64_t>(v.kind.size()); n < 1ULL || n > 128ULL) throw Refusal("bad_value",0);
+    for (std::size_t i = 0; i < v.kind.size(); ++i) { const auto c = static_cast<unsigned char>(v.kind[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.kind.size() && static_cast<unsigned char>(v.kind[i + 1]) <= 0x9f)) throw Refusal("bad_value",0); }
+    if (const auto n = static_cast<std::uint64_t>(v.copy.size()); n > 256ULL) throw Refusal("bad_value",0);
+    for (std::size_t i = 0; i < v.copy.size(); ++i) { const auto c = static_cast<unsigned char>(v.copy[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.copy.size() && static_cast<unsigned char>(v.copy[i + 1]) <= 0x9f)) throw Refusal("bad_value",0); }
+    if (const auto n = static_cast<std::uint64_t>(v.reason.size()); n > 256ULL) throw Refusal("bad_value",0);
+    for (std::size_t i = 0; i < v.reason.size(); ++i) { const auto c = static_cast<unsigned char>(v.reason[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.reason.size() && static_cast<unsigned char>(v.reason[i + 1]) <= 0x9f)) throw Refusal("bad_value",0); }
+    if (wire_name(v.state).empty()) throw Refusal("bad_enum", 0);
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "kind");
+    out += ": ";
+    esc(out, v.kind);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "copy");
+    out += ": ";
+    esc(out, v.copy);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "state");
+    out += ": ";
+    esc(out, std::string(wire_name(v.state)));
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "reason");
+    out += ": ";
+    esc(out, v.reason);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "checked");
+    out += ": ";
+    esc(out, write_timestamp(v.checked));
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
+inline void enc_endpoint_service_state(std::string& out, const EndpointServiceState& v, int depth) {
+if(depth<0||depth>=1000)throw Refusal("depth_exceeded",0);
+    if (const auto n = static_cast<std::uint64_t>(v.service.size()); n < 1ULL || n > 128ULL) throw Refusal("bad_value",0);
+    for (std::size_t i = 0; i < v.service.size(); ++i) { const auto c = static_cast<unsigned char>(v.service[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.service.size() && static_cast<unsigned char>(v.service[i + 1]) <= 0x9f)) throw Refusal("bad_value",0); }
+    if (const auto n = static_cast<std::uint64_t>(v.reason.size()); n > 256ULL) throw Refusal("bad_value",0);
+    for (std::size_t i = 0; i < v.reason.size(); ++i) { const auto c = static_cast<unsigned char>(v.reason[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.reason.size() && static_cast<unsigned char>(v.reason[i + 1]) <= 0x9f)) throw Refusal("bad_value",0); }
+    if (const auto n = static_cast<std::uint64_t>(v.guarantees.size()); n > 64ULL) throw Refusal("bad_value",0);
+    for (const auto& oaElement : v.guarantees) {
+    if (const auto n = static_cast<std::uint64_t>(oaElement.size()); n < 1ULL || n > 128ULL) throw Refusal("bad_value",0);
+    }
+    for (const auto& oaElement : v.guarantees) {
+    for (std::size_t i = 0; i < oaElement.size(); ++i) { const auto c = static_cast<unsigned char>(oaElement[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < oaElement.size() && static_cast<unsigned char>(oaElement[i + 1]) <= 0x9f)) throw Refusal("bad_value",0); }
+    }
+    if (const auto n = static_cast<std::uint64_t>(v.capabilities.size()); n > 32ULL) throw Refusal("bad_value",0);
+    for (const auto& oaEntry : v.capabilities) { const auto& oaElement = oaEntry.first;
+    if (const auto n = static_cast<std::uint64_t>(oaElement.size()); n < 1ULL || n > 64ULL) throw Refusal("bad_value",0);
+    }
+    for (const auto& oaEntry : v.capabilities) { const auto& oaElement = oaEntry.first;
+    for (std::size_t i = 0; i < oaElement.size(); ++i) { const auto c = static_cast<unsigned char>(oaElement[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < oaElement.size() && static_cast<unsigned char>(oaElement[i + 1]) <= 0x9f)) throw Refusal("bad_value",0); }
+    }
+    for (const auto& oaEntry : v.capabilities) { const auto& oaElement = oaEntry.second;
+    if (const auto n = static_cast<std::uint64_t>(oaElement.size()); n > 256ULL) throw Refusal("bad_value",0);
+    }
+    if (const auto n = static_cast<std::uint64_t>(v.definition_hash.size()); n < 71ULL || n > 71ULL) throw Refusal("bad_value",0);
+    for (std::size_t i = 0; i < v.definition_hash.size(); ++i) { const auto c = static_cast<unsigned char>(v.definition_hash[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.definition_hash.size() && static_cast<unsigned char>(v.definition_hash[i + 1]) <= 0x9f)) throw Refusal("bad_value",0); }
+    if (wire_name(v.readiness).empty()) throw Refusal("bad_enum", 0);
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "service");
+    out += ": ";
+    esc(out, v.service);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "readiness");
+    out += ": ";
+    esc(out, std::string(wire_name(v.readiness)));
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "reason");
+    out += ": ";
+    esc(out, v.reason);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "guarantees");
+    out += ": ";
+    strs(out, v.guarantees, depth + 1);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "capabilities");
+    out += ": ";
+    strmap(out, v.capabilities, depth + 1);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "definition_hash");
+    out += ": ";
+    esc(out, v.definition_hash);
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
+inline void enc_endpoint_description(std::string& out, const EndpointDescription& v, int depth) {
+if(depth<0||depth>=1000)throw Refusal("depth_exceeded",0);
+    CompactEncodedCounter encoded_counter(out.size());
+    if (const auto n = static_cast<std::uint64_t>(v.program.size()); n > 256ULL) throw Refusal("bad_value",0);
+    if (const auto n = static_cast<std::uint64_t>(v.version.size()); n > 256ULL) throw Refusal("bad_value",0);
+    if (const auto n = static_cast<std::uint64_t>(v.services.size()); n > 64ULL) throw Refusal("bad_value",0);
+    if (const auto n = static_cast<std::uint64_t>(v.reason.size()); n > 256ULL) throw Refusal("bad_value",0);
+    for (std::size_t i = 0; i < v.reason.size(); ++i) { const auto c = static_cast<unsigned char>(v.reason[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.reason.size() && static_cast<unsigned char>(v.reason[i + 1]) <= 0x9f)) throw Refusal("bad_value",0); }
+    if (const auto n = static_cast<std::uint64_t>(v.checks.size()); n > 64ULL) throw Refusal("bad_value",0);
+    if (wire_name(v.outcome).empty()) throw Refusal("bad_enum", 0);
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "outcome");
+    out += ": ";
+    esc(out, std::string(wire_name(v.outcome)));
+    encoded_counter.check(out, 1048576);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "program");
+    out += ": ";
+    esc(out, v.program);
+    encoded_counter.check(out, 1048576);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "version");
+    out += ": ";
+    esc(out, v.version);
+    encoded_counter.check(out, 1048576);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "services");
+    out += ": ";
+    enc_list<EndpointServiceState>(out, v.services, depth + 1, enc_endpoint_service_state);
+    encoded_counter.check(out, 1048576);
+    if (v.refusal.has_value()) {
+        out += ',';
+        out += '\n';
+        pad(out, depth + 1);
+        esc(out, "refusal");
+        out += ": ";
+        enc_endpoint_refusal_detail(out, *v.refusal, depth + 1);
+    }
+    encoded_counter.check(out, 1048576);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "reason");
+    out += ": ";
+    esc(out, v.reason);
+    encoded_counter.check(out, 1048576);
+    if (!v.checks.empty()) {
+        out += ',';
+        out += '\n';
+        pad(out, depth + 1);
+        esc(out, "checks");
+        out += ": ";
+        enc_list<EndpointProducerCheck>(out, v.checks, depth + 1, enc_endpoint_producer_check);
+    }
+    encoded_counter.check(out, 1048576);
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+    encoded_counter.check(out, 1048576);
+}
+
+inline void enc_endpoint_description_result(std::string& out, const EndpointDescriptionResult& v, int depth) {
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "value");
+    out += ": ";
+    enc_endpoint_description(out, v.value, depth + 1);
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
 inline void enc_oa_question_application_ask_arguments(std::string& out, const OAQuestionApplicationAskArguments& v, int depth) {
     out += '{';
     out += '\n';
@@ -3814,6 +4540,40 @@ inline void enc_oa_question_application_observe_arguments(std::string& out, cons
     esc(out, "wait_ms");
     out += ": ";
     num(out, v.wait_ms);
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
+inline void enc_oa_question_operator_read_question_content_arguments(std::string& out, const OAQuestionOperatorReadQuestionContentArguments& v, int depth) {
+    if (const auto n = static_cast<std::uint64_t>(v.id.size()); n < 1ULL || n > 128ULL) throw Refusal("bad_value",0);
+    for (std::size_t i = 0; i < v.id.size(); ++i) { const auto c = static_cast<unsigned char>(v.id[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.id.size() && static_cast<unsigned char>(v.id[i + 1]) <= 0x9f)) throw Refusal("bad_value",0); }
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "id");
+    out += ": ";
+    esc(out, v.id);
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
+inline void enc_oa_question_operator_list_answer_contents_arguments(std::string& out, const OAQuestionOperatorListAnswerContentsArguments& v, int depth) {
+    if (const auto n = static_cast<std::uint64_t>(v.cursor.size()); n > 256ULL) throw Refusal("bad_value",0);
+    if (v.limit < 1LL || v.limit > 64LL) throw Refusal("bad_value",0);
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "cursor");
+    out += ": ";
+    esc(out, v.cursor);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "limit");
+    out += ": ";
+    num(out, v.limit);
     out += '\n';
     pad(out, depth);
     out += '}';
@@ -4216,6 +4976,27 @@ inline void enc_oa_permission_application_observe_arguments(std::string& out, co
     out += '}';
 }
 
+inline void enc_oa_permission_application_observe_question_arguments(std::string& out, const OAPermissionApplicationObserveQuestionArguments& v, int depth) {
+    if (const auto n = static_cast<std::uint64_t>(v.id.size()); n < 1ULL || n > 128ULL) throw Refusal("bad_value",0);
+    for (std::size_t i = 0; i < v.id.size(); ++i) { const auto c = static_cast<unsigned char>(v.id[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.id.size() && static_cast<unsigned char>(v.id[i + 1]) <= 0x9f)) throw Refusal("bad_value",0); }
+    if (v.wait_ms < 0LL || v.wait_ms > 30000LL) throw Refusal("bad_value",0);
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "id");
+    out += ": ";
+    esc(out, v.id);
+    out += ',';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "wait_ms");
+    out += ": ";
+    num(out, v.wait_ms);
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
 inline void enc_oa_permission_operator_list_permissions_arguments(std::string& out, const OAPermissionOperatorListPermissionsArguments& v, int depth) {
     out += '{';
     out += '\n';
@@ -4528,6 +5309,30 @@ inline void enc_oa_question_application_observe_result(std::string& out, const O
     out += '}';
 }
 
+inline void enc_oa_question_operator_read_question_content_result(std::string& out, const OAQuestionOperatorReadQuestionContentResult& v, int depth) {
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "value");
+    out += ": ";
+    enc_question_content(out, v.value, depth + 1);
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
+inline void enc_oa_question_operator_list_answer_contents_result(std::string& out, const OAQuestionOperatorListAnswerContentsResult& v, int depth) {
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "value");
+    out += ": ";
+    enc_answer_content_page(out, v.value, depth + 1);
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
 inline void enc_oa_question_operator_list_choices_result(std::string& out, const OAQuestionOperatorListChoicesResult& v, int depth) {
     out += '{';
     out += '\n';
@@ -4828,6 +5633,18 @@ inline void enc_oa_permission_application_observe_result(std::string& out, const
     out += '}';
 }
 
+inline void enc_oa_permission_application_observe_question_result(std::string& out, const OAPermissionApplicationObserveQuestionResult& v, int depth) {
+    out += '{';
+    out += '\n';
+    pad(out, depth + 1);
+    esc(out, "value");
+    out += ": ";
+    enc_pending_question(out, v.value, depth + 1);
+    out += '\n';
+    pad(out, depth);
+    out += '}';
+}
+
 inline void enc_oa_permission_operator_list_permissions_result(std::string& out, const OAPermissionOperatorListPermissionsResult& v, int depth) {
     out += '{';
     out += '\n';
@@ -5032,7 +5849,9 @@ struct Reader {
     std::string_view buf;
     std::size_t pos = 0;
     int depth = 0;
- int limit = kDepthLimit;
+    int limit = 0;
+    int ceiling = 0;
+    int depth_limit() const {int own=ceiling>0?ceiling:kDepthLimit;return limit>0&&limit<own?limit:own;}
 
     [[noreturn]] void refuse(const char* word) const { throw Refusal(word, pos); }
 
@@ -5047,7 +5866,7 @@ struct Reader {
     }
 
     void enter() {
-        if (++depth > limit) refuse("depth_exceeded");
+        if (++depth > depth_limit()) refuse("depth_exceeded");
     }
 
     std::string str() {
@@ -5330,6 +6149,107 @@ inline std::vector<T> decode_list(Reader& r, T (*elem)(Reader&)) {
     return out;
 }
 
+inline bool digits(std::string_view s, std::size_t i, std::size_t n) {
+    if (s.size() < i + n) return false;
+    for (std::size_t k = 0; k < n; ++k) {
+        if (s[i + k] < '0' || s[i + k] > '9') return false;
+    }
+    return true;
+}
+
+inline bool date_part(std::string_view s) {
+    return s.size() >= 19 && digits(s, 0, 4) && s[4] == '-' && digits(s, 5, 2) && s[7] == '-' &&
+           digits(s, 8, 2) && digits(s, 11, 2) && s[13] == ':' && digits(s, 14, 2) && s[16] == ':' &&
+           digits(s, 17, 2);
+}
+
+// [DEF-G1] rfc3339-wide: what a reader accepts. Any fraction of one to nine
+// digits or none, either case of the separators, and a numeric offset.
+inline bool lexical_timestamp(std::string_view s) {
+    if (!date_part(s) || (s[10] != 'T' && s[10] != 't')) return false;
+    std::size_t i = 19;
+    if (i < s.size() && s[i] == '.') {
+        ++i;
+        const std::size_t start = i;
+        while (i < s.size() && s[i] >= '0' && s[i] <= '9') ++i;
+        if (i - start < 1 || i - start > 9) return false;
+    }
+    if (i >= s.size()) return false;
+    if (s[i] == 'Z' || s[i] == 'z') return i + 1 == s.size();
+    if (s[i] != '+' && s[i] != '-') return false;
+    return s.size() == i + 6 && digits(s, i + 1, 2) && s[i + 3] == ':' && digits(s, i + 4, 2);
+}
+
+// [DEF-G2] rfc3339-micros: what a writer emits. Exactly six fractional digits,
+// upper-case separators, UTC.
+inline bool micros_timestamp(std::string_view s) {
+    return s.size() == 27 && normalized_timestamp(s) == s;
+}
+
+inline std::string read_timestamp(Reader& r) {
+    const std::size_t at = r.pos;
+    const std::string s = r.str();
+    if (!wide_timestamp(s)) {
+        r.pos = at;
+        r.refuse("bad_timestamp");
+    }
+    return s;
+}
+
+inline int timestamp_number(std::string_view s, std::size_t at, std::size_t n) {
+    int v=0; for(std::size_t k=0;k<n;++k) v=v*10+(s[at+k]-'0'); return v;
+}
+inline int timestamp_days(int y, int m) {
+    if(m==2) return y%4==0 && (y%100!=0 || y%400==0) ? 29 : 28;
+    return m==4 || m==6 || m==9 || m==11 ? 30 : 31;
+}
+inline std::string normalized_timestamp(std::string_view s) {
+    if(!lexical_timestamp(s)) return {};
+    int y=timestamp_number(s,0,4), m=timestamp_number(s,5,2), d=timestamp_number(s,8,2);
+    int h=timestamp_number(s,11,2), minute=timestamp_number(s,14,2), sec=timestamp_number(s,17,2);
+    if(m<1 || m>12 || d<1 || d>timestamp_days(y,m) || h>23 || minute>59 || sec>59) return {};
+    std::size_t i=19; std::string_view fraction;
+    if(s[i]=='.') {const auto start=++i; while(s[i]>='0' && s[i]<='9') ++i; fraction=s.substr(start,i-start);}
+    int total=h*60+minute;
+    if(s[i]=='+' || s[i]=='-') {
+        int oh=timestamp_number(s,i+1,2), om=timestamp_number(s,i+4,2);
+        if(oh>23 || om>59) return {};
+        total += (s[i]=='+' ? -1 : 1)*(oh*60+om);
+    }
+    if(total<0) {total+=1440; --d;} else if(total>=1440) {total-=1440; ++d;}
+    if(d==0) {--m; if(m==0) {--y; m=12;} d=timestamp_days(y,m);}
+    if(d>timestamp_days(y,m)) {d=1; ++m; if(m==13) {++y; m=1;}}
+    if(y<0 || y>9999) return {};
+    std::string out="0000-00-00T00:00:00.000000Z";
+    auto put=[&](int at,int width,int value) {for(int k=width-1;k>=0;--k) {out[at+k]=char('0'+value%10); value/=10;}};
+    put(0,4,y); put(5,2,m); put(8,2,d); put(11,2,total/60); put(14,2,total%60); put(17,2,sec);
+    for(std::size_t k=0;k<6 && k<fraction.size();++k) out[20+k]=fraction[k];
+    return out;
+}
+inline bool wide_timestamp(std::string_view s) {return !normalized_timestamp(s).empty();}
+inline std::string write_timestamp(std::string_view s) {
+    auto result=normalized_timestamp(s);
+    if(result.empty()) throw Refusal("bad_timestamp",0);
+    return result;
+}
+
+inline void check_encoded_size(const Reader& r, std::size_t limit) {
+    auto depth = r.depth; bool quoted = false, escaped = false; std::size_t count = 0;
+    for (auto i = r.pos; i < r.buf.size(); ++i) {
+        if (i-r.pos >= 1048576) r.refuse("encoded_size");
+        const auto c = r.buf[i];
+        if (!quoted && (c == ' ' || c == '\t' || c == '\r' || c == '\n')) continue;
+        if (++count > limit) r.refuse("encoded_size");
+        if (quoted) {
+            if (escaped) escaped = false;
+            else if (c == '\\') escaped = true;
+            else if (c == '"') quoted = false;
+        } else if (c == '"') quoted = true;
+        else if (c == '{' || c == '[') { if (++depth > r.depth_limit()) r.refuse("depth_exceeded"); }
+        else if (c == '}' || c == ']') { if (--depth <= r.depth) return; }
+    }
+}
+
 inline Question decode_question(Reader& r);
 inline Request decode_request(Reader& r);
 inline Answer decode_answer(Reader& r);
@@ -5346,6 +6266,8 @@ inline PermissionTarget decode_permission_target(Reader& r);
 inline PermissionRequest decode_permission_request(Reader& r);
 inline QuestionDetails decode_question_details(Reader& r);
 inline QuestionAsker decode_question_asker(Reader& r);
+inline CatalogueContent decode_catalogue_content(Reader& r);
+inline QuestionContent decode_question_content(Reader& r);
 inline RequestRef decode_request_ref(Reader& r);
 inline ChoiceOption decode_choice_option(Reader& r);
 inline ChoiceRequest decode_choice_request(Reader& r);
@@ -5359,12 +6281,15 @@ inline ChoiceDecision decode_choice_decision(Reader& r);
 inline ChoiceDetails decode_choice_details(Reader& r);
 inline AnswerEntry decode_answer_entry(Reader& r);
 inline AnswerEntryPage decode_answer_entry_page(Reader& r);
+inline AnswerContent decode_answer_content(Reader& r);
+inline AnswerContentPage decode_answer_content_page(Reader& r);
 inline AnswerableChoice decode_answerable_choice(Reader& r);
 inline AnswerableChoicePage decode_answerable_choice_page(Reader& r);
 inline ResponderDecision decode_responder_decision(Reader& r);
 inline PermissionIntent decode_permission_intent(Reader& r);
 inline PermissionObservation decode_permission_observation(Reader& r);
 inline TypedPermissionDetails decode_typed_permission_details(Reader& r);
+inline PendingQuestion decode_pending_question(Reader& r);
 inline PermissionDisplaySelection decode_permission_display_selection(Reader& r);
 inline PermissionDisplay decode_permission_display(Reader& r);
 inline NotificationAction decode_notification_action(Reader& r);
@@ -5378,8 +6303,15 @@ inline NotificationDecision decode_notification_decision(Reader& r);
 inline NotifierDay decode_notifier_day(Reader& r);
 inline NotifierCount decode_notifier_count(Reader& r);
 inline NotifierPage decode_notifier_page(Reader& r);
+inline EndpointRefusalDetail decode_endpoint_refusal_detail(Reader& r);
+inline EndpointProducerCheck decode_endpoint_producer_check(Reader& r);
+inline EndpointServiceState decode_endpoint_service_state(Reader& r);
+inline EndpointDescription decode_endpoint_description(Reader& r);
+inline EndpointDescriptionResult decode_endpoint_description_result(Reader& r);
 inline OAQuestionApplicationAskArguments decode_oa_question_application_ask_arguments(Reader& r);
 inline OAQuestionApplicationObserveArguments decode_oa_question_application_observe_arguments(Reader& r);
+inline OAQuestionOperatorReadQuestionContentArguments decode_oa_question_operator_read_question_content_arguments(Reader& r);
+inline OAQuestionOperatorListAnswerContentsArguments decode_oa_question_operator_list_answer_contents_arguments(Reader& r);
 inline OAQuestionOperatorListChoicesArguments decode_oa_question_operator_list_choices_arguments(Reader& r);
 inline OAQuestionOperatorReadChoiceArguments decode_oa_question_operator_read_choice_arguments(Reader& r);
 inline OAQuestionOperatorAnswerChoiceArguments decode_oa_question_operator_answer_choice_arguments(Reader& r);
@@ -5405,6 +6337,7 @@ inline OAQuestionResponderRequestAnsweringArguments decode_oa_question_responder
 inline OAQuestionResponderAnswerChoiceArguments decode_oa_question_responder_answer_choice_arguments(Reader& r);
 inline OAPermissionApplicationRequestArguments decode_oa_permission_application_request_arguments(Reader& r);
 inline OAPermissionApplicationObserveArguments decode_oa_permission_application_observe_arguments(Reader& r);
+inline OAPermissionApplicationObserveQuestionArguments decode_oa_permission_application_observe_question_arguments(Reader& r);
 inline OAPermissionOperatorListPermissionsArguments decode_oa_permission_operator_list_permissions_arguments(Reader& r);
 inline OAPermissionOperatorReadPermissionDetailsArguments decode_oa_permission_operator_read_permission_details_arguments(Reader& r);
 inline OAPermissionOperatorAnswerPermissionIfPendingArguments decode_oa_permission_operator_answer_permission_if_pending_arguments(Reader& r);
@@ -5423,6 +6356,8 @@ inline OAServiceReply decode_oa_service_reply(Reader& r);
 inline OAServiceError decode_oa_service_error(Reader& r);
 inline OAQuestionApplicationAskResult decode_oa_question_application_ask_result(Reader& r);
 inline OAQuestionApplicationObserveResult decode_oa_question_application_observe_result(Reader& r);
+inline OAQuestionOperatorReadQuestionContentResult decode_oa_question_operator_read_question_content_result(Reader& r);
+inline OAQuestionOperatorListAnswerContentsResult decode_oa_question_operator_list_answer_contents_result(Reader& r);
 inline OAQuestionOperatorListChoicesResult decode_oa_question_operator_list_choices_result(Reader& r);
 inline OAQuestionOperatorReadChoiceResult decode_oa_question_operator_read_choice_result(Reader& r);
 inline OAQuestionOperatorAnswerChoiceResult decode_oa_question_operator_answer_choice_result(Reader& r);
@@ -5448,6 +6383,7 @@ inline OAQuestionResponderRequestAnsweringResult decode_oa_question_responder_re
 inline OAQuestionResponderAnswerChoiceResult decode_oa_question_responder_answer_choice_result(Reader& r);
 inline OAPermissionApplicationRequestResult decode_oa_permission_application_request_result(Reader& r);
 inline OAPermissionApplicationObserveResult decode_oa_permission_application_observe_result(Reader& r);
+inline OAPermissionApplicationObserveQuestionResult decode_oa_permission_application_observe_question_result(Reader& r);
 inline OAPermissionOperatorListPermissionsResult decode_oa_permission_operator_list_permissions_result(Reader& r);
 inline OAPermissionOperatorReadPermissionDetailsResult decode_oa_permission_operator_read_permission_details_result(Reader& r);
 inline OAPermissionOperatorAnswerPermissionIfPendingResult decode_oa_permission_operator_answer_permission_if_pending_result(Reader& r);
@@ -6233,6 +7169,97 @@ inline QuestionAsker decode_question_asker(Reader& r) {
     return v;
 }
 
+inline CatalogueContent decode_catalogue_content(Reader& r) {
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    CatalogueContent v;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "slots") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.slots = str_map(r);
+            } else if (key == "permission") {
+                if (seen & 2u) r.refuse("duplicate_field");
+                seen |= 2u;
+                v.permission = decode_permission_request(r);
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 1u) != 1u) r.refuse("missing_field");
+    if (const auto n = static_cast<std::uint64_t>(v.slots.size()); n > 32ULL) r.refuse("bad_value");
+    for (const auto& oaEntry : v.slots) { const auto& oaElement = oaEntry.first;
+    if (const auto n = static_cast<std::uint64_t>(oaElement.size()); n < 1ULL || n > 64ULL) r.refuse("bad_value");
+    }
+    for (const auto& oaEntry : v.slots) { const auto& oaElement = oaEntry.first;
+    for (const char ch : oaElement) { const auto c = static_cast<unsigned char>(ch); if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '.' || c == '-')) r.refuse("bad_value"); }
+    }
+    for (const auto& oaEntry : v.slots) { const auto& oaElement = oaEntry.second;
+    if (const auto n = static_cast<std::uint64_t>(oaElement.size()); n > 800ULL) r.refuse("bad_value");
+    }
+    for (const auto& oaEntry : v.slots) { const auto& oaElement = oaEntry.second;
+    for (std::size_t i = 0; i < oaElement.size(); ++i) { const auto c = static_cast<unsigned char>(oaElement[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < oaElement.size() && static_cast<unsigned char>(oaElement[i + 1]) <= 0x9f)) r.refuse("bad_value"); }
+    }
+    return v;
+}
+
+inline QuestionContent decode_question_content(Reader& r) {
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    QuestionContent v;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "question") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.question = decode_question_asker(r);
+            } else if (key == "content") {
+                if (seen & 2u) r.refuse("duplicate_field");
+                seen |= 2u;
+                v.content = decode_catalogue_content(r);
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 1u) != 1u) r.refuse("missing_field");
+    return v;
+}
+
 inline RequestRef decode_request_ref(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
@@ -6924,6 +7951,104 @@ inline AnswerEntryPage decode_answer_entry_page(Reader& r) {
     return v;
 }
 
+inline AnswerContent decode_answer_content(Reader& r) {
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    AnswerContent v;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "answer") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.answer = decode_answer_entry(r);
+            } else if (key == "content") {
+                if (seen & 2u) r.refuse("duplicate_field");
+                seen |= 2u;
+                v.content = decode_catalogue_content(r);
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 1u) != 1u) r.refuse("missing_field");
+    return v;
+}
+
+inline AnswerContentPage decode_answer_content_page(Reader& r) {
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    AnswerContentPage v;
+    std::optional<std::string> wire_outcome;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "outcome") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                wire_outcome = r.str();
+            } else if (key == "answers") {
+                if (seen & 2u) r.refuse("duplicate_field");
+                seen |= 2u;
+                v.answers = decode_list<AnswerContent>(r, decode_answer_content);
+            } else if (key == "next") {
+                if (seen & 4u) r.refuse("duplicate_field");
+                seen |= 4u;
+                v.next = r.str();
+            } else if (key == "complete") {
+                if (seen & 8u) r.refuse("duplicate_field");
+                seen |= 8u;
+                v.complete = r.boolean();
+            } else if (key == "complete_since_ms") {
+                if (seen & 16u) r.refuse("duplicate_field");
+                seen |= 16u;
+                v.complete_since_ms = r.integer(INT64_MIN, INT64_MAX);
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 31u) != 31u) r.refuse("missing_field");
+    if (const auto n = static_cast<std::uint64_t>(v.answers.size()); n > 64ULL) r.refuse("bad_value");
+    if (const auto n = static_cast<std::uint64_t>(v.next.size()); n > 256ULL) r.refuse("bad_value");
+    if (wire_outcome) {
+        const auto parsed = parse_operator_page_outcome(*wire_outcome);
+        if (!parsed) r.refuse("bad_enum");
+        v.outcome = *parsed;
+    }
+    return v;
+}
+
 inline AnswerableChoice decode_answerable_choice(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
@@ -7247,6 +8372,45 @@ inline TypedPermissionDetails decode_typed_permission_details(Reader& r) {
     ++r.pos;
     --r.depth;
     if ((seen & 29u) != 29u) r.refuse("missing_field");
+    return v;
+}
+
+inline PendingQuestion decode_pending_question(Reader& r) {
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    PendingQuestion v;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "observation") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.observation = decode_permission_observation(r);
+            } else if (key == "pending_until_ms") {
+                if (seen & 2u) r.refuse("duplicate_field");
+                seen |= 2u;
+                v.pending_until_ms = r.integer(INT64_MIN, INT64_MAX);
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 1u) != 1u) r.refuse("missing_field");
     return v;
 }
 
@@ -7947,6 +9111,345 @@ inline NotifierPage decode_notifier_page(Reader& r) {
     return v;
 }
 
+inline EndpointRefusalDetail decode_endpoint_refusal_detail(Reader& r) {
+const int previous_ceiling=r.ceiling;struct LimitRestore{Reader&r;int previous;~LimitRestore(){r.ceiling=previous;}} restore{r,previous_ceiling};r.ceiling=64;
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    EndpointRefusalDetail v;
+    std::map<std::string, bool> unknown_keys;
+    std::optional<std::string> wire_decision;
+    std::optional<std::string> wire_ask;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "source") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.source = r.str();
+            } else if (key == "decision") {
+                if (seen & 2u) r.refuse("duplicate_field");
+                seen |= 2u;
+                wire_decision = r.str();
+            } else if (key == "ask") {
+                if (seen & 4u) r.refuse("duplicate_field");
+                seen |= 4u;
+                wire_ask = r.str();
+            } else if (key == "action") {
+                if (seen & 8u) r.refuse("duplicate_field");
+                seen |= 8u;
+                v.action = r.str();
+            } else if (key == "question") {
+                if (seen & 16u) r.refuse("duplicate_field");
+                seen |= 16u;
+                v.question = r.str();
+            } else if (key == "credential") {
+                if (seen & 32u) r.refuse("duplicate_field");
+                seen |= 32u;
+                v.credential = r.str();
+            } else if (key == "retry_after_ms") {
+                if (seen & 64u) r.refuse("duplicate_field");
+                seen |= 64u;
+                v.retry_after_ms = r.integer(INT64_MIN, INT64_MAX);
+            } else {
+                if (!unknown_keys.emplace(key, true).second) r.refuse("duplicate_key");
+                r.skip_value();
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 7u) != 7u) r.refuse("missing_field");
+    if (const auto n = static_cast<std::uint64_t>(v.action.size()); n != 0 && (n < 1ULL || n > 128ULL)) r.refuse("bad_value");
+    if (const auto n = static_cast<std::uint64_t>(v.question.size()); n != 0 && (n < 1ULL || n > 128ULL)) r.refuse("bad_value");
+    if (const auto n = static_cast<std::uint64_t>(v.credential.size()); n != 0 && (n < 1ULL || n > 64ULL)) r.refuse("bad_value");
+    if (v.retry_after_ms < 0LL || v.retry_after_ms > 86400000LL) r.refuse("bad_value");
+    if (wire_decision) {
+        const auto parsed = parse_endpoint_refusal_decision(*wire_decision);
+        if (!parsed) r.refuse("bad_enum");
+        v.decision = *parsed;
+    }
+    if (wire_ask) {
+        const auto parsed = parse_endpoint_refusal_ask(*wire_ask);
+        if (!parsed) r.refuse("bad_enum");
+        v.ask = *parsed;
+    }
+    return v;
+}
+
+inline EndpointProducerCheck decode_endpoint_producer_check(Reader& r) {
+const int previous_ceiling=r.ceiling;struct LimitRestore{Reader&r;int previous;~LimitRestore(){r.ceiling=previous;}} restore{r,previous_ceiling};r.ceiling=1000;
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    EndpointProducerCheck v;
+    std::optional<std::string> wire_state;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "kind") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.kind = r.str();
+            } else if (key == "copy") {
+                if (seen & 2u) r.refuse("duplicate_field");
+                seen |= 2u;
+                v.copy = r.str();
+            } else if (key == "state") {
+                if (seen & 4u) r.refuse("duplicate_field");
+                seen |= 4u;
+                wire_state = r.str();
+            } else if (key == "reason") {
+                if (seen & 8u) r.refuse("duplicate_field");
+                seen |= 8u;
+                v.reason = r.str();
+            } else if (key == "checked") {
+                if (seen & 16u) r.refuse("duplicate_field");
+                seen |= 16u;
+                v.checked = read_timestamp(r);
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 31u) != 31u) r.refuse("missing_field");
+    if (const auto n = static_cast<std::uint64_t>(v.kind.size()); n < 1ULL || n > 128ULL) r.refuse("bad_value");
+    for (std::size_t i = 0; i < v.kind.size(); ++i) { const auto c = static_cast<unsigned char>(v.kind[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.kind.size() && static_cast<unsigned char>(v.kind[i + 1]) <= 0x9f)) r.refuse("bad_value"); }
+    if (const auto n = static_cast<std::uint64_t>(v.copy.size()); n > 256ULL) r.refuse("bad_value");
+    for (std::size_t i = 0; i < v.copy.size(); ++i) { const auto c = static_cast<unsigned char>(v.copy[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.copy.size() && static_cast<unsigned char>(v.copy[i + 1]) <= 0x9f)) r.refuse("bad_value"); }
+    if (const auto n = static_cast<std::uint64_t>(v.reason.size()); n > 256ULL) r.refuse("bad_value");
+    for (std::size_t i = 0; i < v.reason.size(); ++i) { const auto c = static_cast<unsigned char>(v.reason[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.reason.size() && static_cast<unsigned char>(v.reason[i + 1]) <= 0x9f)) r.refuse("bad_value"); }
+    if (wire_state) {
+        const auto parsed = parse_endpoint_producer_check_state(*wire_state);
+        if (!parsed) r.refuse("bad_enum");
+        v.state = *parsed;
+    }
+    return v;
+}
+
+inline EndpointServiceState decode_endpoint_service_state(Reader& r) {
+const int previous_ceiling=r.ceiling;struct LimitRestore{Reader&r;int previous;~LimitRestore(){r.ceiling=previous;}} restore{r,previous_ceiling};r.ceiling=1000;
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    EndpointServiceState v;
+    std::map<std::string, bool> unknown_keys;
+    std::optional<std::string> wire_readiness;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "service") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.service = r.str();
+            } else if (key == "readiness") {
+                if (seen & 2u) r.refuse("duplicate_field");
+                seen |= 2u;
+                wire_readiness = r.str();
+            } else if (key == "reason") {
+                if (seen & 4u) r.refuse("duplicate_field");
+                seen |= 4u;
+                v.reason = r.str();
+            } else if (key == "guarantees") {
+                if (seen & 8u) r.refuse("duplicate_field");
+                seen |= 8u;
+                v.guarantees = r.str_list();
+            } else if (key == "capabilities") {
+                if (seen & 16u) r.refuse("duplicate_field");
+                seen |= 16u;
+                v.capabilities = str_map(r);
+            } else if (key == "definition_hash") {
+                if (seen & 32u) r.refuse("duplicate_field");
+                seen |= 32u;
+                v.definition_hash = r.str();
+            } else {
+                if (!unknown_keys.emplace(key, true).second) r.refuse("duplicate_key");
+                r.skip_value();
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 63u) != 63u) r.refuse("missing_field");
+    if (const auto n = static_cast<std::uint64_t>(v.service.size()); n < 1ULL || n > 128ULL) r.refuse("bad_value");
+    for (std::size_t i = 0; i < v.service.size(); ++i) { const auto c = static_cast<unsigned char>(v.service[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.service.size() && static_cast<unsigned char>(v.service[i + 1]) <= 0x9f)) r.refuse("bad_value"); }
+    if (const auto n = static_cast<std::uint64_t>(v.reason.size()); n > 256ULL) r.refuse("bad_value");
+    for (std::size_t i = 0; i < v.reason.size(); ++i) { const auto c = static_cast<unsigned char>(v.reason[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.reason.size() && static_cast<unsigned char>(v.reason[i + 1]) <= 0x9f)) r.refuse("bad_value"); }
+    if (const auto n = static_cast<std::uint64_t>(v.guarantees.size()); n > 64ULL) r.refuse("bad_value");
+    for (const auto& oaElement : v.guarantees) {
+    if (const auto n = static_cast<std::uint64_t>(oaElement.size()); n < 1ULL || n > 128ULL) r.refuse("bad_value");
+    }
+    for (const auto& oaElement : v.guarantees) {
+    for (std::size_t i = 0; i < oaElement.size(); ++i) { const auto c = static_cast<unsigned char>(oaElement[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < oaElement.size() && static_cast<unsigned char>(oaElement[i + 1]) <= 0x9f)) r.refuse("bad_value"); }
+    }
+    if (const auto n = static_cast<std::uint64_t>(v.capabilities.size()); n > 32ULL) r.refuse("bad_value");
+    for (const auto& oaEntry : v.capabilities) { const auto& oaElement = oaEntry.first;
+    if (const auto n = static_cast<std::uint64_t>(oaElement.size()); n < 1ULL || n > 64ULL) r.refuse("bad_value");
+    }
+    for (const auto& oaEntry : v.capabilities) { const auto& oaElement = oaEntry.first;
+    for (std::size_t i = 0; i < oaElement.size(); ++i) { const auto c = static_cast<unsigned char>(oaElement[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < oaElement.size() && static_cast<unsigned char>(oaElement[i + 1]) <= 0x9f)) r.refuse("bad_value"); }
+    }
+    for (const auto& oaEntry : v.capabilities) { const auto& oaElement = oaEntry.second;
+    if (const auto n = static_cast<std::uint64_t>(oaElement.size()); n > 256ULL) r.refuse("bad_value");
+    }
+    if (const auto n = static_cast<std::uint64_t>(v.definition_hash.size()); n < 71ULL || n > 71ULL) r.refuse("bad_value");
+    for (std::size_t i = 0; i < v.definition_hash.size(); ++i) { const auto c = static_cast<unsigned char>(v.definition_hash[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.definition_hash.size() && static_cast<unsigned char>(v.definition_hash[i + 1]) <= 0x9f)) r.refuse("bad_value"); }
+    if (wire_readiness) {
+        const auto parsed = parse_endpoint_service_readiness(*wire_readiness);
+        if (!parsed) r.refuse("bad_enum");
+        v.readiness = *parsed;
+    }
+    return v;
+}
+
+inline EndpointDescription decode_endpoint_description(Reader& r) {
+const int previous_ceiling=r.ceiling;struct LimitRestore{Reader&r;int previous;~LimitRestore(){r.ceiling=previous;}} restore{r,previous_ceiling};r.ceiling=1000;
+    if (r.at() != '{') r.refuse("wrong_type");
+    check_encoded_size(r, 1048576);
+    r.enter();
+    ++r.pos;
+    EndpointDescription v;
+    std::map<std::string, bool> unknown_keys;
+    std::optional<std::string> wire_outcome;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "outcome") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                wire_outcome = r.str();
+            } else if (key == "program") {
+                if (seen & 2u) r.refuse("duplicate_field");
+                seen |= 2u;
+                v.program = r.str();
+            } else if (key == "version") {
+                if (seen & 4u) r.refuse("duplicate_field");
+                seen |= 4u;
+                v.version = r.str();
+            } else if (key == "services") {
+                if (seen & 8u) r.refuse("duplicate_field");
+                seen |= 8u;
+                v.services = decode_list<EndpointServiceState>(r, decode_endpoint_service_state);
+            } else if (key == "refusal") {
+                if (seen & 16u) r.refuse("duplicate_field");
+                seen |= 16u;
+                v.refusal = decode_endpoint_refusal_detail(r);
+            } else if (key == "reason") {
+                if (seen & 32u) r.refuse("duplicate_field");
+                seen |= 32u;
+                v.reason = r.str();
+            } else if (key == "checks") {
+                if (seen & 64u) r.refuse("duplicate_field");
+                seen |= 64u;
+                v.checks = decode_list<EndpointProducerCheck>(r, decode_endpoint_producer_check);
+            } else {
+                if (!unknown_keys.emplace(key, true).second) r.refuse("duplicate_key");
+                r.skip_value();
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 47u) != 47u) r.refuse("missing_field");
+    if (const auto n = static_cast<std::uint64_t>(v.program.size()); n > 256ULL) r.refuse("bad_value");
+    if (const auto n = static_cast<std::uint64_t>(v.version.size()); n > 256ULL) r.refuse("bad_value");
+    if (const auto n = static_cast<std::uint64_t>(v.services.size()); n > 64ULL) r.refuse("bad_value");
+    if (const auto n = static_cast<std::uint64_t>(v.reason.size()); n > 256ULL) r.refuse("bad_value");
+    for (std::size_t i = 0; i < v.reason.size(); ++i) { const auto c = static_cast<unsigned char>(v.reason[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.reason.size() && static_cast<unsigned char>(v.reason[i + 1]) <= 0x9f)) r.refuse("bad_value"); }
+    if (const auto n = static_cast<std::uint64_t>(v.checks.size()); n > 64ULL) r.refuse("bad_value");
+    if (wire_outcome) {
+        const auto parsed = parse_endpoint_description_outcome(*wire_outcome);
+        if (!parsed) r.refuse("bad_enum");
+        v.outcome = *parsed;
+    }
+    return v;
+}
+
+inline EndpointDescriptionResult decode_endpoint_description_result(Reader& r) {
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    EndpointDescriptionResult v;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "value") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.value = decode_endpoint_description(r);
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 1u) != 1u) r.refuse("missing_field");
+    return v;
+}
+
 inline OAQuestionApplicationAskArguments decode_oa_question_application_ask_arguments(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
@@ -8018,6 +9521,84 @@ inline OAQuestionApplicationObserveArguments decode_oa_question_application_obse
     ++r.pos;
     --r.depth;
     if ((seen & 3u) != 3u) r.refuse("missing_field");
+    return v;
+}
+
+inline OAQuestionOperatorReadQuestionContentArguments decode_oa_question_operator_read_question_content_arguments(Reader& r) {
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    OAQuestionOperatorReadQuestionContentArguments v;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "id") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.id = r.str();
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 1u) != 1u) r.refuse("missing_field");
+    if (const auto n = static_cast<std::uint64_t>(v.id.size()); n < 1ULL || n > 128ULL) r.refuse("bad_value");
+    for (std::size_t i = 0; i < v.id.size(); ++i) { const auto c = static_cast<unsigned char>(v.id[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.id.size() && static_cast<unsigned char>(v.id[i + 1]) <= 0x9f)) r.refuse("bad_value"); }
+    return v;
+}
+
+inline OAQuestionOperatorListAnswerContentsArguments decode_oa_question_operator_list_answer_contents_arguments(Reader& r) {
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    OAQuestionOperatorListAnswerContentsArguments v;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "cursor") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.cursor = r.str();
+            } else if (key == "limit") {
+                if (seen & 2u) r.refuse("duplicate_field");
+                seen |= 2u;
+                v.limit = r.integer(INT64_MIN, INT64_MAX);
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 3u) != 3u) r.refuse("missing_field");
+    if (const auto n = static_cast<std::uint64_t>(v.cursor.size()); n > 256ULL) r.refuse("bad_value");
+    if (v.limit < 1LL || v.limit > 64LL) r.refuse("bad_value");
     return v;
 }
 
@@ -8959,6 +10540,48 @@ inline OAPermissionApplicationObserveArguments decode_oa_permission_application_
     return v;
 }
 
+inline OAPermissionApplicationObserveQuestionArguments decode_oa_permission_application_observe_question_arguments(Reader& r) {
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    OAPermissionApplicationObserveQuestionArguments v;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "id") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.id = r.str();
+            } else if (key == "wait_ms") {
+                if (seen & 2u) r.refuse("duplicate_field");
+                seen |= 2u;
+                v.wait_ms = r.integer(INT64_MIN, INT64_MAX);
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 3u) != 3u) r.refuse("missing_field");
+    if (const auto n = static_cast<std::uint64_t>(v.id.size()); n < 1ULL || n > 128ULL) r.refuse("bad_value");
+    for (std::size_t i = 0; i < v.id.size(); ++i) { const auto c = static_cast<unsigned char>(v.id[i]); if (c < 0x20 || c == 0x7f || (c == 0xc2 && i + 1 < v.id.size() && static_cast<unsigned char>(v.id[i + 1]) <= 0x9f)) r.refuse("bad_value"); }
+    if (v.wait_ms < 0LL || v.wait_ms > 30000LL) r.refuse("bad_value");
+    return v;
+}
+
 inline OAPermissionOperatorListPermissionsArguments decode_oa_permission_operator_list_permissions_arguments(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
@@ -9638,6 +11261,76 @@ inline OAQuestionApplicationObserveResult decode_oa_question_application_observe
                 if (seen & 1u) r.refuse("duplicate_field");
                 seen |= 1u;
                 v.value = decode_question_observation(r);
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 1u) != 1u) r.refuse("missing_field");
+    return v;
+}
+
+inline OAQuestionOperatorReadQuestionContentResult decode_oa_question_operator_read_question_content_result(Reader& r) {
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    OAQuestionOperatorReadQuestionContentResult v;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "value") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.value = decode_question_content(r);
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 1u) != 1u) r.refuse("missing_field");
+    return v;
+}
+
+inline OAQuestionOperatorListAnswerContentsResult decode_oa_question_operator_list_answer_contents_result(Reader& r) {
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    OAQuestionOperatorListAnswerContentsResult v;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "value") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.value = decode_answer_content_page(r);
             } else {
                 r.refuse("unknown_field");
             }
@@ -10528,6 +12221,41 @@ inline OAPermissionApplicationObserveResult decode_oa_permission_application_obs
     return v;
 }
 
+inline OAPermissionApplicationObserveQuestionResult decode_oa_permission_application_observe_question_result(Reader& r) {
+    if (r.at() != '{') r.refuse("wrong_type");
+    r.enter();
+    ++r.pos;
+    OAPermissionApplicationObserveQuestionResult v;
+    std::uint32_t seen = 0;
+    r.skip_ws();
+    if (r.at() != '}') {
+        for (;;) {
+            r.skip_ws();
+            if (r.at() != '"') r.refuse("malformed");
+            const std::string key = r.str();
+            r.skip_ws();
+            if (r.at() != ':') r.refuse("malformed");
+            ++r.pos;
+            r.skip_ws();
+            if (key == "value") {
+                if (seen & 1u) r.refuse("duplicate_field");
+                seen |= 1u;
+                v.value = decode_pending_question(r);
+            } else {
+                r.refuse("unknown_field");
+            }
+            r.skip_ws();
+            if (r.at() != ',') break;
+            ++r.pos;
+        }
+    }
+    if (r.at() != '}') r.refuse("malformed");
+    ++r.pos;
+    --r.depth;
+    if ((seen & 1u) != 1u) r.refuse("missing_field");
+    return v;
+}
+
 inline OAPermissionOperatorListPermissionsResult decode_oa_permission_operator_list_permissions_result(Reader& r) {
     if (r.at() != '{') r.refuse("wrong_type");
     r.enter();
@@ -10994,9 +12722,884 @@ inline Request decode(std::string_view data) {
     return v;
 }
 
+// to_json writes one record as JSON, laid out as this definition's documents
+// are and without the document terminator; from_json<T> reads one and throws
+// Refusal for what the record's reader refuses.
+template <class T> T from_json(std::string_view data);
+
+inline std::string to_json(const Question& v) {
+    std::string out;
+    detail::enc_question(out, v, 0);
+    return out;
+}
+
+template <> inline Question from_json<Question>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    Question v = detail::decode_question(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const Request& v) {
+    std::string out;
+    detail::enc_request(out, v, 0);
+    return out;
+}
+
+template <> inline Request from_json<Request>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    Request v = detail::decode_request(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const Answer& v) {
+    std::string out;
+    detail::enc_answer(out, v, 0);
+    return out;
+}
+
+template <> inline Answer from_json<Answer>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    Answer v = detail::decode_answer(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const RecordMetadata& v) {
+    std::string out;
+    detail::enc_record_metadata(out, v, 0);
+    return out;
+}
+
+template <> inline RecordMetadata from_json<RecordMetadata>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    RecordMetadata v = detail::decode_record_metadata(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ResponseMetadata& v) {
+    std::string out;
+    detail::enc_response_metadata(out, v, 0);
+    return out;
+}
+
+template <> inline ResponseMetadata from_json<ResponseMetadata>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ResponseMetadata v = detail::decode_response_metadata(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ApplicationQuestion& v) {
+    std::string out;
+    detail::enc_application_question(out, v, 0);
+    return out;
+}
+
+template <> inline ApplicationQuestion from_json<ApplicationQuestion>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ApplicationQuestion v = detail::decode_application_question(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const QuestionObservation& v) {
+    std::string out;
+    detail::enc_question_observation(out, v, 0);
+    return out;
+}
+
+template <> inline QuestionObservation from_json<QuestionObservation>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    QuestionObservation v = detail::decode_question_observation(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const OperatorPage& v) {
+    std::string out;
+    detail::enc_operator_page(out, v, 0);
+    return out;
+}
+
+template <> inline OperatorPage from_json<OperatorPage>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    OperatorPage v = detail::decode_operator_page(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const OperatorDecision& v) {
+    std::string out;
+    detail::enc_operator_decision(out, v, 0);
+    return out;
+}
+
+template <> inline OperatorDecision from_json<OperatorDecision>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    OperatorDecision v = detail::decode_operator_decision(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const OperatorRetirement& v) {
+    std::string out;
+    detail::enc_operator_retirement(out, v, 0);
+    return out;
+}
+
+template <> inline OperatorRetirement from_json<OperatorRetirement>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    OperatorRetirement v = detail::decode_operator_retirement(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const OperatorQuestion& v) {
+    std::string out;
+    detail::enc_operator_question(out, v, 0);
+    return out;
+}
+
+template <> inline OperatorQuestion from_json<OperatorQuestion>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    OperatorQuestion v = detail::decode_operator_question(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const AttributedQuestion& v) {
+    std::string out;
+    detail::enc_attributed_question(out, v, 0);
+    return out;
+}
+
+template <> inline AttributedQuestion from_json<AttributedQuestion>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    AttributedQuestion v = detail::decode_attributed_question(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const PermissionTarget& v) {
+    std::string out;
+    detail::enc_permission_target(out, v, 0);
+    return out;
+}
+
+template <> inline PermissionTarget from_json<PermissionTarget>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    PermissionTarget v = detail::decode_permission_target(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const PermissionRequest& v) {
+    std::string out;
+    detail::enc_permission_request(out, v, 0);
+    return out;
+}
+
+template <> inline PermissionRequest from_json<PermissionRequest>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    PermissionRequest v = detail::decode_permission_request(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const QuestionDetails& v) {
+    std::string out;
+    detail::enc_question_details(out, v, 0);
+    return out;
+}
+
+template <> inline QuestionDetails from_json<QuestionDetails>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    QuestionDetails v = detail::decode_question_details(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const QuestionAsker& v) {
+    std::string out;
+    detail::enc_question_asker(out, v, 0);
+    return out;
+}
+
+template <> inline QuestionAsker from_json<QuestionAsker>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    QuestionAsker v = detail::decode_question_asker(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const CatalogueContent& v) {
+    std::string out;
+    detail::enc_catalogue_content(out, v, 0);
+    return out;
+}
+
+template <> inline CatalogueContent from_json<CatalogueContent>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    CatalogueContent v = detail::decode_catalogue_content(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const QuestionContent& v) {
+    std::string out;
+    detail::enc_question_content(out, v, 0);
+    return out;
+}
+
+template <> inline QuestionContent from_json<QuestionContent>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    QuestionContent v = detail::decode_question_content(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const RequestRef& v) {
+    std::string out;
+    detail::enc_request_ref(out, v, 0);
+    return out;
+}
+
+template <> inline RequestRef from_json<RequestRef>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    RequestRef v = detail::decode_request_ref(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ChoiceOption& v) {
+    std::string out;
+    detail::enc_choice_option(out, v, 0);
+    return out;
+}
+
+template <> inline ChoiceOption from_json<ChoiceOption>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ChoiceOption v = detail::decode_choice_option(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ChoiceRequest& v) {
+    std::string out;
+    detail::enc_choice_request(out, v, 0);
+    return out;
+}
+
+template <> inline ChoiceRequest from_json<ChoiceRequest>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ChoiceRequest v = detail::decode_choice_request(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ChoiceAnswer& v) {
+    std::string out;
+    detail::enc_choice_answer(out, v, 0);
+    return out;
+}
+
+template <> inline ChoiceAnswer from_json<ChoiceAnswer>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ChoiceAnswer v = detail::decode_choice_answer(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ChoiceObservation& v) {
+    std::string out;
+    detail::enc_choice_observation(out, v, 0);
+    return out;
+}
+
+template <> inline ChoiceObservation from_json<ChoiceObservation>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ChoiceObservation v = detail::decode_choice_observation(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ChoiceAcknowledgement& v) {
+    std::string out;
+    detail::enc_choice_acknowledgement(out, v, 0);
+    return out;
+}
+
+template <> inline ChoiceAcknowledgement from_json<ChoiceAcknowledgement>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ChoiceAcknowledgement v = detail::decode_choice_acknowledgement(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ChoiceRecord& v) {
+    std::string out;
+    detail::enc_choice_record(out, v, 0);
+    return out;
+}
+
+template <> inline ChoiceRecord from_json<ChoiceRecord>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ChoiceRecord v = detail::decode_choice_record(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ChoicePage& v) {
+    std::string out;
+    detail::enc_choice_page(out, v, 0);
+    return out;
+}
+
+template <> inline ChoicePage from_json<ChoicePage>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ChoicePage v = detail::decode_choice_page(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ChoiceRead& v) {
+    std::string out;
+    detail::enc_choice_read(out, v, 0);
+    return out;
+}
+
+template <> inline ChoiceRead from_json<ChoiceRead>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ChoiceRead v = detail::decode_choice_read(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ChoiceDecision& v) {
+    std::string out;
+    detail::enc_choice_decision(out, v, 0);
+    return out;
+}
+
+template <> inline ChoiceDecision from_json<ChoiceDecision>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ChoiceDecision v = detail::decode_choice_decision(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ChoiceDetails& v) {
+    std::string out;
+    detail::enc_choice_details(out, v, 0);
+    return out;
+}
+
+template <> inline ChoiceDetails from_json<ChoiceDetails>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ChoiceDetails v = detail::decode_choice_details(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const AnswerEntry& v) {
+    std::string out;
+    detail::enc_answer_entry(out, v, 0);
+    return out;
+}
+
+template <> inline AnswerEntry from_json<AnswerEntry>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    AnswerEntry v = detail::decode_answer_entry(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const AnswerEntryPage& v) {
+    std::string out;
+    detail::enc_answer_entry_page(out, v, 0);
+    return out;
+}
+
+template <> inline AnswerEntryPage from_json<AnswerEntryPage>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    AnswerEntryPage v = detail::decode_answer_entry_page(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const AnswerContent& v) {
+    std::string out;
+    detail::enc_answer_content(out, v, 0);
+    return out;
+}
+
+template <> inline AnswerContent from_json<AnswerContent>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    AnswerContent v = detail::decode_answer_content(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const AnswerContentPage& v) {
+    std::string out;
+    detail::enc_answer_content_page(out, v, 0);
+    return out;
+}
+
+template <> inline AnswerContentPage from_json<AnswerContentPage>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    AnswerContentPage v = detail::decode_answer_content_page(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const AnswerableChoice& v) {
+    std::string out;
+    detail::enc_answerable_choice(out, v, 0);
+    return out;
+}
+
+template <> inline AnswerableChoice from_json<AnswerableChoice>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    AnswerableChoice v = detail::decode_answerable_choice(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const AnswerableChoicePage& v) {
+    std::string out;
+    detail::enc_answerable_choice_page(out, v, 0);
+    return out;
+}
+
+template <> inline AnswerableChoicePage from_json<AnswerableChoicePage>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    AnswerableChoicePage v = detail::decode_answerable_choice_page(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const ResponderDecision& v) {
+    std::string out;
+    detail::enc_responder_decision(out, v, 0);
+    return out;
+}
+
+template <> inline ResponderDecision from_json<ResponderDecision>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    ResponderDecision v = detail::decode_responder_decision(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const PermissionIntent& v) {
+    std::string out;
+    detail::enc_permission_intent(out, v, 0);
+    return out;
+}
+
+template <> inline PermissionIntent from_json<PermissionIntent>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    PermissionIntent v = detail::decode_permission_intent(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const PermissionObservation& v) {
+    std::string out;
+    detail::enc_permission_observation(out, v, 0);
+    return out;
+}
+
+template <> inline PermissionObservation from_json<PermissionObservation>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    PermissionObservation v = detail::decode_permission_observation(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const TypedPermissionDetails& v) {
+    std::string out;
+    detail::enc_typed_permission_details(out, v, 0);
+    return out;
+}
+
+template <> inline TypedPermissionDetails from_json<TypedPermissionDetails>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    TypedPermissionDetails v = detail::decode_typed_permission_details(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const PendingQuestion& v) {
+    std::string out;
+    detail::enc_pending_question(out, v, 0);
+    return out;
+}
+
+template <> inline PendingQuestion from_json<PendingQuestion>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    PendingQuestion v = detail::decode_pending_question(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const PermissionDisplaySelection& v) {
+    std::string out;
+    detail::enc_permission_display_selection(out, v, 0);
+    return out;
+}
+
+template <> inline PermissionDisplaySelection from_json<PermissionDisplaySelection>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    PermissionDisplaySelection v = detail::decode_permission_display_selection(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const PermissionDisplay& v) {
+    std::string out;
+    detail::enc_permission_display(out, v, 0);
+    return out;
+}
+
+template <> inline PermissionDisplay from_json<PermissionDisplay>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    PermissionDisplay v = detail::decode_permission_display(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const NotificationAction& v) {
+    std::string out;
+    detail::enc_notification_action(out, v, 0);
+    return out;
+}
+
+template <> inline NotificationAction from_json<NotificationAction>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    NotificationAction v = detail::decode_notification_action(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const NotificationRequest& v) {
+    std::string out;
+    detail::enc_notification_request(out, v, 0);
+    return out;
+}
+
+template <> inline NotificationRequest from_json<NotificationRequest>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    NotificationRequest v = detail::decode_notification_request(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const NotificationResult& v) {
+    std::string out;
+    detail::enc_notification_result(out, v, 0);
+    return out;
+}
+
+template <> inline NotificationResult from_json<NotificationResult>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    NotificationResult v = detail::decode_notification_result(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const NotificationObservation& v) {
+    std::string out;
+    detail::enc_notification_observation(out, v, 0);
+    return out;
+}
+
+template <> inline NotificationObservation from_json<NotificationObservation>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    NotificationObservation v = detail::decode_notification_observation(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const NotificationRecord& v) {
+    std::string out;
+    detail::enc_notification_record(out, v, 0);
+    return out;
+}
+
+template <> inline NotificationRecord from_json<NotificationRecord>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    NotificationRecord v = detail::decode_notification_record(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const NotificationPage& v) {
+    std::string out;
+    detail::enc_notification_page(out, v, 0);
+    return out;
+}
+
+template <> inline NotificationPage from_json<NotificationPage>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    NotificationPage v = detail::decode_notification_page(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const NotificationRead& v) {
+    std::string out;
+    detail::enc_notification_read(out, v, 0);
+    return out;
+}
+
+template <> inline NotificationRead from_json<NotificationRead>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    NotificationRead v = detail::decode_notification_read(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const NotificationDecision& v) {
+    std::string out;
+    detail::enc_notification_decision(out, v, 0);
+    return out;
+}
+
+template <> inline NotificationDecision from_json<NotificationDecision>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    NotificationDecision v = detail::decode_notification_decision(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const NotifierDay& v) {
+    std::string out;
+    detail::enc_notifier_day(out, v, 0);
+    return out;
+}
+
+template <> inline NotifierDay from_json<NotifierDay>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    NotifierDay v = detail::decode_notifier_day(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const NotifierCount& v) {
+    std::string out;
+    detail::enc_notifier_count(out, v, 0);
+    return out;
+}
+
+template <> inline NotifierCount from_json<NotifierCount>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    NotifierCount v = detail::decode_notifier_count(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const NotifierPage& v) {
+    std::string out;
+    detail::enc_notifier_page(out, v, 0);
+    return out;
+}
+
+template <> inline NotifierPage from_json<NotifierPage>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    NotifierPage v = detail::decode_notifier_page(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const EndpointRefusalDetail& v) {
+    std::string out;
+    detail::enc_endpoint_refusal_detail(out, v, 0);
+    return out;
+}
+
+template <> inline EndpointRefusalDetail from_json<EndpointRefusalDetail>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    EndpointRefusalDetail v = detail::decode_endpoint_refusal_detail(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const EndpointProducerCheck& v) {
+    std::string out;
+    detail::enc_endpoint_producer_check(out, v, 0);
+    return out;
+}
+
+template <> inline EndpointProducerCheck from_json<EndpointProducerCheck>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    EndpointProducerCheck v = detail::decode_endpoint_producer_check(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const EndpointServiceState& v) {
+    std::string out;
+    detail::enc_endpoint_service_state(out, v, 0);
+    return out;
+}
+
+template <> inline EndpointServiceState from_json<EndpointServiceState>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    EndpointServiceState v = detail::decode_endpoint_service_state(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const EndpointDescription& v) {
+    std::string out;
+    detail::enc_endpoint_description(out, v, 0);
+    return out;
+}
+
+template <> inline EndpointDescription from_json<EndpointDescription>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    EndpointDescription v = detail::decode_endpoint_description(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
+inline std::string to_json(const EndpointDescriptionResult& v) {
+    std::string out;
+    detail::enc_endpoint_description_result(out, v, 0);
+    return out;
+}
+
+template <> inline EndpointDescriptionResult from_json<EndpointDescriptionResult>(std::string_view data) {
+    detail::Reader r{data};
+    r.skip_ws();
+    EndpointDescriptionResult v = detail::decode_endpoint_description_result(r);
+    r.skip_ws();
+    if (r.pos < r.buf.size()) r.refuse("trailing_bytes");
+    return v;
+}
+
 namespace detail {
 // kRefusals is in the order two of them are chosen between.
-inline const std::vector<std::string> kRefusals = {"malformed", "bad_string", "number_spelling", "wrong_type", "depth_exceeded", "duplicate_key", "duplicate_field", "unknown_field", "missing_field", "bad_enum", "trailing_bytes"};
+inline const std::vector<std::string> kRefusals = {"malformed", "bad_string", "number_spelling", "wrong_type", "depth_exceeded", "duplicate_key", "duplicate_field", "unknown_field", "missing_field", "bad_enum", "bad_value", "trailing_bytes"};
 
 inline int refusal_rank(std::string_view word) {
     for (std::size_t i = 0; i < kRefusals.size(); ++i)
@@ -11029,24 +13632,43 @@ inline std::string service_reply(const OAServiceFrame& request,const Raw& payloa
 
 // The base-protocol service every dispatcher answers beside its own.
 inline constexpr std::string_view kEndpointContract="abstraction.facade/endpoint@1";
+inline constexpr std::string_view kEndpointV2Contract="abstraction.facade/endpoint@2";
 // One service an endpoint hosts, as a dispatcher of any generated namespace
 // reports it to describe_endpoint.
 struct DescribedService{std::string contract;bool ready;std::string why;};
 namespace detail {
 template<class H>auto ready_hook(int)->decltype((void)static_cast<H*>(nullptr)->ready(),static_cast<bool(*)(void*,std::string&)>(nullptr)){return [](void* h,std::string& why)->bool{auto r=static_cast<H*>(h)->ready();why=r.second;return r.first;};}
 template<class H>bool(*ready_hook(long))(void*,std::string&){return nullptr;}
+using EndpointMetadata=std::pair<std::vector<std::string>,std::map<std::string,std::string>>;
+template<class H>auto metadata_hook(int)->decltype((void)static_cast<H*>(nullptr)->describe_metadata(),static_cast<EndpointMetadata(*)(void*)>(nullptr)){return [](void*h)->EndpointMetadata{return static_cast<H*>(h)->describe_metadata();};}
+template<class H>EndpointMetadata(*metadata_hook(long))(void*){return nullptr;}
+template<class S>auto described_hash(const S&s,int)->decltype(s.describe_service_definition_hash()){return s.describe_service_definition_hash();}
+template<class S>std::string described_hash(const S&,long){return std::string();}
+template<class S>auto described_metadata(const S&s,int)->decltype(s.describe_service_metadata()){return s.describe_service_metadata();}
+template<class S>std::pair<std::vector<std::string>,std::map<std::string,std::string>> described_metadata(const S&,long){return {};}
 }  // namespace detail
 // Answers an abstraction.facade/endpoint@1 Describe frame for an endpoint
 // hosting services, in that order: each is a dispatcher of any generated
 // namespace. program and version are the provider's own display name and
 // version, never authority. A frame for another service reads unknown_service.
-template<class... Services>std::string describe_endpoint(std::string_view frame,const std::string& program,const std::string& version,const Services&... services){
+template<class... Services>std::string describe_endpoint_with_checks(std::string_view frame,const std::string& program,const std::string& version,const std::vector<EndpointProducerCheck>& checks,const Services&... services){
  auto v=detail::service_payload(frame);
- if(v.service!=kEndpointContract){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
+ if(v.service!=kEndpointContract&&v.service!=kEndpointV2Contract){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
  if(v.method!="Describe"){ServiceError e("unknown_method","");return detail::service_reply(v,"",&e);}
  detail::Reader r{v.arguments};r.skip_ws();bool empty=false;
  if(r.pos<r.buf.size()&&r.buf[r.pos]=='{'){r.pos++;r.skip_ws();if(r.pos<r.buf.size()&&r.buf[r.pos]=='}'){r.pos++;r.skip_ws();empty=r.pos==r.buf.size();}}
  if(!empty){ServiceError e("unknown_field","");return detail::service_reply(v,"",&e);}
+ if(v.service==kEndpointV2Contract){
+  auto bounded=[&](){EndpointDescriptionResult result;result.value.outcome=EndpointDescriptionOutcome::Unavailable;result.value.reason="bound:reply_bytes";Raw payload;detail::enc_endpoint_description_result(payload,result,1);return detail::service_reply(v,payload);};
+  try{
+   EndpointDescriptionResult result;auto& description=result.value;description.outcome=EndpointDescriptionOutcome::Described;description.program=program;description.version=version;description.checks=checks;
+   bool supported=true;auto add=[&](const auto& service){auto s=service.describe_service();EndpointServiceState state;state.service=s.contract;state.readiness=s.ready?EndpointServiceReadiness::Ready:EndpointServiceReadiness::NotReady;state.reason=s.ready?std::string():s.why;state.definition_hash=detail::described_hash(service,0);if(state.definition_hash.empty())supported=false;auto metadata=detail::described_metadata(service,0);state.guarantees=metadata.first;state.capabilities=metadata.second;description.services.push_back(state);};
+   (void)add;(add(services),...);
+   if(!supported){description={};description.outcome=EndpointDescriptionOutcome::Unsupported;description.reason="unsupported:not_implemented";}
+   Raw payload;detail::enc_endpoint_description_result(payload,result,1);detail::Reader reader{payload};reader.depth=1;detail::decode_endpoint_description_result(reader);
+   auto reply=detail::service_reply(v,payload);if(reply.size()>1048576)return bounded();return reply;
+  }catch(const Refusal&){return bounded();}
+ }
  try{
   Raw out="{\"value\":{\"outcome\":\"described\",\"program\":";detail::esc(out,program);out+=",\"version\":";detail::esc(out,version);out+=",\"services\":[";
   bool first=true;
@@ -11057,6 +13679,7 @@ template<class... Services>std::string describe_endpoint(std::string_view frame,
   return detail::service_reply(v,out);
  }catch(const Refusal&e){ServiceError error(e.word,"");return detail::service_reply(v,"",&error);}
 }
+template<class... Services>std::string describe_endpoint(std::string_view frame,const std::string& program,const std::string& version,const Services&... services){return describe_endpoint_with_checks(frame,program,version,std::vector<EndpointProducerCheck>{},services...);}
 struct QuestionApplication{virtual ~QuestionApplication()=default;
 virtual QuestionObservation ask(const ApplicationQuestion& question)=0;
 virtual QuestionObservation observe(const std::string& request_key,const std::int64_t& wait_ms)=0;
@@ -11066,6 +13689,7 @@ QuestionObservation ask(const ApplicationQuestion& question)override{detail::OAQ
 args.question=question;
 detail::OAServiceFrame v;v.version=1;v.service="abstraction.asks/application@1";v.method="Ask";detail::enc_oa_question_application_ask_arguments(v.arguments,args,1);std::string frame;detail::enc_oa_service_frame(frame,v,0);detail::service_payload(frame);
 auto response=transport_.exchange_frame(frame);auto payload=detail::service_response(response,v.service,v.method);detail::Reader r{payload};r.depth=1;r.skip_ws();auto result=detail::decode_oa_question_application_ask_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
+if ((wire_name(result.value.outcome)=="pending" || wire_name(result.value.outcome)=="answered")!=result.value.answer.has_value()) throw ServiceError("invalid_result","");
 return result.value;
 }
 QuestionObservation observe(const std::string& request_key,const std::int64_t& wait_ms)override{detail::OAQuestionApplicationObserveArguments args;
@@ -11073,22 +13697,25 @@ args.request_key=request_key;
 args.wait_ms=wait_ms;
 detail::OAServiceFrame v;v.version=1;v.service="abstraction.asks/application@1";v.method="Observe";detail::enc_oa_question_application_observe_arguments(v.arguments,args,1);std::string frame;detail::enc_oa_service_frame(frame,v,0);detail::service_payload(frame);
 auto response=transport_.exchange_frame(frame);auto payload=detail::service_response(response,v.service,v.method);detail::Reader r{payload};r.depth=1;r.skip_ws();auto result=detail::decode_oa_question_application_observe_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
+if ((wire_name(result.value.outcome)=="pending" || wire_name(result.value.outcome)=="answered")!=result.value.answer.has_value()) throw ServiceError("invalid_result","");
 return result.value;
 }
 };
 struct QuestionApplicationService{inline static constexpr std::string_view kWireName="abstraction.asks/application@1";inline static constexpr std::string_view kCapability="abstraction.asks";template<class Transport>using Client=QuestionApplicationClient<Transport>;};
 struct QuestionApplicationDispatcher:FrameWriter,FrameExchanger{QuestionApplication&handler;explicit QuestionApplicationDispatcher(QuestionApplication&h):handler(h){}
 // A handler whose own type has ready(), returning a pair of bool and std::string, reports its readiness through describe_service.
-template<class H,class=decltype(static_cast<QuestionApplication&>(*static_cast<H*>(nullptr)))>explicit QuestionApplicationDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)){}
+template<class H,class=decltype(static_cast<QuestionApplication&>(*static_cast<H*>(nullptr)))>explicit QuestionApplicationDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)),metadata_hook_(detail::metadata_hook<H>(0)){}
 // This dispatcher's service as abstraction.facade/endpoint@1 Describe lists it.
 DescribedService describe_service()const{DescribedService s{"abstraction.asks/application@1",true,std::string()};if(ready_hook_){s.ready=ready_hook_(ready_self_,s.why);if(s.ready)s.why.clear();}return s;}
+std::string describe_service_definition_hash()const{return "sha256:60ba605a8d7510f9f5b49bf24457e798a1c07b10b39a94a0479b5b3f6f40e338";}
+std::pair<std::vector<std::string>,std::map<std::string,std::string>> describe_service_metadata()const{if(metadata_hook_)return metadata_hook_(ready_self_);return {};}
 void write_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service!="abstraction.asks/application@1")throw DispatchError("unknown_service");
 if(v.method=="Ask"){
 throw DispatchError("wrong_mode");}
 if(v.method=="Observe"){
 throw DispatchError("wrong_mode");}
 throw DispatchError("unknown_method");}
-std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/application@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
+std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service==kEndpointV2Contract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/application@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
 try{
 if(v.method=="Ask"){
 detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_question_application_ask_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_ask(args);return detail::service_reply(v,payload);}
@@ -11103,6 +13730,7 @@ try{
 result=handler.ask(args.question);
 }catch(const ServiceError&){throw;}catch(...){throw ServiceError("handler_error","handler failed");}
 try{
+if ((wire_name(result.outcome)=="pending" || wire_name(result.outcome)=="answered")!=result.answer.has_value()) throw ServiceError("invalid_result","");
 detail::OAQuestionApplicationAskResult value;
 value.value=result;
 Raw payload;detail::enc_oa_question_application_ask_result(payload,value,1);detail::Reader r{payload};r.depth=1;r.skip_ws();detail::decode_oa_question_application_ask_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
@@ -11114,6 +13742,7 @@ try{
 result=handler.observe(args.request_key,args.wait_ms);
 }catch(const ServiceError&){throw;}catch(...){throw ServiceError("handler_error","handler failed");}
 try{
+if ((wire_name(result.outcome)=="pending" || wire_name(result.outcome)=="answered")!=result.answer.has_value()) throw ServiceError("invalid_result","");
 detail::OAQuestionApplicationObserveResult value;
 value.value=result;
 Raw payload;detail::enc_oa_question_application_observe_result(payload,value,1);detail::Reader r{payload};r.depth=1;r.skip_ws();detail::decode_oa_question_application_observe_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
@@ -11122,8 +13751,11 @@ Raw payload;detail::enc_oa_question_application_observe_result(payload,value,1);
 private:
 void* ready_self_=nullptr;
 bool(*ready_hook_)(void*,std::string&)=nullptr;
+std::pair<std::vector<std::string>,std::map<std::string,std::string>>(*metadata_hook_)(void*)=nullptr;
 };
 struct QuestionOperator{virtual ~QuestionOperator()=default;
+virtual QuestionContent read_question_content(const std::string& id)=0;
+virtual AnswerContentPage list_answer_contents(const std::string& cursor,const std::int64_t& limit)=0;
 virtual ChoicePage list_choices(const std::string& cursor,const std::int64_t& limit)=0;
 virtual ChoiceRead read_choice(const std::string& id)=0;
 virtual ChoiceDecision answer_choice(const std::string& id,const std::string& option,const bool& if_pending)=0;
@@ -11138,6 +13770,19 @@ virtual OperatorDecision answer_question_if_pending(const std::string& id,const 
 virtual AnswerEntryPage list_answers(const std::string& cursor,const std::int64_t& limit)=0;
 };
 template<class Transport>struct QuestionOperatorClient:QuestionOperator{Transport& transport_;explicit QuestionOperatorClient(Transport&t):transport_(t){}
+QuestionContent read_question_content(const std::string& id)override{detail::OAQuestionOperatorReadQuestionContentArguments args;
+args.id=id;
+detail::OAServiceFrame v;v.version=1;v.service="abstraction.asks/operator@1";v.method="ReadQuestionContent";detail::enc_oa_question_operator_read_question_content_arguments(v.arguments,args,1);std::string frame;detail::enc_oa_service_frame(frame,v,0);detail::service_payload(frame);
+auto response=transport_.exchange_frame(frame);auto payload=detail::service_response(response,v.service,v.method);detail::Reader r{payload};r.depth=1;r.skip_ws();auto result=detail::decode_oa_question_operator_read_question_content_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
+return result.value;
+}
+AnswerContentPage list_answer_contents(const std::string& cursor,const std::int64_t& limit)override{detail::OAQuestionOperatorListAnswerContentsArguments args;
+args.cursor=cursor;
+args.limit=limit;
+detail::OAServiceFrame v;v.version=1;v.service="abstraction.asks/operator@1";v.method="ListAnswerContents";detail::enc_oa_question_operator_list_answer_contents_arguments(v.arguments,args,1);std::string frame;detail::enc_oa_service_frame(frame,v,0);detail::service_payload(frame);
+auto response=transport_.exchange_frame(frame);auto payload=detail::service_response(response,v.service,v.method);detail::Reader r{payload};r.depth=1;r.skip_ws();auto result=detail::decode_oa_question_operator_list_answer_contents_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
+return result.value;
+}
 ChoicePage list_choices(const std::string& cursor,const std::int64_t& limit)override{detail::OAQuestionOperatorListChoicesArguments args;
 args.cursor=cursor;
 args.limit=limit;
@@ -11221,10 +13866,16 @@ return result.value;
 struct QuestionOperatorService{inline static constexpr std::string_view kWireName="abstraction.asks/operator@1";inline static constexpr std::string_view kCapability="abstraction.asks";template<class Transport>using Client=QuestionOperatorClient<Transport>;};
 struct QuestionOperatorDispatcher:FrameWriter,FrameExchanger{QuestionOperator&handler;explicit QuestionOperatorDispatcher(QuestionOperator&h):handler(h){}
 // A handler whose own type has ready(), returning a pair of bool and std::string, reports its readiness through describe_service.
-template<class H,class=decltype(static_cast<QuestionOperator&>(*static_cast<H*>(nullptr)))>explicit QuestionOperatorDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)){}
+template<class H,class=decltype(static_cast<QuestionOperator&>(*static_cast<H*>(nullptr)))>explicit QuestionOperatorDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)),metadata_hook_(detail::metadata_hook<H>(0)){}
 // This dispatcher's service as abstraction.facade/endpoint@1 Describe lists it.
 DescribedService describe_service()const{DescribedService s{"abstraction.asks/operator@1",true,std::string()};if(ready_hook_){s.ready=ready_hook_(ready_self_,s.why);if(s.ready)s.why.clear();}return s;}
+std::string describe_service_definition_hash()const{return "sha256:7d0f78758a24c988de96c49bff601e8698a07ca65dc7e5e2bda81766334ed778";}
+std::pair<std::vector<std::string>,std::map<std::string,std::string>> describe_service_metadata()const{if(metadata_hook_)return metadata_hook_(ready_self_);return {};}
 void write_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service!="abstraction.asks/operator@1")throw DispatchError("unknown_service");
+if(v.method=="ReadQuestionContent"){
+throw DispatchError("wrong_mode");}
+if(v.method=="ListAnswerContents"){
+throw DispatchError("wrong_mode");}
 if(v.method=="ListChoices"){
 throw DispatchError("wrong_mode");}
 if(v.method=="ReadChoice"){
@@ -11250,8 +13901,12 @@ throw DispatchError("wrong_mode");}
 if(v.method=="ListAnswers"){
 throw DispatchError("wrong_mode");}
 throw DispatchError("unknown_method");}
-std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/operator@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
+std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service==kEndpointV2Contract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/operator@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
 try{
+if(v.method=="ReadQuestionContent"){
+detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_question_operator_read_question_content_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_read_question_content(args);return detail::service_reply(v,payload);}
+if(v.method=="ListAnswerContents"){
+detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_question_operator_list_answer_contents_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_list_answer_contents(args);return detail::service_reply(v,payload);}
 if(v.method=="ListChoices"){
 detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_question_operator_list_choices_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_list_choices(args);return detail::service_reply(v,payload);}
 if(v.method=="ReadChoice"){
@@ -11279,6 +13934,28 @@ detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_
 throw ServiceError("unknown_method","");}catch(const ServiceError&e){return detail::service_reply(v,"",&e);}catch(const Refusal&e){ServiceError error(e.word,"");return detail::service_reply(v,"",&error);}
 }
 private:
+Raw invoke_read_question_content(const detail::OAQuestionOperatorReadQuestionContentArguments&args){
+QuestionContent result{};
+try{
+result=handler.read_question_content(args.id);
+}catch(const ServiceError&){throw;}catch(...){throw ServiceError("handler_error","handler failed");}
+try{
+detail::OAQuestionOperatorReadQuestionContentResult value;
+value.value=result;
+Raw payload;detail::enc_oa_question_operator_read_question_content_result(payload,value,1);detail::Reader r{payload};r.depth=1;r.skip_ws();detail::decode_oa_question_operator_read_question_content_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
+}catch(...){throw ServiceError("invalid_result","");}
+}
+Raw invoke_list_answer_contents(const detail::OAQuestionOperatorListAnswerContentsArguments&args){
+AnswerContentPage result{};
+try{
+result=handler.list_answer_contents(args.cursor,args.limit);
+}catch(const ServiceError&){throw;}catch(...){throw ServiceError("handler_error","handler failed");}
+try{
+detail::OAQuestionOperatorListAnswerContentsResult value;
+value.value=result;
+Raw payload;detail::enc_oa_question_operator_list_answer_contents_result(payload,value,1);detail::Reader r{payload};r.depth=1;r.skip_ws();detail::decode_oa_question_operator_list_answer_contents_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
+}catch(...){throw ServiceError("invalid_result","");}
+}
 Raw invoke_list_choices(const detail::OAQuestionOperatorListChoicesArguments&args){
 ChoicePage result{};
 try{
@@ -11414,6 +14091,7 @@ Raw payload;detail::enc_oa_question_operator_list_answers_result(payload,value,1
 private:
 void* ready_self_=nullptr;
 bool(*ready_hook_)(void*,std::string&)=nullptr;
+std::pair<std::vector<std::string>,std::map<std::string,std::string>>(*metadata_hook_)(void*)=nullptr;
 };
 struct ChoiceApplication{virtual ~ChoiceApplication()=default;
 virtual ChoiceObservation ask(const ChoiceRequest& request)=0;
@@ -11469,9 +14147,11 @@ return result.value;
 struct ChoiceApplicationService{inline static constexpr std::string_view kWireName="abstraction.asks/application@2";inline static constexpr std::string_view kCapability="abstraction.asks";template<class Transport>using Client=ChoiceApplicationClient<Transport>;};
 struct ChoiceApplicationDispatcher:FrameWriter,FrameExchanger{ChoiceApplication&handler;explicit ChoiceApplicationDispatcher(ChoiceApplication&h):handler(h){}
 // A handler whose own type has ready(), returning a pair of bool and std::string, reports its readiness through describe_service.
-template<class H,class=decltype(static_cast<ChoiceApplication&>(*static_cast<H*>(nullptr)))>explicit ChoiceApplicationDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)){}
+template<class H,class=decltype(static_cast<ChoiceApplication&>(*static_cast<H*>(nullptr)))>explicit ChoiceApplicationDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)),metadata_hook_(detail::metadata_hook<H>(0)){}
 // This dispatcher's service as abstraction.facade/endpoint@1 Describe lists it.
 DescribedService describe_service()const{DescribedService s{"abstraction.asks/application@2",true,std::string()};if(ready_hook_){s.ready=ready_hook_(ready_self_,s.why);if(s.ready)s.why.clear();}return s;}
+std::string describe_service_definition_hash()const{return "sha256:4491ddafe1f07982745a60cacfa8c6357c006fccab6ef780404d574c0edcb4c0";}
+std::pair<std::vector<std::string>,std::map<std::string,std::string>> describe_service_metadata()const{if(metadata_hook_)return metadata_hook_(ready_self_);return {};}
 void write_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service!="abstraction.asks/application@2")throw DispatchError("unknown_service");
 if(v.method=="Ask"){
 throw DispatchError("wrong_mode");}
@@ -11486,7 +14166,7 @@ throw DispatchError("wrong_mode");}
 if(v.method=="Acknowledge"){
 throw DispatchError("wrong_mode");}
 throw DispatchError("unknown_method");}
-std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/application@2"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
+std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service==kEndpointV2Contract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/application@2"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
 try{
 if(v.method=="Ask"){
 detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_choice_application_ask_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_ask(args);return detail::service_reply(v,payload);}
@@ -11572,6 +14252,7 @@ Raw payload;detail::enc_oa_choice_application_acknowledge_result(payload,value,1
 private:
 void* ready_self_=nullptr;
 bool(*ready_hook_)(void*,std::string&)=nullptr;
+std::pair<std::vector<std::string>,std::map<std::string,std::string>>(*metadata_hook_)(void*)=nullptr;
 };
 struct QuestionResponder{virtual ~QuestionResponder()=default;
 virtual OperatorPage list_answerable(const std::string& cursor,const std::int64_t& limit)=0;
@@ -11618,9 +14299,11 @@ return result.value;
 struct QuestionResponderService{inline static constexpr std::string_view kWireName="abstraction.asks/responder@1";inline static constexpr std::string_view kCapability="abstraction.asks";template<class Transport>using Client=QuestionResponderClient<Transport>;};
 struct QuestionResponderDispatcher:FrameWriter,FrameExchanger{QuestionResponder&handler;explicit QuestionResponderDispatcher(QuestionResponder&h):handler(h){}
 // A handler whose own type has ready(), returning a pair of bool and std::string, reports its readiness through describe_service.
-template<class H,class=decltype(static_cast<QuestionResponder&>(*static_cast<H*>(nullptr)))>explicit QuestionResponderDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)){}
+template<class H,class=decltype(static_cast<QuestionResponder&>(*static_cast<H*>(nullptr)))>explicit QuestionResponderDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)),metadata_hook_(detail::metadata_hook<H>(0)){}
 // This dispatcher's service as abstraction.facade/endpoint@1 Describe lists it.
 DescribedService describe_service()const{DescribedService s{"abstraction.asks/responder@1",true,std::string()};if(ready_hook_){s.ready=ready_hook_(ready_self_,s.why);if(s.ready)s.why.clear();}return s;}
+std::string describe_service_definition_hash()const{return "sha256:2907e7c133f643ba32d43ac9ba8239cf86329087ab0248ec9e0cb4a8868f7b61";}
+std::pair<std::vector<std::string>,std::map<std::string,std::string>> describe_service_metadata()const{if(metadata_hook_)return metadata_hook_(ready_self_);return {};}
 void write_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service!="abstraction.asks/responder@1")throw DispatchError("unknown_service");
 if(v.method=="ListAnswerable"){
 throw DispatchError("wrong_mode");}
@@ -11633,7 +14316,7 @@ throw DispatchError("wrong_mode");}
 if(v.method=="AnswerChoice"){
 throw DispatchError("wrong_mode");}
 throw DispatchError("unknown_method");}
-std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/responder@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
+std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service==kEndpointV2Contract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/responder@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
 try{
 if(v.method=="ListAnswerable"){
 detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_question_responder_list_answerable_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_list_answerable(args);return detail::service_reply(v,payload);}
@@ -11707,16 +14390,19 @@ Raw payload;detail::enc_oa_question_responder_answer_choice_result(payload,value
 private:
 void* ready_self_=nullptr;
 bool(*ready_hook_)(void*,std::string&)=nullptr;
+std::pair<std::vector<std::string>,std::map<std::string,std::string>>(*metadata_hook_)(void*)=nullptr;
 };
 struct PermissionApplication{virtual ~PermissionApplication()=default;
 virtual PermissionObservation request(const PermissionIntent& request)=0;
 virtual PermissionObservation observe(const std::string& request_key,const std::int64_t& wait_ms)=0;
+virtual PendingQuestion observe_question(const std::string& id,const std::int64_t& wait_ms)=0;
 };
 template<class Transport>struct PermissionApplicationClient:PermissionApplication{Transport& transport_;explicit PermissionApplicationClient(Transport&t):transport_(t){}
 PermissionObservation request(const PermissionIntent& request)override{detail::OAPermissionApplicationRequestArguments args;
 args.request=request;
 detail::OAServiceFrame v;v.version=1;v.service="abstraction.asks/permission@1";v.method="Request";detail::enc_oa_permission_application_request_arguments(v.arguments,args,1);std::string frame;detail::enc_oa_service_frame(frame,v,0);detail::service_payload(frame);
 auto response=transport_.exchange_frame(frame);auto payload=detail::service_response(response,v.service,v.method);detail::Reader r{payload};r.depth=1;r.skip_ws();auto result=detail::decode_oa_permission_application_request_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
+if ((wire_name(result.value.outcome)=="pending" || wire_name(result.value.outcome)=="answered")!=result.value.answer.has_value()) throw ServiceError("invalid_result","");
 return result.value;
 }
 PermissionObservation observe(const std::string& request_key,const std::int64_t& wait_ms)override{detail::OAPermissionApplicationObserveArguments args;
@@ -11724,27 +14410,41 @@ args.request_key=request_key;
 args.wait_ms=wait_ms;
 detail::OAServiceFrame v;v.version=1;v.service="abstraction.asks/permission@1";v.method="Observe";detail::enc_oa_permission_application_observe_arguments(v.arguments,args,1);std::string frame;detail::enc_oa_service_frame(frame,v,0);detail::service_payload(frame);
 auto response=transport_.exchange_frame(frame);auto payload=detail::service_response(response,v.service,v.method);detail::Reader r{payload};r.depth=1;r.skip_ws();auto result=detail::decode_oa_permission_application_observe_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
+if ((wire_name(result.value.outcome)=="pending" || wire_name(result.value.outcome)=="answered")!=result.value.answer.has_value()) throw ServiceError("invalid_result","");
+return result.value;
+}
+PendingQuestion observe_question(const std::string& id,const std::int64_t& wait_ms)override{detail::OAPermissionApplicationObserveQuestionArguments args;
+args.id=id;
+args.wait_ms=wait_ms;
+detail::OAServiceFrame v;v.version=1;v.service="abstraction.asks/permission@1";v.method="ObserveQuestion";detail::enc_oa_permission_application_observe_question_arguments(v.arguments,args,1);std::string frame;detail::enc_oa_service_frame(frame,v,0);detail::service_payload(frame);
+auto response=transport_.exchange_frame(frame);auto payload=detail::service_response(response,v.service,v.method);detail::Reader r{payload};r.depth=1;r.skip_ws();auto result=detail::decode_oa_permission_application_observe_question_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");
 return result.value;
 }
 };
 struct PermissionApplicationService{inline static constexpr std::string_view kWireName="abstraction.asks/permission@1";inline static constexpr std::string_view kCapability="abstraction.asks";template<class Transport>using Client=PermissionApplicationClient<Transport>;};
 struct PermissionApplicationDispatcher:FrameWriter,FrameExchanger{PermissionApplication&handler;explicit PermissionApplicationDispatcher(PermissionApplication&h):handler(h){}
 // A handler whose own type has ready(), returning a pair of bool and std::string, reports its readiness through describe_service.
-template<class H,class=decltype(static_cast<PermissionApplication&>(*static_cast<H*>(nullptr)))>explicit PermissionApplicationDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)){}
+template<class H,class=decltype(static_cast<PermissionApplication&>(*static_cast<H*>(nullptr)))>explicit PermissionApplicationDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)),metadata_hook_(detail::metadata_hook<H>(0)){}
 // This dispatcher's service as abstraction.facade/endpoint@1 Describe lists it.
 DescribedService describe_service()const{DescribedService s{"abstraction.asks/permission@1",true,std::string()};if(ready_hook_){s.ready=ready_hook_(ready_self_,s.why);if(s.ready)s.why.clear();}return s;}
+std::string describe_service_definition_hash()const{return "sha256:2dc8dbad8be61c87742f58ace80532c6fcec0076caac191c4034e9556eb32b8b";}
+std::pair<std::vector<std::string>,std::map<std::string,std::string>> describe_service_metadata()const{if(metadata_hook_)return metadata_hook_(ready_self_);return {};}
 void write_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service!="abstraction.asks/permission@1")throw DispatchError("unknown_service");
 if(v.method=="Request"){
 throw DispatchError("wrong_mode");}
 if(v.method=="Observe"){
 throw DispatchError("wrong_mode");}
+if(v.method=="ObserveQuestion"){
+throw DispatchError("wrong_mode");}
 throw DispatchError("unknown_method");}
-std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/permission@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
+std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service==kEndpointV2Contract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/permission@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
 try{
 if(v.method=="Request"){
 detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_permission_application_request_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_request(args);return detail::service_reply(v,payload);}
 if(v.method=="Observe"){
 detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_permission_application_observe_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_observe(args);return detail::service_reply(v,payload);}
+if(v.method=="ObserveQuestion"){
+detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_permission_application_observe_question_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_observe_question(args);return detail::service_reply(v,payload);}
 throw ServiceError("unknown_method","");}catch(const ServiceError&e){return detail::service_reply(v,"",&e);}catch(const Refusal&e){ServiceError error(e.word,"");return detail::service_reply(v,"",&error);}
 }
 private:
@@ -11754,6 +14454,7 @@ try{
 result=handler.request(args.request);
 }catch(const ServiceError&){throw;}catch(...){throw ServiceError("handler_error","handler failed");}
 try{
+if ((wire_name(result.outcome)=="pending" || wire_name(result.outcome)=="answered")!=result.answer.has_value()) throw ServiceError("invalid_result","");
 detail::OAPermissionApplicationRequestResult value;
 value.value=result;
 Raw payload;detail::enc_oa_permission_application_request_result(payload,value,1);detail::Reader r{payload};r.depth=1;r.skip_ws();detail::decode_oa_permission_application_request_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
@@ -11765,14 +14466,27 @@ try{
 result=handler.observe(args.request_key,args.wait_ms);
 }catch(const ServiceError&){throw;}catch(...){throw ServiceError("handler_error","handler failed");}
 try{
+if ((wire_name(result.outcome)=="pending" || wire_name(result.outcome)=="answered")!=result.answer.has_value()) throw ServiceError("invalid_result","");
 detail::OAPermissionApplicationObserveResult value;
 value.value=result;
 Raw payload;detail::enc_oa_permission_application_observe_result(payload,value,1);detail::Reader r{payload};r.depth=1;r.skip_ws();detail::decode_oa_permission_application_observe_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
 }catch(...){throw ServiceError("invalid_result","");}
 }
+Raw invoke_observe_question(const detail::OAPermissionApplicationObserveQuestionArguments&args){
+PendingQuestion result{};
+try{
+result=handler.observe_question(args.id,args.wait_ms);
+}catch(const ServiceError&){throw;}catch(...){throw ServiceError("handler_error","handler failed");}
+try{
+detail::OAPermissionApplicationObserveQuestionResult value;
+value.value=result;
+Raw payload;detail::enc_oa_permission_application_observe_question_result(payload,value,1);detail::Reader r{payload};r.depth=1;r.skip_ws();detail::decode_oa_permission_application_observe_question_result(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");return payload;
+}catch(...){throw ServiceError("invalid_result","");}
+}
 private:
 void* ready_self_=nullptr;
 bool(*ready_hook_)(void*,std::string&)=nullptr;
+std::pair<std::vector<std::string>,std::map<std::string,std::string>>(*metadata_hook_)(void*)=nullptr;
 };
 struct PermissionOperator{virtual ~PermissionOperator()=default;
 virtual OperatorPage list_permissions(const std::string& cursor,const std::int64_t& limit)=0;
@@ -11804,9 +14518,11 @@ return result.value;
 struct PermissionOperatorService{inline static constexpr std::string_view kWireName="abstraction.asks/permission-operator@1";inline static constexpr std::string_view kCapability="abstraction.asks";template<class Transport>using Client=PermissionOperatorClient<Transport>;};
 struct PermissionOperatorDispatcher:FrameWriter,FrameExchanger{PermissionOperator&handler;explicit PermissionOperatorDispatcher(PermissionOperator&h):handler(h){}
 // A handler whose own type has ready(), returning a pair of bool and std::string, reports its readiness through describe_service.
-template<class H,class=decltype(static_cast<PermissionOperator&>(*static_cast<H*>(nullptr)))>explicit PermissionOperatorDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)){}
+template<class H,class=decltype(static_cast<PermissionOperator&>(*static_cast<H*>(nullptr)))>explicit PermissionOperatorDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)),metadata_hook_(detail::metadata_hook<H>(0)){}
 // This dispatcher's service as abstraction.facade/endpoint@1 Describe lists it.
 DescribedService describe_service()const{DescribedService s{"abstraction.asks/permission-operator@1",true,std::string()};if(ready_hook_){s.ready=ready_hook_(ready_self_,s.why);if(s.ready)s.why.clear();}return s;}
+std::string describe_service_definition_hash()const{return "sha256:6529c9e0687fdd4d8e0669a879585ecf19f3c4425a5289be2bc705b9bfc0dec3";}
+std::pair<std::vector<std::string>,std::map<std::string,std::string>> describe_service_metadata()const{if(metadata_hook_)return metadata_hook_(ready_self_);return {};}
 void write_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service!="abstraction.asks/permission-operator@1")throw DispatchError("unknown_service");
 if(v.method=="ListPermissions"){
 throw DispatchError("wrong_mode");}
@@ -11815,7 +14531,7 @@ throw DispatchError("wrong_mode");}
 if(v.method=="AnswerPermissionIfPending"){
 throw DispatchError("wrong_mode");}
 throw DispatchError("unknown_method");}
-std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/permission-operator@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
+std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service==kEndpointV2Contract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/permission-operator@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
 try{
 if(v.method=="ListPermissions"){
 detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_permission_operator_list_permissions_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_list_permissions(args);return detail::service_reply(v,payload);}
@@ -11862,6 +14578,7 @@ Raw payload;detail::enc_oa_permission_operator_answer_permission_if_pending_resu
 private:
 void* ready_self_=nullptr;
 bool(*ready_hook_)(void*,std::string&)=nullptr;
+std::pair<std::vector<std::string>,std::map<std::string,std::string>>(*metadata_hook_)(void*)=nullptr;
 };
 struct NotificationApplication{virtual ~NotificationApplication()=default;
 virtual NotificationObservation post(const NotificationRequest& request)=0;
@@ -11900,9 +14617,11 @@ return result.value;
 struct NotificationApplicationService{inline static constexpr std::string_view kWireName="abstraction.asks/notification@1";inline static constexpr std::string_view kCapability="abstraction.asks";template<class Transport>using Client=NotificationApplicationClient<Transport>;};
 struct NotificationApplicationDispatcher:FrameWriter,FrameExchanger{NotificationApplication&handler;explicit NotificationApplicationDispatcher(NotificationApplication&h):handler(h){}
 // A handler whose own type has ready(), returning a pair of bool and std::string, reports its readiness through describe_service.
-template<class H,class=decltype(static_cast<NotificationApplication&>(*static_cast<H*>(nullptr)))>explicit NotificationApplicationDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)){}
+template<class H,class=decltype(static_cast<NotificationApplication&>(*static_cast<H*>(nullptr)))>explicit NotificationApplicationDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)),metadata_hook_(detail::metadata_hook<H>(0)){}
 // This dispatcher's service as abstraction.facade/endpoint@1 Describe lists it.
 DescribedService describe_service()const{DescribedService s{"abstraction.asks/notification@1",true,std::string()};if(ready_hook_){s.ready=ready_hook_(ready_self_,s.why);if(s.ready)s.why.clear();}return s;}
+std::string describe_service_definition_hash()const{return "sha256:39994c570a5d1712d1a6a63dad4caedff175f0c397cb1165f29ff03f317127b8";}
+std::pair<std::vector<std::string>,std::map<std::string,std::string>> describe_service_metadata()const{if(metadata_hook_)return metadata_hook_(ready_self_);return {};}
 void write_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service!="abstraction.asks/notification@1")throw DispatchError("unknown_service");
 if(v.method=="Post"){
 throw DispatchError("wrong_mode");}
@@ -11913,7 +14632,7 @@ throw DispatchError("wrong_mode");}
 if(v.method=="Acknowledge"){
 throw DispatchError("wrong_mode");}
 throw DispatchError("unknown_method");}
-std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/notification@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
+std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service==kEndpointV2Contract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/notification@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
 try{
 if(v.method=="Post"){
 detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_notification_application_post_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_post(args);return detail::service_reply(v,payload);}
@@ -11973,6 +14692,7 @@ Raw payload;detail::enc_oa_notification_application_acknowledge_result(payload,v
 private:
 void* ready_self_=nullptr;
 bool(*ready_hook_)(void*,std::string&)=nullptr;
+std::pair<std::vector<std::string>,std::map<std::string,std::string>>(*metadata_hook_)(void*)=nullptr;
 };
 struct NotificationOperator{virtual ~NotificationOperator()=default;
 virtual NotificationPage list_notifications(const std::string& cursor,const std::int64_t& limit)=0;
@@ -12027,9 +14747,11 @@ return result.value;
 struct NotificationOperatorService{inline static constexpr std::string_view kWireName="abstraction.asks/notification-operator@1";inline static constexpr std::string_view kCapability="abstraction.asks";template<class Transport>using Client=NotificationOperatorClient<Transport>;};
 struct NotificationOperatorDispatcher:FrameWriter,FrameExchanger{NotificationOperator&handler;explicit NotificationOperatorDispatcher(NotificationOperator&h):handler(h){}
 // A handler whose own type has ready(), returning a pair of bool and std::string, reports its readiness through describe_service.
-template<class H,class=decltype(static_cast<NotificationOperator&>(*static_cast<H*>(nullptr)))>explicit NotificationOperatorDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)){}
+template<class H,class=decltype(static_cast<NotificationOperator&>(*static_cast<H*>(nullptr)))>explicit NotificationOperatorDispatcher(H&h):handler(h),ready_self_(&h),ready_hook_(detail::ready_hook<H>(0)),metadata_hook_(detail::metadata_hook<H>(0)){}
 // This dispatcher's service as abstraction.facade/endpoint@1 Describe lists it.
 DescribedService describe_service()const{DescribedService s{"abstraction.asks/notification-operator@1",true,std::string()};if(ready_hook_){s.ready=ready_hook_(ready_self_,s.why);if(s.ready)s.why.clear();}return s;}
+std::string describe_service_definition_hash()const{return "sha256:7531110405f598d5c88c28cf440b41c7c7b70086ecb522133f318581555fbfee";}
+std::pair<std::vector<std::string>,std::map<std::string,std::string>> describe_service_metadata()const{if(metadata_hook_)return metadata_hook_(ready_self_);return {};}
 void write_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service!="abstraction.asks/notification-operator@1")throw DispatchError("unknown_service");
 if(v.method=="ListNotifications"){
 throw DispatchError("wrong_mode");}
@@ -12044,7 +14766,7 @@ throw DispatchError("wrong_mode");}
 if(v.method=="ListNotifiers"){
 throw DispatchError("wrong_mode");}
 throw DispatchError("unknown_method");}
-std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/notification-operator@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
+std::string exchange_frame(std::string_view frame)override{auto v=detail::service_payload(frame);if(v.service==kEndpointContract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service==kEndpointV2Contract)return describe_endpoint(frame,std::string(),std::string(),*this);if(v.service!="abstraction.asks/notification-operator@1"){ServiceError e("unknown_service","");return detail::service_reply(v,"",&e);}
 try{
 if(v.method=="ListNotifications"){
 detail::Reader r{v.arguments};r.depth=1;r.skip_ws();auto args=detail::decode_oa_notification_operator_list_notifications_arguments(r);r.skip_ws();if(r.pos!=r.buf.size())r.refuse("trailing_bytes");auto payload=invoke_list_notifications(args);return detail::service_reply(v,payload);}
@@ -12130,363 +14852,399 @@ Raw payload;detail::enc_oa_notification_operator_list_notifiers_result(payload,v
 private:
 void* ready_self_=nullptr;
 bool(*ready_hook_)(void*,std::string&)=nullptr;
+std::pair<std::vector<std::string>,std::map<std::string,std::string>>(*metadata_hook_)(void*)=nullptr;
 };
 
 namespace detail {
 inline void enc_oa_imported0(std::string& out,const OAImported0& v,int depth){try{out += ::abstraction::rights::api::detail::encode_permission_selection_at(v,depth);}catch(const ::abstraction::rights::api::Refusal& e){throw Refusal(e.word,e.offset);}}
-inline OAImported0 decode_oa_imported0(Reader& r){try{std::size_t n=0;auto v=::abstraction::rights::api::detail::decode_permission_selection_at(r.buf.substr(r.pos),r.depth,r.limit,n);r.pos+=n;return v;}catch(const ::abstraction::rights::api::Refusal& e){throw Refusal(e.word,r.pos+e.offset);}}
+inline OAImported0 decode_oa_imported0(Reader& r){try{std::size_t n=0;auto v=::abstraction::rights::api::detail::decode_permission_selection_at(r.buf.substr(r.pos),r.depth,r.depth_limit(),n);r.pos+=n;return v;}catch(const ::abstraction::rights::api::Refusal& e){throw Refusal(e.word,r.pos+e.offset);}}
 }  // namespace detail
 
 namespace detail {
 inline void enc_oa_imported1(std::string& out,const OAImported1& v,int depth){try{out += ::abstraction::rights::api::detail::encode_resource_selector_at(v,depth);}catch(const ::abstraction::rights::api::Refusal& e){throw Refusal(e.word,e.offset);}}
-inline OAImported1 decode_oa_imported1(Reader& r){try{std::size_t n=0;auto v=::abstraction::rights::api::detail::decode_resource_selector_at(r.buf.substr(r.pos),r.depth,r.limit,n);r.pos+=n;return v;}catch(const ::abstraction::rights::api::Refusal& e){throw Refusal(e.word,r.pos+e.offset);}}
+inline OAImported1 decode_oa_imported1(Reader& r){try{std::size_t n=0;auto v=::abstraction::rights::api::detail::decode_resource_selector_at(r.buf.substr(r.pos),r.depth,r.depth_limit(),n);r.pos+=n;return v;}catch(const ::abstraction::rights::api::Refusal& e){throw Refusal(e.word,r.pos+e.offset);}}
 }  // namespace detail
 
 namespace detail {
 inline void enc_oa_imported2(std::string& out,const OAImported2& v,int depth){try{out += ::abstraction::rights::api::detail::encode_permission_effect_at(v,depth);}catch(const ::abstraction::rights::api::Refusal& e){throw Refusal(e.word,e.offset);}}
-inline OAImported2 decode_oa_imported2(Reader& r){try{std::size_t n=0;auto v=::abstraction::rights::api::detail::decode_permission_effect_at(r.buf.substr(r.pos),r.depth,r.limit,n);r.pos+=n;return v;}catch(const ::abstraction::rights::api::Refusal& e){throw Refusal(e.word,r.pos+e.offset);}}
+inline OAImported2 decode_oa_imported2(Reader& r){try{std::size_t n=0;auto v=::abstraction::rights::api::detail::decode_permission_effect_at(r.buf.substr(r.pos),r.depth,r.depth_limit(),n);r.pos+=n;return v;}catch(const ::abstraction::rights::api::Refusal& e){throw Refusal(e.word,r.pos+e.offset);}}
 }  // namespace detail
 
 namespace detail {
 inline void enc_oa_imported3(std::string& out,const OAImported3& v,int depth){try{out += ::abstraction::rights::api::detail::encode_decision_at(v,depth);}catch(const ::abstraction::rights::api::Refusal& e){throw Refusal(e.word,e.offset);}}
-inline OAImported3 decode_oa_imported3(Reader& r){try{std::size_t n=0;auto v=::abstraction::rights::api::detail::decode_decision_at(r.buf.substr(r.pos),r.depth,r.limit,n);r.pos+=n;return v;}catch(const ::abstraction::rights::api::Refusal& e){throw Refusal(e.word,r.pos+e.offset);}}
+inline OAImported3 decode_oa_imported3(Reader& r){try{std::size_t n=0;auto v=::abstraction::rights::api::detail::decode_decision_at(r.buf.substr(r.pos),r.depth,r.depth_limit(),n);r.pos+=n;return v;}catch(const ::abstraction::rights::api::Refusal& e){throw Refusal(e.word,r.pos+e.offset);}}
 }  // namespace detail
 
 namespace detail {
-inline Question decode_question_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_question(r);consumed=r.pos;return v;}
-inline std::string encode_question_at(const Question& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_question(out,v,depth);std::size_t n=0;decode_question_at(out,depth,detail::kDepthLimit,n);return out;}
+inline Question decode_question_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_question(r);consumed=r.pos;return v;}
+inline std::string encode_question_at(const Question& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_question(out,v,depth);std::size_t n=0;decode_question_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_question(const Question& v){return detail::encode_question_at(v,0)+"\n";}
-inline Question decode_question(std::string_view in){std::size_t n=0;auto v=detail::decode_question_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline Question decode_question(std::string_view in){std::size_t n=0;auto v=detail::decode_question_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline Request decode_request_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_request(r);consumed=r.pos;return v;}
-inline std::string encode_request_at(const Request& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_request(out,v,depth);std::size_t n=0;decode_request_at(out,depth,detail::kDepthLimit,n);return out;}
+inline Request decode_request_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_request(r);consumed=r.pos;return v;}
+inline std::string encode_request_at(const Request& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_request(out,v,depth);std::size_t n=0;decode_request_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_request(const Request& v){return detail::encode_request_at(v,0)+"\n";}
-inline Request decode_request(std::string_view in){std::size_t n=0;auto v=detail::decode_request_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline Request decode_request(std::string_view in){std::size_t n=0;auto v=detail::decode_request_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline Answer decode_answer_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_answer(r);consumed=r.pos;return v;}
-inline std::string encode_answer_at(const Answer& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_answer(out,v,depth);std::size_t n=0;decode_answer_at(out,depth,detail::kDepthLimit,n);return out;}
+inline Answer decode_answer_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_answer(r);consumed=r.pos;return v;}
+inline std::string encode_answer_at(const Answer& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_answer(out,v,depth);std::size_t n=0;decode_answer_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_answer(const Answer& v){return detail::encode_answer_at(v,0)+"\n";}
-inline Answer decode_answer(std::string_view in){std::size_t n=0;auto v=detail::decode_answer_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline Answer decode_answer(std::string_view in){std::size_t n=0;auto v=detail::decode_answer_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline RecordMetadata decode_record_metadata_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_record_metadata(r);consumed=r.pos;return v;}
-inline std::string encode_record_metadata_at(const RecordMetadata& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_record_metadata(out,v,depth);std::size_t n=0;decode_record_metadata_at(out,depth,detail::kDepthLimit,n);return out;}
+inline RecordMetadata decode_record_metadata_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_record_metadata(r);consumed=r.pos;return v;}
+inline std::string encode_record_metadata_at(const RecordMetadata& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_record_metadata(out,v,depth);std::size_t n=0;decode_record_metadata_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_record_metadata(const RecordMetadata& v){return detail::encode_record_metadata_at(v,0)+"\n";}
-inline RecordMetadata decode_record_metadata(std::string_view in){std::size_t n=0;auto v=detail::decode_record_metadata_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline RecordMetadata decode_record_metadata(std::string_view in){std::size_t n=0;auto v=detail::decode_record_metadata_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ResponseMetadata decode_response_metadata_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_response_metadata(r);consumed=r.pos;return v;}
-inline std::string encode_response_metadata_at(const ResponseMetadata& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_response_metadata(out,v,depth);std::size_t n=0;decode_response_metadata_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ResponseMetadata decode_response_metadata_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_response_metadata(r);consumed=r.pos;return v;}
+inline std::string encode_response_metadata_at(const ResponseMetadata& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_response_metadata(out,v,depth);std::size_t n=0;decode_response_metadata_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_response_metadata(const ResponseMetadata& v){return detail::encode_response_metadata_at(v,0)+"\n";}
-inline ResponseMetadata decode_response_metadata(std::string_view in){std::size_t n=0;auto v=detail::decode_response_metadata_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ResponseMetadata decode_response_metadata(std::string_view in){std::size_t n=0;auto v=detail::decode_response_metadata_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ApplicationQuestion decode_application_question_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_application_question(r);consumed=r.pos;return v;}
-inline std::string encode_application_question_at(const ApplicationQuestion& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_application_question(out,v,depth);std::size_t n=0;decode_application_question_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ApplicationQuestion decode_application_question_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_application_question(r);consumed=r.pos;return v;}
+inline std::string encode_application_question_at(const ApplicationQuestion& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_application_question(out,v,depth);std::size_t n=0;decode_application_question_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_application_question(const ApplicationQuestion& v){return detail::encode_application_question_at(v,0)+"\n";}
-inline ApplicationQuestion decode_application_question(std::string_view in){std::size_t n=0;auto v=detail::decode_application_question_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ApplicationQuestion decode_application_question(std::string_view in){std::size_t n=0;auto v=detail::decode_application_question_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline QuestionObservation decode_question_observation_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_question_observation(r);consumed=r.pos;return v;}
-inline std::string encode_question_observation_at(const QuestionObservation& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_question_observation(out,v,depth);std::size_t n=0;decode_question_observation_at(out,depth,detail::kDepthLimit,n);return out;}
+inline QuestionObservation decode_question_observation_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_question_observation(r);consumed=r.pos;return v;}
+inline std::string encode_question_observation_at(const QuestionObservation& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_question_observation(out,v,depth);std::size_t n=0;decode_question_observation_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_question_observation(const QuestionObservation& v){return detail::encode_question_observation_at(v,0)+"\n";}
-inline QuestionObservation decode_question_observation(std::string_view in){std::size_t n=0;auto v=detail::decode_question_observation_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline QuestionObservation decode_question_observation(std::string_view in){std::size_t n=0;auto v=detail::decode_question_observation_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline OperatorPage decode_operator_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_operator_page(r);consumed=r.pos;return v;}
-inline std::string encode_operator_page_at(const OperatorPage& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_operator_page(out,v,depth);std::size_t n=0;decode_operator_page_at(out,depth,detail::kDepthLimit,n);return out;}
+inline OperatorPage decode_operator_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_operator_page(r);consumed=r.pos;return v;}
+inline std::string encode_operator_page_at(const OperatorPage& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_operator_page(out,v,depth);std::size_t n=0;decode_operator_page_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_operator_page(const OperatorPage& v){return detail::encode_operator_page_at(v,0)+"\n";}
-inline OperatorPage decode_operator_page(std::string_view in){std::size_t n=0;auto v=detail::decode_operator_page_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline OperatorPage decode_operator_page(std::string_view in){std::size_t n=0;auto v=detail::decode_operator_page_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline OperatorDecision decode_operator_decision_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_operator_decision(r);consumed=r.pos;return v;}
-inline std::string encode_operator_decision_at(const OperatorDecision& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_operator_decision(out,v,depth);std::size_t n=0;decode_operator_decision_at(out,depth,detail::kDepthLimit,n);return out;}
+inline OperatorDecision decode_operator_decision_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_operator_decision(r);consumed=r.pos;return v;}
+inline std::string encode_operator_decision_at(const OperatorDecision& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_operator_decision(out,v,depth);std::size_t n=0;decode_operator_decision_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_operator_decision(const OperatorDecision& v){return detail::encode_operator_decision_at(v,0)+"\n";}
-inline OperatorDecision decode_operator_decision(std::string_view in){std::size_t n=0;auto v=detail::decode_operator_decision_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline OperatorDecision decode_operator_decision(std::string_view in){std::size_t n=0;auto v=detail::decode_operator_decision_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline OperatorRetirement decode_operator_retirement_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_operator_retirement(r);consumed=r.pos;return v;}
-inline std::string encode_operator_retirement_at(const OperatorRetirement& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_operator_retirement(out,v,depth);std::size_t n=0;decode_operator_retirement_at(out,depth,detail::kDepthLimit,n);return out;}
+inline OperatorRetirement decode_operator_retirement_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_operator_retirement(r);consumed=r.pos;return v;}
+inline std::string encode_operator_retirement_at(const OperatorRetirement& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_operator_retirement(out,v,depth);std::size_t n=0;decode_operator_retirement_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_operator_retirement(const OperatorRetirement& v){return detail::encode_operator_retirement_at(v,0)+"\n";}
-inline OperatorRetirement decode_operator_retirement(std::string_view in){std::size_t n=0;auto v=detail::decode_operator_retirement_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline OperatorRetirement decode_operator_retirement(std::string_view in){std::size_t n=0;auto v=detail::decode_operator_retirement_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline OperatorQuestion decode_operator_question_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_operator_question(r);consumed=r.pos;return v;}
-inline std::string encode_operator_question_at(const OperatorQuestion& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_operator_question(out,v,depth);std::size_t n=0;decode_operator_question_at(out,depth,detail::kDepthLimit,n);return out;}
+inline OperatorQuestion decode_operator_question_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_operator_question(r);consumed=r.pos;return v;}
+inline std::string encode_operator_question_at(const OperatorQuestion& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_operator_question(out,v,depth);std::size_t n=0;decode_operator_question_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_operator_question(const OperatorQuestion& v){return detail::encode_operator_question_at(v,0)+"\n";}
-inline OperatorQuestion decode_operator_question(std::string_view in){std::size_t n=0;auto v=detail::decode_operator_question_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline OperatorQuestion decode_operator_question(std::string_view in){std::size_t n=0;auto v=detail::decode_operator_question_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline AttributedQuestion decode_attributed_question_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_attributed_question(r);consumed=r.pos;return v;}
-inline std::string encode_attributed_question_at(const AttributedQuestion& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_attributed_question(out,v,depth);std::size_t n=0;decode_attributed_question_at(out,depth,detail::kDepthLimit,n);return out;}
+inline AttributedQuestion decode_attributed_question_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_attributed_question(r);consumed=r.pos;return v;}
+inline std::string encode_attributed_question_at(const AttributedQuestion& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_attributed_question(out,v,depth);std::size_t n=0;decode_attributed_question_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_attributed_question(const AttributedQuestion& v){return detail::encode_attributed_question_at(v,0)+"\n";}
-inline AttributedQuestion decode_attributed_question(std::string_view in){std::size_t n=0;auto v=detail::decode_attributed_question_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline AttributedQuestion decode_attributed_question(std::string_view in){std::size_t n=0;auto v=detail::decode_attributed_question_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline PermissionTarget decode_permission_target_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_permission_target(r);consumed=r.pos;return v;}
-inline std::string encode_permission_target_at(const PermissionTarget& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_permission_target(out,v,depth);std::size_t n=0;decode_permission_target_at(out,depth,detail::kDepthLimit,n);return out;}
+inline PermissionTarget decode_permission_target_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_permission_target(r);consumed=r.pos;return v;}
+inline std::string encode_permission_target_at(const PermissionTarget& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_permission_target(out,v,depth);std::size_t n=0;decode_permission_target_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_permission_target(const PermissionTarget& v){return detail::encode_permission_target_at(v,0)+"\n";}
-inline PermissionTarget decode_permission_target(std::string_view in){std::size_t n=0;auto v=detail::decode_permission_target_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline PermissionTarget decode_permission_target(std::string_view in){std::size_t n=0;auto v=detail::decode_permission_target_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline PermissionRequest decode_permission_request_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_permission_request(r);consumed=r.pos;return v;}
-inline std::string encode_permission_request_at(const PermissionRequest& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_permission_request(out,v,depth);std::size_t n=0;decode_permission_request_at(out,depth,detail::kDepthLimit,n);return out;}
+inline PermissionRequest decode_permission_request_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_permission_request(r);consumed=r.pos;return v;}
+inline std::string encode_permission_request_at(const PermissionRequest& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_permission_request(out,v,depth);std::size_t n=0;decode_permission_request_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_permission_request(const PermissionRequest& v){return detail::encode_permission_request_at(v,0)+"\n";}
-inline PermissionRequest decode_permission_request(std::string_view in){std::size_t n=0;auto v=detail::decode_permission_request_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline PermissionRequest decode_permission_request(std::string_view in){std::size_t n=0;auto v=detail::decode_permission_request_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline QuestionDetails decode_question_details_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_question_details(r);consumed=r.pos;return v;}
-inline std::string encode_question_details_at(const QuestionDetails& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_question_details(out,v,depth);std::size_t n=0;decode_question_details_at(out,depth,detail::kDepthLimit,n);return out;}
+inline QuestionDetails decode_question_details_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_question_details(r);consumed=r.pos;return v;}
+inline std::string encode_question_details_at(const QuestionDetails& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_question_details(out,v,depth);std::size_t n=0;decode_question_details_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_question_details(const QuestionDetails& v){return detail::encode_question_details_at(v,0)+"\n";}
-inline QuestionDetails decode_question_details(std::string_view in){std::size_t n=0;auto v=detail::decode_question_details_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline QuestionDetails decode_question_details(std::string_view in){std::size_t n=0;auto v=detail::decode_question_details_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline QuestionAsker decode_question_asker_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_question_asker(r);consumed=r.pos;return v;}
-inline std::string encode_question_asker_at(const QuestionAsker& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_question_asker(out,v,depth);std::size_t n=0;decode_question_asker_at(out,depth,detail::kDepthLimit,n);return out;}
+inline QuestionAsker decode_question_asker_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_question_asker(r);consumed=r.pos;return v;}
+inline std::string encode_question_asker_at(const QuestionAsker& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_question_asker(out,v,depth);std::size_t n=0;decode_question_asker_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_question_asker(const QuestionAsker& v){return detail::encode_question_asker_at(v,0)+"\n";}
-inline QuestionAsker decode_question_asker(std::string_view in){std::size_t n=0;auto v=detail::decode_question_asker_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline QuestionAsker decode_question_asker(std::string_view in){std::size_t n=0;auto v=detail::decode_question_asker_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline RequestRef decode_request_ref_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_request_ref(r);consumed=r.pos;return v;}
-inline std::string encode_request_ref_at(const RequestRef& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_request_ref(out,v,depth);std::size_t n=0;decode_request_ref_at(out,depth,detail::kDepthLimit,n);return out;}
+inline CatalogueContent decode_catalogue_content_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_catalogue_content(r);consumed=r.pos;return v;}
+inline std::string encode_catalogue_content_at(const CatalogueContent& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_catalogue_content(out,v,depth);std::size_t n=0;decode_catalogue_content_at(out,depth,64,n);return out;}
+}  // namespace detail
+inline std::string encode_catalogue_content(const CatalogueContent& v){return detail::encode_catalogue_content_at(v,0)+"\n";}
+inline CatalogueContent decode_catalogue_content(std::string_view in){std::size_t n=0;auto v=detail::decode_catalogue_content_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+
+namespace detail {
+inline QuestionContent decode_question_content_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_question_content(r);consumed=r.pos;return v;}
+inline std::string encode_question_content_at(const QuestionContent& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_question_content(out,v,depth);std::size_t n=0;decode_question_content_at(out,depth,64,n);return out;}
+}  // namespace detail
+inline std::string encode_question_content(const QuestionContent& v){return detail::encode_question_content_at(v,0)+"\n";}
+inline QuestionContent decode_question_content(std::string_view in){std::size_t n=0;auto v=detail::decode_question_content_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+
+namespace detail {
+inline RequestRef decode_request_ref_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_request_ref(r);consumed=r.pos;return v;}
+inline std::string encode_request_ref_at(const RequestRef& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_request_ref(out,v,depth);std::size_t n=0;decode_request_ref_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_request_ref(const RequestRef& v){return detail::encode_request_ref_at(v,0)+"\n";}
-inline RequestRef decode_request_ref(std::string_view in){std::size_t n=0;auto v=detail::decode_request_ref_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline RequestRef decode_request_ref(std::string_view in){std::size_t n=0;auto v=detail::decode_request_ref_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ChoiceOption decode_choice_option_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_choice_option(r);consumed=r.pos;return v;}
-inline std::string encode_choice_option_at(const ChoiceOption& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_choice_option(out,v,depth);std::size_t n=0;decode_choice_option_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ChoiceOption decode_choice_option_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_choice_option(r);consumed=r.pos;return v;}
+inline std::string encode_choice_option_at(const ChoiceOption& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_choice_option(out,v,depth);std::size_t n=0;decode_choice_option_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_choice_option(const ChoiceOption& v){return detail::encode_choice_option_at(v,0)+"\n";}
-inline ChoiceOption decode_choice_option(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_option_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ChoiceOption decode_choice_option(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_option_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ChoiceRequest decode_choice_request_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_choice_request(r);consumed=r.pos;return v;}
-inline std::string encode_choice_request_at(const ChoiceRequest& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_choice_request(out,v,depth);std::size_t n=0;decode_choice_request_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ChoiceRequest decode_choice_request_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_choice_request(r);consumed=r.pos;return v;}
+inline std::string encode_choice_request_at(const ChoiceRequest& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_choice_request(out,v,depth);std::size_t n=0;decode_choice_request_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_choice_request(const ChoiceRequest& v){return detail::encode_choice_request_at(v,0)+"\n";}
-inline ChoiceRequest decode_choice_request(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_request_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ChoiceRequest decode_choice_request(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_request_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ChoiceAnswer decode_choice_answer_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_choice_answer(r);consumed=r.pos;return v;}
-inline std::string encode_choice_answer_at(const ChoiceAnswer& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_choice_answer(out,v,depth);std::size_t n=0;decode_choice_answer_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ChoiceAnswer decode_choice_answer_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_choice_answer(r);consumed=r.pos;return v;}
+inline std::string encode_choice_answer_at(const ChoiceAnswer& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_choice_answer(out,v,depth);std::size_t n=0;decode_choice_answer_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_choice_answer(const ChoiceAnswer& v){return detail::encode_choice_answer_at(v,0)+"\n";}
-inline ChoiceAnswer decode_choice_answer(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_answer_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ChoiceAnswer decode_choice_answer(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_answer_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ChoiceObservation decode_choice_observation_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_choice_observation(r);consumed=r.pos;return v;}
-inline std::string encode_choice_observation_at(const ChoiceObservation& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_choice_observation(out,v,depth);std::size_t n=0;decode_choice_observation_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ChoiceObservation decode_choice_observation_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_choice_observation(r);consumed=r.pos;return v;}
+inline std::string encode_choice_observation_at(const ChoiceObservation& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_choice_observation(out,v,depth);std::size_t n=0;decode_choice_observation_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_choice_observation(const ChoiceObservation& v){return detail::encode_choice_observation_at(v,0)+"\n";}
-inline ChoiceObservation decode_choice_observation(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_observation_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ChoiceObservation decode_choice_observation(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_observation_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ChoiceAcknowledgement decode_choice_acknowledgement_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_choice_acknowledgement(r);consumed=r.pos;return v;}
-inline std::string encode_choice_acknowledgement_at(const ChoiceAcknowledgement& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_choice_acknowledgement(out,v,depth);std::size_t n=0;decode_choice_acknowledgement_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ChoiceAcknowledgement decode_choice_acknowledgement_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_choice_acknowledgement(r);consumed=r.pos;return v;}
+inline std::string encode_choice_acknowledgement_at(const ChoiceAcknowledgement& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_choice_acknowledgement(out,v,depth);std::size_t n=0;decode_choice_acknowledgement_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_choice_acknowledgement(const ChoiceAcknowledgement& v){return detail::encode_choice_acknowledgement_at(v,0)+"\n";}
-inline ChoiceAcknowledgement decode_choice_acknowledgement(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_acknowledgement_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ChoiceAcknowledgement decode_choice_acknowledgement(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_acknowledgement_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ChoiceRecord decode_choice_record_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_choice_record(r);consumed=r.pos;return v;}
-inline std::string encode_choice_record_at(const ChoiceRecord& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_choice_record(out,v,depth);std::size_t n=0;decode_choice_record_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ChoiceRecord decode_choice_record_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_choice_record(r);consumed=r.pos;return v;}
+inline std::string encode_choice_record_at(const ChoiceRecord& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_choice_record(out,v,depth);std::size_t n=0;decode_choice_record_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_choice_record(const ChoiceRecord& v){return detail::encode_choice_record_at(v,0)+"\n";}
-inline ChoiceRecord decode_choice_record(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_record_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ChoiceRecord decode_choice_record(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_record_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ChoicePage decode_choice_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_choice_page(r);consumed=r.pos;return v;}
-inline std::string encode_choice_page_at(const ChoicePage& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_choice_page(out,v,depth);std::size_t n=0;decode_choice_page_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ChoicePage decode_choice_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_choice_page(r);consumed=r.pos;return v;}
+inline std::string encode_choice_page_at(const ChoicePage& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_choice_page(out,v,depth);std::size_t n=0;decode_choice_page_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_choice_page(const ChoicePage& v){return detail::encode_choice_page_at(v,0)+"\n";}
-inline ChoicePage decode_choice_page(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_page_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ChoicePage decode_choice_page(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_page_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ChoiceRead decode_choice_read_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_choice_read(r);consumed=r.pos;return v;}
-inline std::string encode_choice_read_at(const ChoiceRead& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_choice_read(out,v,depth);std::size_t n=0;decode_choice_read_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ChoiceRead decode_choice_read_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_choice_read(r);consumed=r.pos;return v;}
+inline std::string encode_choice_read_at(const ChoiceRead& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_choice_read(out,v,depth);std::size_t n=0;decode_choice_read_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_choice_read(const ChoiceRead& v){return detail::encode_choice_read_at(v,0)+"\n";}
-inline ChoiceRead decode_choice_read(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_read_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ChoiceRead decode_choice_read(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_read_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ChoiceDecision decode_choice_decision_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_choice_decision(r);consumed=r.pos;return v;}
-inline std::string encode_choice_decision_at(const ChoiceDecision& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_choice_decision(out,v,depth);std::size_t n=0;decode_choice_decision_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ChoiceDecision decode_choice_decision_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_choice_decision(r);consumed=r.pos;return v;}
+inline std::string encode_choice_decision_at(const ChoiceDecision& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_choice_decision(out,v,depth);std::size_t n=0;decode_choice_decision_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_choice_decision(const ChoiceDecision& v){return detail::encode_choice_decision_at(v,0)+"\n";}
-inline ChoiceDecision decode_choice_decision(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_decision_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ChoiceDecision decode_choice_decision(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_decision_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ChoiceDetails decode_choice_details_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_choice_details(r);consumed=r.pos;return v;}
-inline std::string encode_choice_details_at(const ChoiceDetails& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_choice_details(out,v,depth);std::size_t n=0;decode_choice_details_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ChoiceDetails decode_choice_details_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_choice_details(r);consumed=r.pos;return v;}
+inline std::string encode_choice_details_at(const ChoiceDetails& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_choice_details(out,v,depth);std::size_t n=0;decode_choice_details_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_choice_details(const ChoiceDetails& v){return detail::encode_choice_details_at(v,0)+"\n";}
-inline ChoiceDetails decode_choice_details(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_details_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ChoiceDetails decode_choice_details(std::string_view in){std::size_t n=0;auto v=detail::decode_choice_details_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline AnswerEntry decode_answer_entry_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_answer_entry(r);consumed=r.pos;return v;}
-inline std::string encode_answer_entry_at(const AnswerEntry& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_answer_entry(out,v,depth);std::size_t n=0;decode_answer_entry_at(out,depth,detail::kDepthLimit,n);return out;}
+inline AnswerEntry decode_answer_entry_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_answer_entry(r);consumed=r.pos;return v;}
+inline std::string encode_answer_entry_at(const AnswerEntry& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_answer_entry(out,v,depth);std::size_t n=0;decode_answer_entry_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_answer_entry(const AnswerEntry& v){return detail::encode_answer_entry_at(v,0)+"\n";}
-inline AnswerEntry decode_answer_entry(std::string_view in){std::size_t n=0;auto v=detail::decode_answer_entry_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline AnswerEntry decode_answer_entry(std::string_view in){std::size_t n=0;auto v=detail::decode_answer_entry_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline AnswerEntryPage decode_answer_entry_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_answer_entry_page(r);consumed=r.pos;return v;}
-inline std::string encode_answer_entry_page_at(const AnswerEntryPage& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_answer_entry_page(out,v,depth);std::size_t n=0;decode_answer_entry_page_at(out,depth,detail::kDepthLimit,n);return out;}
+inline AnswerEntryPage decode_answer_entry_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_answer_entry_page(r);consumed=r.pos;return v;}
+inline std::string encode_answer_entry_page_at(const AnswerEntryPage& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_answer_entry_page(out,v,depth);std::size_t n=0;decode_answer_entry_page_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_answer_entry_page(const AnswerEntryPage& v){return detail::encode_answer_entry_page_at(v,0)+"\n";}
-inline AnswerEntryPage decode_answer_entry_page(std::string_view in){std::size_t n=0;auto v=detail::decode_answer_entry_page_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline AnswerEntryPage decode_answer_entry_page(std::string_view in){std::size_t n=0;auto v=detail::decode_answer_entry_page_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline AnswerableChoice decode_answerable_choice_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_answerable_choice(r);consumed=r.pos;return v;}
-inline std::string encode_answerable_choice_at(const AnswerableChoice& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_answerable_choice(out,v,depth);std::size_t n=0;decode_answerable_choice_at(out,depth,detail::kDepthLimit,n);return out;}
+inline AnswerContent decode_answer_content_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_answer_content(r);consumed=r.pos;return v;}
+inline std::string encode_answer_content_at(const AnswerContent& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_answer_content(out,v,depth);std::size_t n=0;decode_answer_content_at(out,depth,64,n);return out;}
+}  // namespace detail
+inline std::string encode_answer_content(const AnswerContent& v){return detail::encode_answer_content_at(v,0)+"\n";}
+inline AnswerContent decode_answer_content(std::string_view in){std::size_t n=0;auto v=detail::decode_answer_content_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+
+namespace detail {
+inline AnswerContentPage decode_answer_content_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_answer_content_page(r);consumed=r.pos;return v;}
+inline std::string encode_answer_content_page_at(const AnswerContentPage& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_answer_content_page(out,v,depth);std::size_t n=0;decode_answer_content_page_at(out,depth,64,n);return out;}
+}  // namespace detail
+inline std::string encode_answer_content_page(const AnswerContentPage& v){return detail::encode_answer_content_page_at(v,0)+"\n";}
+inline AnswerContentPage decode_answer_content_page(std::string_view in){std::size_t n=0;auto v=detail::decode_answer_content_page_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+
+namespace detail {
+inline AnswerableChoice decode_answerable_choice_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_answerable_choice(r);consumed=r.pos;return v;}
+inline std::string encode_answerable_choice_at(const AnswerableChoice& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_answerable_choice(out,v,depth);std::size_t n=0;decode_answerable_choice_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_answerable_choice(const AnswerableChoice& v){return detail::encode_answerable_choice_at(v,0)+"\n";}
-inline AnswerableChoice decode_answerable_choice(std::string_view in){std::size_t n=0;auto v=detail::decode_answerable_choice_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline AnswerableChoice decode_answerable_choice(std::string_view in){std::size_t n=0;auto v=detail::decode_answerable_choice_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline AnswerableChoicePage decode_answerable_choice_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_answerable_choice_page(r);consumed=r.pos;return v;}
-inline std::string encode_answerable_choice_page_at(const AnswerableChoicePage& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_answerable_choice_page(out,v,depth);std::size_t n=0;decode_answerable_choice_page_at(out,depth,detail::kDepthLimit,n);return out;}
+inline AnswerableChoicePage decode_answerable_choice_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_answerable_choice_page(r);consumed=r.pos;return v;}
+inline std::string encode_answerable_choice_page_at(const AnswerableChoicePage& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_answerable_choice_page(out,v,depth);std::size_t n=0;decode_answerable_choice_page_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_answerable_choice_page(const AnswerableChoicePage& v){return detail::encode_answerable_choice_page_at(v,0)+"\n";}
-inline AnswerableChoicePage decode_answerable_choice_page(std::string_view in){std::size_t n=0;auto v=detail::decode_answerable_choice_page_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline AnswerableChoicePage decode_answerable_choice_page(std::string_view in){std::size_t n=0;auto v=detail::decode_answerable_choice_page_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline ResponderDecision decode_responder_decision_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_responder_decision(r);consumed=r.pos;return v;}
-inline std::string encode_responder_decision_at(const ResponderDecision& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_responder_decision(out,v,depth);std::size_t n=0;decode_responder_decision_at(out,depth,detail::kDepthLimit,n);return out;}
+inline ResponderDecision decode_responder_decision_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_responder_decision(r);consumed=r.pos;return v;}
+inline std::string encode_responder_decision_at(const ResponderDecision& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_responder_decision(out,v,depth);std::size_t n=0;decode_responder_decision_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_responder_decision(const ResponderDecision& v){return detail::encode_responder_decision_at(v,0)+"\n";}
-inline ResponderDecision decode_responder_decision(std::string_view in){std::size_t n=0;auto v=detail::decode_responder_decision_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline ResponderDecision decode_responder_decision(std::string_view in){std::size_t n=0;auto v=detail::decode_responder_decision_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline PermissionIntent decode_permission_intent_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_permission_intent(r);consumed=r.pos;return v;}
-inline std::string encode_permission_intent_at(const PermissionIntent& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_permission_intent(out,v,depth);std::size_t n=0;decode_permission_intent_at(out,depth,detail::kDepthLimit,n);return out;}
+inline PermissionIntent decode_permission_intent_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_permission_intent(r);consumed=r.pos;return v;}
+inline std::string encode_permission_intent_at(const PermissionIntent& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_permission_intent(out,v,depth);std::size_t n=0;decode_permission_intent_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_permission_intent(const PermissionIntent& v){return detail::encode_permission_intent_at(v,0)+"\n";}
-inline PermissionIntent decode_permission_intent(std::string_view in){std::size_t n=0;auto v=detail::decode_permission_intent_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline PermissionIntent decode_permission_intent(std::string_view in){std::size_t n=0;auto v=detail::decode_permission_intent_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline PermissionObservation decode_permission_observation_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_permission_observation(r);consumed=r.pos;return v;}
-inline std::string encode_permission_observation_at(const PermissionObservation& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_permission_observation(out,v,depth);std::size_t n=0;decode_permission_observation_at(out,depth,detail::kDepthLimit,n);return out;}
+inline PermissionObservation decode_permission_observation_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_permission_observation(r);consumed=r.pos;return v;}
+inline std::string encode_permission_observation_at(const PermissionObservation& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_permission_observation(out,v,depth);std::size_t n=0;decode_permission_observation_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_permission_observation(const PermissionObservation& v){return detail::encode_permission_observation_at(v,0)+"\n";}
-inline PermissionObservation decode_permission_observation(std::string_view in){std::size_t n=0;auto v=detail::decode_permission_observation_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline PermissionObservation decode_permission_observation(std::string_view in){std::size_t n=0;auto v=detail::decode_permission_observation_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline TypedPermissionDetails decode_typed_permission_details_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_typed_permission_details(r);consumed=r.pos;return v;}
-inline std::string encode_typed_permission_details_at(const TypedPermissionDetails& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_typed_permission_details(out,v,depth);std::size_t n=0;decode_typed_permission_details_at(out,depth,detail::kDepthLimit,n);return out;}
+inline TypedPermissionDetails decode_typed_permission_details_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_typed_permission_details(r);consumed=r.pos;return v;}
+inline std::string encode_typed_permission_details_at(const TypedPermissionDetails& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_typed_permission_details(out,v,depth);std::size_t n=0;decode_typed_permission_details_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_typed_permission_details(const TypedPermissionDetails& v){return detail::encode_typed_permission_details_at(v,0)+"\n";}
-inline TypedPermissionDetails decode_typed_permission_details(std::string_view in){std::size_t n=0;auto v=detail::decode_typed_permission_details_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline TypedPermissionDetails decode_typed_permission_details(std::string_view in){std::size_t n=0;auto v=detail::decode_typed_permission_details_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline PermissionDisplaySelection decode_permission_display_selection_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_permission_display_selection(r);consumed=r.pos;return v;}
-inline std::string encode_permission_display_selection_at(const PermissionDisplaySelection& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_permission_display_selection(out,v,depth);std::size_t n=0;decode_permission_display_selection_at(out,depth,detail::kDepthLimit,n);return out;}
+inline PendingQuestion decode_pending_question_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_pending_question(r);consumed=r.pos;return v;}
+inline std::string encode_pending_question_at(const PendingQuestion& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_pending_question(out,v,depth);std::size_t n=0;decode_pending_question_at(out,depth,64,n);return out;}
+}  // namespace detail
+inline std::string encode_pending_question(const PendingQuestion& v){return detail::encode_pending_question_at(v,0)+"\n";}
+inline PendingQuestion decode_pending_question(std::string_view in){std::size_t n=0;auto v=detail::decode_pending_question_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+
+namespace detail {
+inline PermissionDisplaySelection decode_permission_display_selection_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_permission_display_selection(r);consumed=r.pos;return v;}
+inline std::string encode_permission_display_selection_at(const PermissionDisplaySelection& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_permission_display_selection(out,v,depth);std::size_t n=0;decode_permission_display_selection_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_permission_display_selection(const PermissionDisplaySelection& v){return detail::encode_permission_display_selection_at(v,0)+"\n";}
-inline PermissionDisplaySelection decode_permission_display_selection(std::string_view in){std::size_t n=0;auto v=detail::decode_permission_display_selection_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline PermissionDisplaySelection decode_permission_display_selection(std::string_view in){std::size_t n=0;auto v=detail::decode_permission_display_selection_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline PermissionDisplay decode_permission_display_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_permission_display(r);consumed=r.pos;return v;}
-inline std::string encode_permission_display_at(const PermissionDisplay& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_permission_display(out,v,depth);std::size_t n=0;decode_permission_display_at(out,depth,detail::kDepthLimit,n);return out;}
+inline PermissionDisplay decode_permission_display_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_permission_display(r);consumed=r.pos;return v;}
+inline std::string encode_permission_display_at(const PermissionDisplay& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_permission_display(out,v,depth);std::size_t n=0;decode_permission_display_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_permission_display(const PermissionDisplay& v){return detail::encode_permission_display_at(v,0)+"\n";}
-inline PermissionDisplay decode_permission_display(std::string_view in){std::size_t n=0;auto v=detail::decode_permission_display_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline PermissionDisplay decode_permission_display(std::string_view in){std::size_t n=0;auto v=detail::decode_permission_display_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline NotificationAction decode_notification_action_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_notification_action(r);consumed=r.pos;return v;}
-inline std::string encode_notification_action_at(const NotificationAction& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_notification_action(out,v,depth);std::size_t n=0;decode_notification_action_at(out,depth,detail::kDepthLimit,n);return out;}
+inline NotificationAction decode_notification_action_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_notification_action(r);consumed=r.pos;return v;}
+inline std::string encode_notification_action_at(const NotificationAction& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_notification_action(out,v,depth);std::size_t n=0;decode_notification_action_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_notification_action(const NotificationAction& v){return detail::encode_notification_action_at(v,0)+"\n";}
-inline NotificationAction decode_notification_action(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_action_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline NotificationAction decode_notification_action(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_action_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline NotificationRequest decode_notification_request_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_notification_request(r);consumed=r.pos;return v;}
-inline std::string encode_notification_request_at(const NotificationRequest& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_notification_request(out,v,depth);std::size_t n=0;decode_notification_request_at(out,depth,detail::kDepthLimit,n);return out;}
+inline NotificationRequest decode_notification_request_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_notification_request(r);consumed=r.pos;return v;}
+inline std::string encode_notification_request_at(const NotificationRequest& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_notification_request(out,v,depth);std::size_t n=0;decode_notification_request_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_notification_request(const NotificationRequest& v){return detail::encode_notification_request_at(v,0)+"\n";}
-inline NotificationRequest decode_notification_request(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_request_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline NotificationRequest decode_notification_request(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_request_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline NotificationResult decode_notification_result_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_notification_result(r);consumed=r.pos;return v;}
-inline std::string encode_notification_result_at(const NotificationResult& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_notification_result(out,v,depth);std::size_t n=0;decode_notification_result_at(out,depth,detail::kDepthLimit,n);return out;}
+inline NotificationResult decode_notification_result_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_notification_result(r);consumed=r.pos;return v;}
+inline std::string encode_notification_result_at(const NotificationResult& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_notification_result(out,v,depth);std::size_t n=0;decode_notification_result_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_notification_result(const NotificationResult& v){return detail::encode_notification_result_at(v,0)+"\n";}
-inline NotificationResult decode_notification_result(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_result_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline NotificationResult decode_notification_result(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_result_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline NotificationObservation decode_notification_observation_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_notification_observation(r);consumed=r.pos;return v;}
-inline std::string encode_notification_observation_at(const NotificationObservation& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_notification_observation(out,v,depth);std::size_t n=0;decode_notification_observation_at(out,depth,detail::kDepthLimit,n);return out;}
+inline NotificationObservation decode_notification_observation_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_notification_observation(r);consumed=r.pos;return v;}
+inline std::string encode_notification_observation_at(const NotificationObservation& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_notification_observation(out,v,depth);std::size_t n=0;decode_notification_observation_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_notification_observation(const NotificationObservation& v){return detail::encode_notification_observation_at(v,0)+"\n";}
-inline NotificationObservation decode_notification_observation(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_observation_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline NotificationObservation decode_notification_observation(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_observation_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline NotificationRecord decode_notification_record_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_notification_record(r);consumed=r.pos;return v;}
-inline std::string encode_notification_record_at(const NotificationRecord& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_notification_record(out,v,depth);std::size_t n=0;decode_notification_record_at(out,depth,detail::kDepthLimit,n);return out;}
+inline NotificationRecord decode_notification_record_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_notification_record(r);consumed=r.pos;return v;}
+inline std::string encode_notification_record_at(const NotificationRecord& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_notification_record(out,v,depth);std::size_t n=0;decode_notification_record_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_notification_record(const NotificationRecord& v){return detail::encode_notification_record_at(v,0)+"\n";}
-inline NotificationRecord decode_notification_record(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_record_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline NotificationRecord decode_notification_record(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_record_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline NotificationPage decode_notification_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_notification_page(r);consumed=r.pos;return v;}
-inline std::string encode_notification_page_at(const NotificationPage& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_notification_page(out,v,depth);std::size_t n=0;decode_notification_page_at(out,depth,detail::kDepthLimit,n);return out;}
+inline NotificationPage decode_notification_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_notification_page(r);consumed=r.pos;return v;}
+inline std::string encode_notification_page_at(const NotificationPage& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_notification_page(out,v,depth);std::size_t n=0;decode_notification_page_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_notification_page(const NotificationPage& v){return detail::encode_notification_page_at(v,0)+"\n";}
-inline NotificationPage decode_notification_page(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_page_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline NotificationPage decode_notification_page(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_page_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline NotificationRead decode_notification_read_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_notification_read(r);consumed=r.pos;return v;}
-inline std::string encode_notification_read_at(const NotificationRead& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_notification_read(out,v,depth);std::size_t n=0;decode_notification_read_at(out,depth,detail::kDepthLimit,n);return out;}
+inline NotificationRead decode_notification_read_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_notification_read(r);consumed=r.pos;return v;}
+inline std::string encode_notification_read_at(const NotificationRead& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_notification_read(out,v,depth);std::size_t n=0;decode_notification_read_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_notification_read(const NotificationRead& v){return detail::encode_notification_read_at(v,0)+"\n";}
-inline NotificationRead decode_notification_read(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_read_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline NotificationRead decode_notification_read(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_read_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline NotificationDecision decode_notification_decision_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_notification_decision(r);consumed=r.pos;return v;}
-inline std::string encode_notification_decision_at(const NotificationDecision& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_notification_decision(out,v,depth);std::size_t n=0;decode_notification_decision_at(out,depth,detail::kDepthLimit,n);return out;}
+inline NotificationDecision decode_notification_decision_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_notification_decision(r);consumed=r.pos;return v;}
+inline std::string encode_notification_decision_at(const NotificationDecision& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_notification_decision(out,v,depth);std::size_t n=0;decode_notification_decision_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_notification_decision(const NotificationDecision& v){return detail::encode_notification_decision_at(v,0)+"\n";}
-inline NotificationDecision decode_notification_decision(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_decision_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline NotificationDecision decode_notification_decision(std::string_view in){std::size_t n=0;auto v=detail::decode_notification_decision_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline NotifierDay decode_notifier_day_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_notifier_day(r);consumed=r.pos;return v;}
-inline std::string encode_notifier_day_at(const NotifierDay& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_notifier_day(out,v,depth);std::size_t n=0;decode_notifier_day_at(out,depth,detail::kDepthLimit,n);return out;}
+inline NotifierDay decode_notifier_day_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_notifier_day(r);consumed=r.pos;return v;}
+inline std::string encode_notifier_day_at(const NotifierDay& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_notifier_day(out,v,depth);std::size_t n=0;decode_notifier_day_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_notifier_day(const NotifierDay& v){return detail::encode_notifier_day_at(v,0)+"\n";}
-inline NotifierDay decode_notifier_day(std::string_view in){std::size_t n=0;auto v=detail::decode_notifier_day_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline NotifierDay decode_notifier_day(std::string_view in){std::size_t n=0;auto v=detail::decode_notifier_day_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline NotifierCount decode_notifier_count_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_notifier_count(r);consumed=r.pos;return v;}
-inline std::string encode_notifier_count_at(const NotifierCount& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_notifier_count(out,v,depth);std::size_t n=0;decode_notifier_count_at(out,depth,detail::kDepthLimit,n);return out;}
+inline NotifierCount decode_notifier_count_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_notifier_count(r);consumed=r.pos;return v;}
+inline std::string encode_notifier_count_at(const NotifierCount& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_notifier_count(out,v,depth);std::size_t n=0;decode_notifier_count_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_notifier_count(const NotifierCount& v){return detail::encode_notifier_count_at(v,0)+"\n";}
-inline NotifierCount decode_notifier_count(std::string_view in){std::size_t n=0;auto v=detail::decode_notifier_count_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline NotifierCount decode_notifier_count(std::string_view in){std::size_t n=0;auto v=detail::decode_notifier_count_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 namespace detail {
-inline NotifierPage decode_notifier_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<detail::kDepthLimit?limit:detail::kDepthLimit;r.skip_ws();auto v=detail::decode_notifier_page(r);consumed=r.pos;return v;}
-inline std::string encode_notifier_page_at(const NotifierPage& v,int depth){detail::Reader r{""};if(depth<0||depth>=detail::kDepthLimit)r.refuse("depth_exceeded");std::string out;detail::enc_notifier_page(out,v,depth);std::size_t n=0;decode_notifier_page_at(out,depth,detail::kDepthLimit,n);return out;}
+inline NotifierPage decode_notifier_page_at(std::string_view in,int depth,int limit,std::size_t& consumed){detail::Reader r{in};if(depth<0||limit<1)r.refuse("depth_exceeded");r.depth=depth;r.limit=limit<64?limit:64;r.skip_ws();auto v=detail::decode_notifier_page(r);consumed=r.pos;return v;}
+inline std::string encode_notifier_page_at(const NotifierPage& v,int depth){detail::Reader r{""};if(depth<0||depth>=64)r.refuse("depth_exceeded");std::string out;detail::enc_notifier_page(out,v,depth);std::size_t n=0;decode_notifier_page_at(out,depth,64,n);return out;}
 }  // namespace detail
 inline std::string encode_notifier_page(const NotifierPage& v){return detail::encode_notifier_page_at(v,0)+"\n";}
-inline NotifierPage decode_notifier_page(std::string_view in){std::size_t n=0;auto v=detail::decode_notifier_page_at(in,0,detail::kDepthLimit,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
+inline NotifierPage decode_notifier_page(std::string_view in){std::size_t n=0;auto v=detail::decode_notifier_page_at(in,0,64,n);detail::Reader r{in};r.pos=n;r.skip_ws();if(r.pos!=in.size())r.refuse("trailing_bytes");return v;}
 
 inline std::string encode(const Request& v){return encode_request(v);}
 

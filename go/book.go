@@ -6,13 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	watch "github.com/openabstractions/abstraction-watch/go"
 	"slices"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
-	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
 	cas "github.com/openabstractions/abstraction-cas/go"
 	"github.com/openabstractions/abstraction-identity/listen"
 )
@@ -51,8 +50,8 @@ type book struct {
 	// operator@1 or responder@1, oldest first (ASK-O13, ASK-O15);
 	// AnswersSinceMs is the time at or before which an entry was evicted by
 	// the bound, zero for none.
-	Answers        []wire.AnswerEntry `json:"answers,omitempty"`
-	AnswersSinceMs int64              `json:"answers_since_ms,omitempty"`
+	Answers        []retainedAnswer `json:"answers,omitempty"`
+	AnswersSinceMs int64            `json:"answers_since_ms,omitempty"`
 	// Notifications and Notifiers form the separately bounded notification
 	// partition (ASK-N1, ASK-N6); they share the ordinary time floor.
 	Notifications []notificationAdmission `json:"notifications,omitempty"`
@@ -60,19 +59,30 @@ type book struct {
 }
 
 type Book struct {
-	mu          sync.Mutex
-	path        string
-	decided     map[string]chan struct{}
+	mu                 bookMutex
+	path               string
+	decided            map[string]chan struct{}
+	liveWaits          map[string]int
+	liveWaitCount      int
+	presentationClaims map[PresentationSession]PresentationClaim
+	presentationSeen   map[PresentationSession]map[string]bool
+	popupRates         map[string]popupRate
+	popupTimes         []time.Time
+	// gate wakes every observation waiter when any record settles; each
+	// rereads its own record (WATCH-W3).
+	gate        *watch.Gate
 	application bool
 	// lifetime is how long an application-profile question stays pending
 	// (ASK-A7); zero means DefaultPendingLifetime. now is the clock.
 	lifetime time.Duration
 	now      func() time.Time
 	owner    string
+	// events receives raised and settled questions (SetQuestionEvents).
+	events QuestionEvents
 }
 
 func LoadBook(path string) (*Book, error) {
-	b := &Book{path: path, decided: map[string]chan struct{}{}}
+	b := &Book{path: path, decided: map[string]chan struct{}{}, gate: watch.NewGate(watch.DefaultWaiters)}
 	_, err := b.read()
 	return b, err
 }
@@ -188,16 +198,26 @@ func (b *Book) decidedLocked(id string) chan struct{} {
 	ch, ok := b.decided[id]
 	if !ok {
 		ch = make(chan struct{})
-		b.decided[id] = ch
 		r, ok := b.get(id)
 		if (!ok || !r.Pending()) && !b.choicePending(id) && !b.notificationPending(id) {
+			// Already decided: the closed channel is not kept, so a later
+			// settle of the same id (a question revived after it read as
+			// expired) never closes it twice.
 			close(ch)
+			return ch
 		}
+		b.decided[id] = ch
 	}
 	return ch
 }
 
+// Gate is the shared waiter observations of this book wait on.
+func (b *Book) Gate() *watch.Gate { return b.gate }
+
 func (b *Book) settle(id string) {
+	b.gate.Advance()
+	b.liveWaitCount -= b.liveWaits[id]
+	delete(b.liveWaits, id)
 	if ch, ok := b.decided[id]; ok {
 		close(ch)
 		delete(b.decided, id)

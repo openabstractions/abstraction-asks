@@ -2,6 +2,7 @@ package asks
 
 import (
 	"errors"
+	"github.com/openabstractions/abstraction-asks/go/typedpermission"
 	"slices"
 	"strings"
 	"unicode"
@@ -9,18 +10,19 @@ import (
 
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
 	identity "github.com/openabstractions/abstraction-identity"
+	"github.com/openabstractions/abstraction-identity/remote"
 )
 
 type PermissionTarget = wire.PermissionTarget
 type PermissionRequest = wire.PermissionRequest
 
-const PermissionContentWrite = "abstraction.storage/content.write"
-const PermissionContentRead = "abstraction.storage/content.read"
+const PermissionContentWrite = typedpermission.PermissionContentWrite
+const PermissionContentRead = typedpermission.PermissionContentRead
 
 // PairedPermission is the existing closed input/output first-use effect.
 // Every secondary target is uniquely determined by this primary tuple.
 func PairedPermission(action, resource string) bool {
-	return action == PermissionContentWrite && slices.Contains([]string{"input:image", "input:audio", "output:image", "output:speech", "output:video"}, resource)
+	return typedpermission.PairedPermission(action, resource)
 }
 
 func permissionString(s string, max int) bool {
@@ -35,6 +37,14 @@ func NormalizePermissionTarget(t PermissionTarget) (PermissionTarget, error) {
 		!permissionString(t.Action, 128) || strings.ContainsAny(t.Action, " \t") || !permissionString(t.Resource, 1024) {
 		return PermissionTarget{}, errors.New("asks: invalid permission target")
 	}
+	// A paired runtime supplies this structured target after mTLS admission.
+	// This syntax neither describes a native executable nor proves pairing.
+	if strings.HasPrefix(t.Program, remote.SubjectPrefix) {
+		if !remote.ValidSubjectProgram(t.Program) {
+			return PermissionTarget{}, errors.New("asks: invalid remote permission program")
+		}
+		return t, nil
+	}
 	t.Program = identity.NormalizeSubjectProgram(t.Program)
 	if !ValidPermissionTarget(t) || identity.UnresolvedShortName(t.Program) {
 		return PermissionTarget{}, errors.New("asks: invalid permission program")
@@ -43,8 +53,7 @@ func NormalizePermissionTarget(t PermissionTarget) (PermissionTarget, error) {
 }
 
 func ValidPermissionTarget(t PermissionTarget) bool {
-	return permissionString(t.Account, 128) && permissionString(t.Program, 4096) && identity.ValidSubjectProgram(t.Program) &&
-		permissionString(t.Action, 128) && !strings.ContainsAny(t.Action, " \t") && permissionString(t.Resource, 1024)
+	return typedpermission.ValidPermissionTarget(t, permissionValidators())
 }
 
 // NewPermissionRequest constructs the complete existing effect from its primary.
@@ -65,22 +74,13 @@ func NewPermissionRequest(t PermissionTarget) (PermissionRequest, error) {
 // ValidPermissionRequest checks persisted syntax and the uniquely fixed pair.
 // It performs no filesystem normalization and accepts no independent secondary.
 func ValidPermissionRequest(p PermissionRequest) bool {
-	if len(p.Targets) < 1 || len(p.Targets) > 2 || !ValidPermissionTarget(p.Targets[0]) {
-		return false
-	}
-	primary := p.Targets[0]
-	paired := PairedPermission(primary.Action, primary.Resource)
-	if paired != (len(p.Targets) == 2) {
-		return false
-	}
-	if paired {
-		want := primary
-		want.Action = PermissionContentRead
-		if p.Targets[1] != want {
-			return false
-		}
-	}
-	return true
+	return typedpermission.ValidPermissionRequest(p, permissionValidators())
+}
+
+// ProviderPermissionName recognizes only the complete fixed provider pair.
+// It proves no current catalogue membership, setup, grant or answering right.
+func ProviderPermissionName(p PermissionRequest) (string, bool) {
+	return typedpermission.ProviderPermissionName(p, permissionValidators())
 }
 
 // PermissionForRecord reads trusted occurrence data. Only records without the
@@ -101,28 +101,12 @@ func PermissionForRecord(account string, r Record) (PermissionRequest, bool) {
 	if !r.legacyPermission {
 		return PermissionRequest{}, false
 	}
-	program, action, resource, ok := FirstUse(r.Key, r.About, r.Text)
-	if !ok {
-		return PermissionRequest{}, false
-	}
-	// Historical tuples retain the program spelling used by their exact
-	// delegation resource. Validate stored syntax without re-resolving the file.
-	t := PermissionTarget{Account: account, Program: program, Action: action, Resource: resource}
-	if !ValidPermissionTarget(t) {
-		return PermissionRequest{}, false
-	}
-	p := PermissionRequest{Targets: []PermissionTarget{t}}
-	if PairedPermission(action, resource) {
-		paired := t
-		paired.Action = PermissionContentRead
-		p.Targets = append(p.Targets, paired)
-	}
-	return p, true
+	return typedpermission.LegacyPermission(account, r.Key, r.About, r.Text, permissionValidators())
 }
 
 // LegacyPermission reads an explicitly selected old wire record. It is for
 // compatibility with an older service that refused ReadQuestionAsker, never
 // a fallback for missing or malformed structured data from a current service.
 func LegacyPermission(account, key, about, text string) (PermissionRequest, bool) {
-	return PermissionForRecord(account, Record{Key: key, About: about, Text: text, legacyPermission: true})
+	return typedpermission.LegacyPermission(account, key, about, text, permissionValidators())
 }

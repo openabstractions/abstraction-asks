@@ -1,12 +1,22 @@
 # abstraction.asks contract
 
+Remote first-use questions belong to the deciding receiving runtime and its
+exact remote subject. The receiving person answers exact receiver consent;
+remote origin claims and assistant answerers grant no permission. Held by:
+`serve/messages_remote_windows_test.go` (`TestRemoteSendAsksReceivingPerson`).
+
+Machine-pairing native occurrence admission, exact agreement binding and answer
+eligibility are owned by Facade's [native consent and activation](https://github.com/openabstractions/abstraction-facade/blob/main/CONTRACT.md#native-consent-and-activation).
+The runtime-bound `runtime.machine.pair` application occurrence uses the existing
+Book and operator-answer rules; its payload and ID establish no authority.
+
 Binds: `asks.thrift`
 
 `asks.thrift` defines `abstraction.asks/application@1`, which admits and
 observes fixed-catalogue questions on a caller's own subject;
 `abstraction.asks/application@2`, which admits application-authored ordinary
 choices with explicit pending and replay deadlines; and
-`abstraction.asks/operator@1`, which lets an authorized operator list,
+[`abstraction.asks/operator@1`](https://openabstractions.github.io/reference.html#concept-asks.question-operator), which lets an authorized operator list,
 answer and dismiss each kind through separate methods and closed records.
 `abstraction.asks/responder@1` exposes only bounded
 listing and answering of routine first-use questions, under the person's
@@ -20,17 +30,35 @@ those occurrences. Rights `operator@2` separately commits their complete effect.
 actions the service holds after the caller exits, and
 `abstraction.asks/notification-operator@1` lets an authorized presenter list,
 act on, dismiss and audit them (ASK-N1..N7).
-The service owns the fixed catalogue's text and options; ordinary choices
+The service owns the fixed catalogue's text, options and short display summaries.
+Go `Question.Summary(about)` uses explicit catalogue templates and only the
+display slots `{folder.leaf}` and `{host}`; unsafe or absent values use generic
+wording. It returns plain text, carries no authority and stores no new field.
+Full prompts and trusted richer permission/registration projections retain
+their existing owners. Ordinary choices
 carry the application's title and stable offered IDs. The service
-requires an explicit `LoadApplicationBook` provider and shared Program peer
+requires an explicit `LoadApplicationBook` provider and shared [Program](https://openabstractions.github.io/reference.html#concept-identity.listener-program-need) peer
 proof, and its application client creates no provider files. Both services
-are served through the same versioned application-profile Book, reached
+are served through the same versioned application-profile [Book](https://openabstractions.github.io/reference.html#concept-asks.book), reached
 from generated `QuestionApplication`, `ChoiceApplication` and
 `QuestionOperator` clients.
 [README.md](README.md) is the walkthrough: obtaining the module, the fixed
 question catalogue, and a worked `Ask` and `Observe` call.
 
+## Client checks and presentation ownership
+
+| Surface | Owner and client check |
+|---|---|
+| Permission Request/Observe | Generated method postconditions enforce answer presence exactly for pending/answered. Clients correlate outcome, answer and policy revision; a pending or answered observation grants nothing. |
+| Keys and IDs | The published component projection refuses adding bounds in this window. Compatibility readers retain the existing 1..128 UTF-8/no-control guard, with test-only comparison to the owning implementation. The next owning window carries these declared bounds. |
+| Authority display | The pure `go/typedpermission` owner verifies effect digests, immutable occurrence/account binding, native attribution and catalogue presentation. Server and presenters supply Identity's actual native/remote validators; missing composition refuses. |
+| Catalogue | `go/catalogue` owns the existing question table and rendering. Native evidence and Book state remain receiving responsibilities. |
+| Retained choice/notification replies | The existing immutable record, publisher, answerer and state/payload consistency checks share the pure presentation owner. They read no live eligibility, grant no authority and record no answer. Request admission remains with the receiving service. |
+| Deprecated reader helpers | Deprecated `client.ReadAskerContext`, `ReadDetailsContext`, `ReadContentContext` and `ReadPermissionDetailsContext` preserve their published behavior as thin forwards. Their replacements are the explicit `typedpermission` readers with native validator composition. New native callers use those replacements. The removal set is W2-02b under CONV-V1. |
+
 ## Reading this page
+
+The conventions every OA contract carries are stated once in [CONVENTIONS.md](https://github.com/openabstractions/abstractions/blob/main/idl/CONVENTIONS.md); a rule here that applies one cites its `CONV-` id.
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD",
 "SHOULD NOT", "RECOMMENDED", "MAY" and "OPTIONAL" in this page are to be
@@ -60,11 +88,19 @@ records and what was measured or tested, linked from here and linking back.
 
 ## Admission
 
-**[ASK-A1] The subject.** The service MUST derive every admission's subject
-from the receiving account and the calling program's observed absolute
-executable path, proved by the platform, never claimed by the caller.
-Moving the executable changes the subject; restarting it preserves the
-subject.
+**[ASK-A1] The subject.** For new native admissions the service MUST derive
+the receiving account and canonical Program through identity.SubjectOf,
+never from wire claims. Its independently proved absolute executable path
+remains an observation. Canonical ownership MUST retain explicit native
+account/Program provenance. Before a new admission, the same Book transaction
+MUST check canonical replay and prior path-scope replay for that exact current native
+executable. Matching replay returns its original occurrence and outcome;
+changed intent or conflicting distinct occurrences refuses. Existing path-scope
+equations remain byte-compatible. Old records without canonical provenance
+MUST NOT acquire a package family from present-day observations or transfer
+history across unproven aliases or package versions. Trusted Go hosts compose
+the additive native Book view from independently obtained native facts; that
+composition API supplies no authentication or authority.
 
 **[ASK-A2] The question and its slots.** `Ask` MUST refuse an unknown
 question id. Slots MUST exactly match the question's declared placeholders
@@ -74,7 +110,7 @@ idempotency key (the wire's `request_key`) MUST be 1..128 UTF-8 bytes
 without control characters. The display name shown to a person is derived
 from the bound executable, never supplied by the caller. A question the
 application service admits MUST keep that bound program, the clean absolute
-path ASK-A1 derives the subject from, and its `asker` MUST be the program's
+path observed alongside the ASK-A1 subject, and its `asker` MUST be the program's
 file name derived from it. Two programs with one file name stay two askers:
 their records keep different programs. Only an authorized operator reads
 the program (ASK-O11); the application and responder services return the
@@ -176,16 +212,24 @@ default: 15 minutes, the value two deployed device-flow services chose.
 
 **[ASK-A8] A script host's question says its publisher covers the host.**
 A signed script host verifies as its publisher's program, and the code that
-asks is the script it runs. The package keeps one reviewed list of script
-hosts keyed on the recorded original file name, compared without case
-(`ScriptHost`); [`go/scripthost.go`](go/scripthost.go) owns the list and
-this rule cites it. An operator UI that shows a question whose
-recorded program is on the list MUST add the one sentence
-`ScriptHostSentence` gives, "<host> runs scripts; its publisher covers
-<host> and the script it runs is unverified.", where <host> is the recorded
-description, or the original file name when none was recorded. A UI that
-shortens a long description for display names the host in the sentence
-the same way. It MUST take the list from this package. Windows attributes trust in a script to the
+asks is the script it runs. Identity keeps the one reviewed list of shared
+interpreters keyed on the recorded original file name, compared without case
+(identity ID-I1, `SharedInterpreterName`); this package reads it through
+`ScriptHostSubject` and keeps the sentence. The exported `ScriptHost` is
+deprecated and is removed in the asks application window (W2-02a). An
+operator UI that shows a question whose
+recorded program `ScriptHostSubject` reads as a shared interpreter, with a
+trusted publisher, MUST add the one sentence `ScriptHostSentence` gives,
+"<host> runs scripts; its publisher covers <host> and the script it runs is
+unverified.", where <host> is the recorded description, else the original
+file name, else the program's file name. The sentence, the prompt's level and
+its icon read that one rule: a program that runs foreign code without being
+a shared interpreter, such as stock OpenCode, gets its publisher's level, its
+own icon and no sentence (TD83). An application's own interpreter copy in
+its own environment is that program's interpreter and follows the same rule:
+its publisher's level, its own icon and no sentence. A UI that shortens a
+long description for display names the host in the sentence the same way.
+It MUST take the list from this package. Windows attributes trust in a script to the
 script's own signature (PowerShell execution policy, Windows Script Host,
 AppLocker and WDAC script rules), which no code binding of the host reads
 (VISION 2026-10-01).
@@ -194,14 +238,41 @@ An operator UI that colors its native prompt by level MUST choose the level
 from the service's record of the request alone. The first matching row
 decides: orange for an administrative first-use tier (ASK-R6), a selector
 over every item of a collection or a script host on this list, whoever asks;
-blue for the operator UI's own words or its own program; gray for a trusted
-publisher (ASK-A6); and yellow otherwise. Blue never marks a program other
+blue for OpenAbstractions' own program asking through the Book; gray for a
+trusted publisher (ASK-A6); and yellow otherwise. Blue never marks a program other
 processes can drive, such as the runtime's command-line programs, which are
 judged like any other requester. Question text, option
 labels and application titles select no level. The level is presentation
 and leaves tier, eligibility and authority with their owners.
+The native question style renders only Book occurrences.
+
+**Published codecs retain service-owned bounds.** Published `application@1`,
+`application@2`, `permission@1` and `notification@1` keep their original codec
+language. Their receivers and Book retain the documented semantic bounds on
+request keys, `RequestRef`, observation waits, option and action ids,
+notification actions, tag, operation id and permission purpose. For an
+otherwise admitted caller, codec-valid values outside those bounds keep the
+method's `invalid` outcome and admit no question or notification. Structural
+codec failures retain their declared decode errors.
+
+A first-added or narrower generated bound on a published member or argument
+requires the next service version (CONV-V1, DEF-V1). Declared constraints on
+new shapes follow DEF-A11's generated reader/writer refusal before a handler
+or transport; they do not retrofit an early `bad_value` onto these published
+profiles.
 
 ## Waiting
+
+A waiting or slow call never delays another caller, app, service, channel or
+connection. This includes calls sharing one helper, plugin, connector or IPC
+connection. A connection carries concurrent calls without head-of-line
+blocking. The IPC transport multiplexes requests by id, or the client opens
+one connection per in-flight call. Helpers, plugins and connectors serve tool
+calls concurrently. A call may wait for its
+own reply within the caller's wait_ms. No lock is held across a wait, an
+upstream call, disk or network I/O, or a person's answer. A waiter costs no
+CPU while it waits (WATCH-W3). Admission runs once per wake and per call.
+Per-caller limits bound waits and queue use.
 
 **[ASK-W1] `Observe` waits, and only waits.** `Observe` MUST accept
 `wait_ms` from 0 to 30000. Waiting expiry MUST return the current state,
@@ -228,34 +299,62 @@ client's observation wait MUST be released through the shared
 
 **[ASK-P1] The profile file's own format.** The application-profile file
 MUST be kept separate from the deprecated legacy `asks.json` (kept, no
-removal scheduled) and MUST be owned by one configured host. Its version
-MUST be `asks-application@9`. Canonical application versions 1 to 8 remain
-readable and migrate on their next edit; no migration from deprecated native
-state occurs. Versions 3, 4 and 5 MUST retain structured permission data with each
-`rights.first_use` occurrence and MUST refuse missing, malformed or foreign-account
-permission data. Earlier profiles MUST NOT carry that field. Canonical provider
-JSON is REQUIRED. An unknown version, an unknown
-field, noncanonical or invalid Unicode, a nonregular node, or a file over
-4 MiB + 1 MiB + 256 KiB + 4096 bytes MUST be refused. The legacy, ordinary
-and answer-audit encoded partitions have independent bounds (ASK-P4,
-ASK-O15).
-Versions 6 and 7 MAY carry a record's bound asker program (ASK-A2): a clean
-absolute path of at most 4096 bytes whose file name is the record's `asker`.
-Earlier versions MUST refuse it. Versions 7 and later MAY carry an ordinary
-choice's bound requester program, its shared options and its decision route
-(ASK-O12); earlier versions MUST refuse them. Versions 7 and 8 MAY carry the
-delegated-answer list and version 9 alone the answer audit (ASK-O15); a read
-of version 7 or 8 moves each delegated entry into the audit as a responder's
-answer to a choice, with its eviction time. An older runtime refuses a file
-of a later version.
-Versions 5, 6 and 7 MUST retain typed permission data only under `rights.permission@2`.
-It MUST validate the entire effect, digest, owner account, trusted display and
-fixed Allow/Refuse projection before exposing any record. A typed occurrence
-MUST NOT carry legacy `PermissionRequest` data or responder attribution.
+removal scheduled) and MUST be owned by one configured host. Its current
+version MUST be `asks-application@12`. Canonical application versions 1 to 11
+MUST remain readable under the retained field/decoding rules in
+[HISTORY.md](HISTORY.md#application-profile-field-history); they migrate on
+their next edit. No migration from deprecated native state occurs, and an
+older reader MUST refuse a later profile before mutation.
+
+The current format retains bounded native ownership provenance on new
+application, choice and notification admissions. Rows from previous versions
+retain their scope, IDs, outcomes and operator access; replay through the exact
+current executable MUST NOT relabel them. Native provenance counts toward each
+existing encoded partition/file bound; no capacity or retention bound increases.
+Program fingerprints retained with admissions and acknowledged choices remain
+governed by ASK-P5. Typed permission data MUST use `rights.permission@2`, retain
+its complete effect/digest/account/trusted display and its closed choice
+projection (ASK-O10), and carry no deprecated `PermissionRequest`. A typed responder answer
+retains its exact nonempty answering program under the finite routine-effect
+guard below; migration never changes that actor into an operator.
+
+Canonical provider JSON is REQUIRED. An unknown version, an unknown field,
+noncanonical or invalid Unicode, a nonregular node, or a file over
+4 MiB + 1 MiB + 256 KiB + 1 MiB + 328 KiB + 4096 bytes MUST be refused. The
+legacy, ordinary, answer-audit and notification encoded partitions have
+independent bounds (ASK-P2, ASK-P4, ASK-O15, ASK-N6); the program fingerprints
+of `application@1` and `permission@1` admissions, 82 bytes each, have the 328 KiB,
+and that partition is measured without them and without the version label.
 
 **[ASK-P2] Capacity.** The legacy partition MUST accept at most 4096 admissions
 and 4096 retained records. Once either is exhausted, the service MUST
 refuse new admission while every existing key remains readable.
+
+**[ASK-P5] One program's share.** A program MUST NOT hold more than an eighth
+of a partition (`ProgramShareDivisor`), so one program that asks without
+end cannot leave every other application reading `exhausted` (DREAM §14).
+A program's share of the `application@1` and `permission@1` partition is 512 admissions and
+512 retained records, counted against the program a record concerns: the
+target of a runtime first-use question, the subject of a typed request, or
+the bound asker of an `application@1` question, and the admitting scope when
+none is recorded. Its share of the ordinary partition is 128 admissions and
+128 KiB encoded, counted against the bound requester. A question's
+admission that outlives its record and an acknowledged choice keep the
+fingerprint of that program (`program_hash`) and stay in its share until
+they are collected, so a program whose occurrences are decided,
+acknowledged or removed still reads `exhausted` at its share. An admission past the
+share reads `exhausted` exactly as a full partition does, and writes
+nothing; every admitted key still replays, and another program is admitted.
+The partition bounds (ASK-P2, ASK-P4) still hold for all programs together.
+Notifications keep their own per-program rate (ASK-N6). An eighth follows
+ASK-N6's choice of a per-program bound beside a shared one; a rolling-hour
+rate for questions is not set, since an ordinary choice is retained for at
+most seven days and a pending `application@1` question expires in 15 minutes (ASK-A7), which
+already returns a share. Tests: `TestOneProgramCannotExhaustOrdinaryChoices`,
+`TestOneProgramCannotExhaustQuestionsOrTypedRequests`,
+`TestAcknowledgedChoicesStayInTheAskersShare`,
+`TestRetiredQuestionsStayInTheProgramsShare`,
+`TestProgramHashesMigrateFromVersion9`.
 
 **[ASK-P3] The legacy provider boundary.** Native `Answer` and the legacy
 native `Forget` operation on this provider MUST preserve the profile's
@@ -332,8 +431,8 @@ when either reads `not_granted` and neither is denied or unavailable.
 MAY configure `QuestionResponder` with trusted service callbacks. Only a
 same-account Program peer with a current exact permit for
 `abstraction.asks/question.answer`, or an enrollment (ASK-R5), may see or
-choose an option, and only on a routine question (ASK-R6) while it is no
-script host (ASK-R7). The resource
+choose an option, and only on a routine question (ASK-R6) while it runs no
+foreign code (ASK-R7). The resource
 is `FirstUseAnswerResource(program, action, resource, option)`. For every
 previously representable tuple it preserves the exact `first-use@1:` bytes:
 compact `encoding/json` encoding of those four strings in order, each program
@@ -362,7 +461,17 @@ another path (the same volume and file ID on Windows, the same device and
 inode elsewhere). Programs compare by the shared subject-program rules, so
 another letter case or an 8.3 short name is the same program. The publisher
 and file checks cover what one vendor controls beside its app: a signed
-helper it ships and a hard link to the app's own executable. An operator sets the
+helper it ships and a hard link to the app's own executable. A host adds the
+parties its current trusted relationships name through
+`AnswerCheck.PartyWithRelated`, compared by the same rules. The OA runtime
+names each enrolled agent application that holds a current
+`abstraction.facade/application.message` permit to the target's agent
+application, or that the target holds one to: paired assistants never answer
+each other's questions, under an exact delegation or an enrollment, and the
+question stays with the person. Ending the permit in both directions ends the
+relationship for the next answer. Relationships come only from the host's
+current permits and enrollments, and metadata the host cannot read refuses.
+An operator sets the
 responder's exact rule with `SetRuleFor` and a nonzero expiry; revocation and
 expiry take effect at the next decision. This check rejects an application
 that tries to forge `rights.first_use` through OA IPC. Like the rest of this
@@ -419,7 +528,7 @@ on every `ListAnswerable` record and option and inside the edit of every
 `Answer`, before writing any rule: the enrollment is a current permit; the
 question is the runtime's own first-use question; its tier is routine
 (ASK-R6); the answerer is no party to it (ASK-R3's parties); and the
-answerer is no script host (ASK-R7). A check that cannot be made refuses.
+answerer runs no foreign code (ASK-R7). A check that cannot be made refuses.
 Question text and program names come from applications and decide nothing
 here: the service computes the tier from the question's action and
 resource. An answerer answers only its own runtime's questions. The same
@@ -431,45 +540,85 @@ cannot be undone, and states ASK-R9's known limit.
 first-use question takes the tier of the permission it decides, from
 `grants.FirstUseTier` (abstraction-facade `go/grants/tiers.go`), the one
 table the runtime and the operator UI both read. Routine: `complete` on a
-server on this machine (a literal loopback HTTP endpoint or authenticated
-local native IPC, never local placement alone), `lookup` on a registry the runtime lists,
+model server OpenAbstractions runs on this machine: a native provider
+reached over authenticated local IPC whose declaration has OpenAbstractions
+product standing (placed by the installation in the per-machine folder, or
+naming a program that passes `product.Shipped`). A product's observed
+server, a registration naming a program without product standing, and
+every HTTP endpoint, loopback included, are not such a server, since a local listener
+can forward a call to a paid hosted service. Also routine: `lookup` on a registry the runtime lists,
 `acceptance.submit` for `job:inference`, and `content.write` or
-`content.read` on an output profile. Sensitive: `lend`, and
-`acceptance.submit` for `job:download`. Administrative: `complete` on a
-hosted server or on one the runtime does not list, and any permission of
-`abstraction.asks` or `abstraction.rights`. Every other first-use permission
+`content.read` on an output profile; and application `command.read`,
+`command.reveal` and `command.propose` on one exact `app:<name>`: read what
+is open in another app and suggest changes there. This finite application
+effect discloses all three operations and requires enrollment for responder
+answering; exact delegation supplies no fallback. Sensitive: `lend`, and
+`acceptance.submit` for `job:download`. Administrative: `complete` on
+any other server: a hosted one, one the runtime does not list, and one on
+this machine that OpenAbstractions does not run. Any permission of
+`abstraction.asks` or `abstraction.rights` is administrative too. Every other first-use permission
 is sensitive. Only a routine question is answerable by an answerer under
 any grant, an exact delegation included; every other is refused to every
 answerer and stays with the person.
 
-**[ASK-R7] An answerer is a program, never a script host.** The answerer is
-the subject program the service binds from the answering peer: for
-OpenCode, OpenCode's own executable, which loads the OA client into its
-process. Programs compare by the shared subject-program rules
+**[ASK-R7] An answerer is a program that runs no foreign code.** The
+answerer is the subject program the service binds from the answering peer:
+for OpenCode, OpenCode's own executable, which loads the OA client into its
+process. This package owns the answerer rule (`AnswererRule`, asks P0-2): a
+host composes it from its account, its own program and its operator
+programs, and keeps only the rights reads (a current enrollment, an exact
+delegation) and whether the question is routine (ASK-R6). `AnswererRule.Answerer` refuses another account,
+an operator program and a program identity's `ClassifyProgram` reads
+`RunsForeignCode` for (identity ID-I1, TD83), since every script such a
+program runs would answer: a shared interpreter, an application's own
+interpreter copy, an Electron program whose `RunAsNode` fuse is on, a Bun
+standalone executable whose runtime honours `BUN_BE_BUN`, and a macOS program
+whose signature carries a foreign-code entitlement. Stock OpenCode is such a
+Bun standalone executable, so it never answers for other applications,
+whatever its enrollment. A host's enrollment refusal (rights RIGHTS-R16)
+and an operator UI's assistant chooser read the same rule, so no enrollment
+is written or offered for a program it always refuses.
+The receiving runtime also composes complete, validated application declarations
+through `AnswererWithDeclaredHosts`: a declared script host is a conservative
+veto, including its retained native file aliases. A false declaration grants
+nothing and cannot override native classification. Unavailable declaration
+metadata refuses as unavailable. The published `AnswererRule` fields and
+`Answerer` call remain compatible; the directory owns declaration availability.
+`Host.EnableResponderPreparation` composes the outer metadata refresh after
+native caller admission and before responder Book reads/edits. Every responder
+entry prepares freshly, including lists, answers/replay, shared choices and
+RequestAnswering. Nested authorizers and effects carry that operation context
+and use atomic facts; failed preparation is unavailable. Existing nil-configured
+hosts retain their behavior. Facade composes this through its existing RightsPolicy.
+`AnswerCheck.Party`, or `PartyWithRelated` with the host's current related
+parties, then applies ASK-R3's party rule.
+Programs compare by the shared subject-program rules
 (`identity.SameSubjectProgram`), and files by file identity
-(`identity.SameFile`), never by their spelling. A program that
-`ScriptHostSubject` names MUST be refused as an answerer, since every script
-it runs would answer; the same function decides rights' account-wide default
-exclusion (RIGHTS-R22) and the shared-choice answerer, and every caller takes
-it from this package. It reads, in order: an `msix:<family>` subject by the
-reviewed package families (`ScriptHostPackage`: PowerShell, Python, WSL and
-its distributions); the signed original file name the answering peer's code
+(`identity.SameFile`), never by their spelling; one check reads each
+program's file identity once.
+
+`ScriptHostSubject` is identity's `SharedInterpreter` for a rights subject,
+with the recorded publisher as evidence. It decides rights' account-wide
+default exclusion (RIGHTS-R22) and the operator UI's script-host level, icon
+and sentence (ASK-A8), and every caller takes it from this package. A program that runs foreign code
+without being a shared interpreter keeps its defaults. Identity reads, in
+order: an `msix:<family>` subject by the reviewed package families
+(`ScriptHostPackage`: PowerShell, Python, WSL and its distributions); the
+`pyvenv.cfg` home; the signed original file name the answering peer's code
 binding carries; the program's own file name on any platform after its short
 8.3 alias is resolved (`ScriptHostFileName`: macOS and Linux shells,
 `osascript` and interpreters, versioned names such as `python3.12` and
 Python.app's bundle executable included); and the program file's own
-verified signature, read once per file identity, so a renamed signed copy is
+verified signature, read once per file stamp (identity ID-I1), so a renamed signed copy is
 named by its original file name. One shared table
-(`scripthostcases`) runs through every caller's tests. An unsigned,
+(`scripthostcases`) runs through every caller's tests, its rows marking a
+script host and a program that runs foreign code (stock OpenCode as a Bun
+standalone executable, an Electron program with `RunAsNode` on), and the answerer rule's
+table (`TestAnswererRuleTable`) runs without a runtime. An unsigned,
 renamed interpreter on macOS or Linux carries no name this check reads; that
 gap stays open until app registration reads a declared `script_host` role
-(TODO, after 0.4.0). The operator UI refuses to enroll one. This is a
-boundary between cooperating programs of one account (RIGHTS-R15).
-OA's OpenCode build is also a Bun runtime: with `BUN_BE_BUN=1` it runs any
-script, which the OpenCode adopter's `configure.js` uses through 0.4.0. Its
-program identity therefore covers any JavaScript a same-account process runs
-with it. An enrollment of OpenCode as answerer is scoped accordingly, and the
-same-account hostile process is out of scope (VISION 2026-10-06).
+(TODO, after 0.4.0). This is a boundary between cooperating programs of one
+account (RIGHTS-R15).
 
 **[ASK-S1] A system-access question is the person's, once, and writes no
 rule.** `system.securitylog.read` is the question a runtime admits as itself,
@@ -593,10 +742,30 @@ refused operation. A question that expires while its prompt is open
 sending anything.
 
 **[ASK-O14] Presentation by ask type.** An operator UI that presents
-`operator@1` questions in its own prompt MUST show each question, and the
-outcome report that follows it, in its own dialog above the person's other
-windows: on Windows a topmost task dialog, on macOS a non-activating panel at
+`operator@1` questions in its own prompt MUST show each question in its own
+dialog above the person's other windows: on Windows the native renderer for
+its declared family, running OS
+version and system theme, on macOS a non-activating panel at
 the modal-panel window level on every Space and beside full-screen windows.
+Asks owns semantic presentation selection. Every catalogue question and typed
+permission MUST declare its intended native presentation family; a missing
+declaration or optional display payload MUST NOT silently select another
+family. Windows retains its TaskDialog renderer for legacy OS generations and
+genuine viewport fallback. Ordinary application choices remain application
+owned, and OS elevation remains OS owned. This classification changes no
+admission, responder eligibility or permission effect. OS-like consent is
+reserved for owning-service-admitted runtime-only and typed permission
+occurrences. The application receiver MUST reject runtime-only keys before
+admission. Application-callable catalogue records (including approval wording)
+and ordinary application choices MUST NOT select OS-like consent or automatic
+native popups; they retain application UI or explicit ordinary manual review.
+The native question entry point takes a retained Book occurrence (its id,
+its retained content and its presentation family) and no free text. The
+operator UI's own confirmations, reports and failures go to its window's
+status line or to a notification. One operation has one confirmation: the
+person's click in the operator UI for an operator-level decision, or the
+owning service's question for a decision that is person-only by contract.
+Question text names the apps and the act and shows no internal reason.
 Showing the prompt MUST leave keyboard focus with the application in front,
 and its answer controls arm only after it appears. A question the session
 cannot show waits for unlock (ASK-O6). The platform's notification service
@@ -604,10 +773,39 @@ carries `notification@1` occurrences only (ASK-N7), under the person's own
 notification settings. A prompt is consent shown to the person, not a
 security boundary: a program running as the same account can drive the
 operator UI's input or its routes, so no prompt proves that a person
-answered. An installer's application registration confirmation is such a
+answered. On Windows, a native prompt whose answer can grant authority (a
+consent or pairing family, or a catalogue question with a yes option) counts
+an answer button only after a mouse release over it, or an Enter, Space or
+access-key press, that Windows did not flag as injected. An answer by window
+message, UI Automation or injected input is ignored and logged with the
+prompt's key and the input's source, and the prompt stays open. Code inside
+the presenter, and assistive tools whose input Windows flags as injected,
+are outside this check (`TestRealInputIgnoresProgrammaticAnswers`,
+`TestRealInputAnswersFromThePerson`). An installer's application registration confirmation is such a
 prompt; registering grants no permission, and the account default already
 admits self-registration (RIGHTS-R22). Presence-verified answers belong to
 the planned presence-verified grants.
+
+The runtime-only `setup.models` occurrence uses the existing Setup question's
+title, instruction and disclosures, rendered by Asks from closed native facts.
+Only the authenticated native application.manage operator admits its frozen
+planner facts; no responder answers it. Facts name model/plan references,
+download/free bytes, licence names, fixed permission kinds and at most sixteen
+target rows. They contain no caller-authored question prose. Each decoded string
+MUST satisfy its field's control and size rules; unknown/duplicate JSON members
+and extra rows refuse. Only Setup target rows use the existing 800-byte slot
+carrier limit; other catalogue admission retains its existing 200-rune limit.
+No public carrier bound changes. Book content and its existing operator reads
+and answer history retain these facts under ASK-O16. Every native presenter and
+history consumer renders that same catalogue body; absent or invalid content
+permits no answer through a coarse substitute. Set up and Not now answer the
+exact occurrence through `AnswerQuestionIfPending`. Display and answer confer
+no install, registration, Keep or permission authority; those effects retain
+their existing independent owners and exact-plan checks.
+Tests: `TestSetupFactsStrictDecodedRows`,
+`TestSetupFactsRetainedByBookAcrossNewOccurrenceAndRestart` (go),
+`TestStepQuestionCataloguePreservesFrozenWording` (Panel Setup),
+`TestSetupQuestionPresenterUsesRetainedFactsAndExactOccurrence` (Panel).
 
 **[ASK-O7] `ReadAttributedQuestion`.** `ReadAttributedQuestion(id)` MUST
 return one retained question's recorded metadata and attribution to an
@@ -692,11 +890,11 @@ operator and responder rules. Own existing decisions and cleanup require ownersh
 and the occurrence deadlines; ask policy governs new admission and MUST NOT gate
 these methods. No operator grant, enrollment or new right is required.
 
-`Answer(...,true)` MUST conflict with every terminal decision, including the same
+`Answer(...,true)` MUST conflict with every terminal outcome, including the same
 option. `Answer(...,false)` MAY explicitly reconcile the same recorded option;
 it MUST preserve its original actor and time. A changed option or dismissal
 conflicts. An identical dismissal replays unchanged. Operator and requester
-decisions MUST share one atomic decision owner: the first terminal decision wins,
+decisions MUST share one atomic decision owner: the first terminal outcome wins,
 and each path rechecks the effective time floor, deadlines and offered option.
 Only `answered` or `dismissed` carries a decision record. `answered_by` is the
 proven answering program, whether requester or operator, and asserts no human
@@ -760,7 +958,8 @@ replay without a separate local answer receipt. For any explicit retry after an
 uncertain acknowledgement, the caller MUST retain and use the exact recorded
 answer. A matching
 acknowledgement replaces the full record and native admission evidence with
-its immutable reference, request fingerprint, ID and decision hash. Identical
+its immutable reference, request fingerprint, ID and decision hash, and the
+bound requester's program fingerprint (ASK-P5). Identical
 acknowledgements MUST replay after lost replies and restart. A different
 answer returns `conflict`; subsequent Ask/Observe returns `gone` until the
 replay deadline. Acknowledgement proves no application effect. At replay
@@ -797,11 +996,11 @@ shared choices, and only their shared options, through `responder@1`
 A human presenter MUST obtain the person's choice, re-read the exact immutable
 pending record, and submit `AnswerChoice(id,option,true)`. The atomic edit
 MUST recheck authority, binding, deadline and offered option after lock waiting.
-Any terminal decision races with this conditional answer as `conflict`.
+Any terminal outcome races with this conditional answer as `conflict`.
 `AnswerChoice(...,false)` MAY explicitly reconcile the same recorded answer:
 it MUST preserve the original actor and time and MUST NOT change or reopen a
-terminal decision. A changed option or dismissal is `conflict`. Dismissal
-records a terminal decision with no option; repeating that exact dismissal
+terminal outcome. A changed option or dismissal is `conflict`. Dismissal
+records a terminal outcome with no option; repeating that exact dismissal
 preserves its original attribution. Only `answered` or `dismissed` carries a
 decision record. The service MUST capture `answered_by` as the bound answering program's
 full valid subject program, rather than payload or display text. Clients MUST
@@ -818,11 +1017,13 @@ bounds; cursors also bind the ordinary revision. `AnswerChoice(id, option)`
 MUST record the option only when, inside the Book edit after lock waiting:
 the choice is pending and before its deadline; the option is shared; the
 trusted host check passes. The host check MUST require a same-account
-Program peer with a current enrollment, refuse a script host (ASK-R7), an
+Program peer with a current enrollment, refuse a program that runs foreign code (ASK-R7), an
 operator program and the runtime, and refuse every party to the choice: the
 requester's program, a program with the same file, a program whose trusted
-code signer is the requester's recorded trusted publisher, and the bound
-peer the admission recorded. The parties compare by the shared subject-program
+code signer is the requester's recorded trusted publisher, the bound
+peer the admission recorded, and the parties the host's current trusted
+relationships name, as in ASK-R3: an assistant never answers a choice its
+messaging pair shared. The parties compare by the shared subject-program
 rules, as in ASK-R3. A check that cannot be made refuses. The same answerer
 repeating the same option MUST replay `answered` with the original actor and
 time; every other terminal state MUST return `conflict`. An unshared choice or
@@ -836,11 +1037,13 @@ check. A known limit: when the answerer itself started the work that led
 another application to share a choice, the party rule sees two programs and
 the answerer may answer; recording that chain needs actor provenance at
 admission, which this profile does not carry. First-use answering (ASK-R3,
-ASK-R5) has the same limit.
+ASK-R5) has the same limit. The messaging pair relationship closes it only
+between the two programs of a pair; a chain through a program outside every
+pair stays open.
 
 **[ASK-R10] An answerer asks for its enrollment like any other right.**
 `responder@1` `RequestAnswering()` MUST bind the receiving account and
-program from the peer. A script host (ASK-R7), an operator program, the
+program from the peer. A program that runs foreign code (ASK-R7), an operator program, the
 runtime's own program or another account reads `forbidden` and admits
 nothing. A current enrollment reads `permitted`. Otherwise the decision of
 `abstraction.asks/question.answer` on `apps` is returned, and on
@@ -860,28 +1063,100 @@ next request asks the person no sooner; "Stop and don't ask again" writes
 that deny with no expiry, and the person's later removal of it or a new yes
 ends it.
 
-**[ASK-R11] Only the person answers whether to keep a self-registered app.**
-The catalogue question `application.self_registered` ("<program> added
-itself to OpenAbstractions as <title>. Keep it?") is admitted by the runtime
-only, once when a program registers itself under the account-wide
-registration default (rights RIGHTS-R22) and again when an operator asks for
-it (facade `AskConfirmation`). Its About slot is the program path the
-platform proved for the registering connection, whatever spelling the
-descriptor gives its program, and the runtime records the publisher bound
-from that connection, so a prompt names the program by its stem and shows
+**[ASK-R11] Only the person answers whether to keep a pending program.**
+The existing catalogue question `application.self_registered` ("<program> was
+added to OpenAbstractions as <title>. Keep it?") is admitted by the runtime
+only for the current pending registration. This includes an operator-authorized
+registry@3 PROGRAM with provider facets and an `applications@2` entry registered
+under the account-wide default (rights RIGHTS-R22). Operator authorization
+does not assert who added it or replace the person's Keep. The existing operator
+confirmation path may ask again. Historical "added itself" questions retain
+their original wording and remain readable. Its About slot is the captured
+program path: the held Registration image, or the program the platform proved
+for the `applications@2` registering connection, whatever spelling the descriptor gives
+its program. The runtime records the publisher from that same captured source,
+so a prompt names the program by its stem and shows
 that path and publisher. It records no asker program. It is closed: its options are exactly
 `keep` and `remove`, with no `never`. The application profile refuses it
 with `forbidden`, as it refuses `rights.first_use`. No answerer may answer
 it, enrolled or delegated, since it vouches for app-written title text; only
 the operator profile records its answer. Each registration has its own
 question: the runtime acts only on the answer to the question it recorded
-for the entry's current registration. Keep marks the entry confirmed; Remove
-removes every unconfirmed entry of its program and writes a Block on
-`application.register_self` for that program; closing the prompt or expiry
+for the PROGRAM's current revision, or the `applications@2` entry's current registration.
+Keep marks that program confirmed; application facets project the same Keep.
+Remove removes the current pending program registration (or its unconfirmed
+`applications@2` entries) and writes a Block on
+`application.register_self` for that program. Separately authorized operator
+management remains available; no `provider.manage` Block is invented.
+Closing the prompt or expiry
 answers nothing and leaves the entry unconfirmed. No default option exists,
 and Remove is never chosen by default. Like every operator prompt (ASK-O14),
 the answer is the person's consent as shown, not proof that a person gave
 it; keeping or removing an entry grants and revokes no resource permission.
+
+Facade's unpublished applications@3 agent enrollment uses the separate runtime-only
+catalogue key `application.agent_enrollment` under P-J15. Only the operator
+profile records its person answer; the application and answerer profiles confer
+no agent class. Its exact program is an About/detail slot, independent of the
+app-written title in the sentence. Facade binds the occurrence to its current
+registration and file identity, and applies its answer conditionally. Generic
+application Keep retains the behavior above. The new agent-Keep sentence is
+proposed source copy reserved for the owner's C-59 acceptance; source receiving
+does not establish installed or live person acceptance.
+
+The runtime-only `application.agent_update` occurrence is the single person
+Keep for an exact prepared batch of retained connection images. It offers
+Update and Not now. Applications captures the installed source, staged and old
+image identities, registration revisions and exact membership before admission.
+An assistant cannot answer it. Update supplies no resource permission or host
+trust and authorizes only that prepared set. Applications conditionally admits
+each final identity after publication; changed or uncertain inputs refuse.
+Not now preserves the old connections and replays for the same intent.
+The sentence lists only captured registered member titles, including its restart
+instruction. A member-name discovery read recovers the retained occurrence before
+an updated file can regain enrollment; it admits no question or consent.
+
+**[ASK-R12] A kept agent connection is maintained under its original Keep.** A batch that only updates connection programs the person already kept through `application.agent_enrollment` MUST NOT admit an `application.agent_update` occurrence when every member satisfies all of these, as Applications captures them: the same account, binding, enrollment revision and old file identity; staged bytes held from the authenticated installed OA source with the same publisher and release channel; no downgrade; and declared rights, needs and capabilities that are a subset of the kept registration's. That batch commits under the retained Keep provenance. Any other batch — a widening, a new or different program, a foreign profile, a downgrade, or a revoked, disabled or replaced enrollment — MUST use the person's Update under ASK-R11. Maintenance synthesizes no Asks answer and copies no resource or responder grant. The first connection of an agent remains one `SetAgentEnrollment` Keep for one agent. Applications posts one completion notification from the Commit evidence and offers Undo to the prior version while its bytes are retained (CONV-U1). An unsigned helper's staged bytes are held from the installed OA source when they equal the installation's own `tools` copy, hashed and read through one held handle, in a folder that only SYSTEM, Administrators and TrustedInstaller can change. Its declaration is read from those bytes and compared with the kept image's declaration, read from the kept image's own bytes when the Keep recorded none. An image without the release resource declares nothing. No version order applies to unsigned bytes. A Keep recorded before release facts, or a person's answered Update, is the retained provenance (architect ruling 2026-11-11).
+
+**[ASK-R13] One question per app for its kept connection program.** When a
+first-use action decides `not_granted` for a kept connection program of a
+host program (rights RIGHTS-A6), the runtime MUST pin the host program as the
+`PermissionRequest` subject and present the host app's title. ASK-R2's key is
+then the host program's (program, action, resource): refusals and `Request`
+calls from either program raise or join one question, and Allow or Never
+writes the host program's rule. `ObserveQuestion` from the connection program
+reads that question as its own. ASK-R3's parties include both programs: an
+enrolled connection program never answers a question about its host, and the
+host never answers one about its connection program. Without the relation
+each program asks for itself, as before.
+
+**[ASK-R14] An enrolled answerer's open chat is woken for a question it may
+answer.** Architect ruling 2026-11-12, for the person's assistant to
+answer routine asks without the person (VISION 2026-10-02). The agent
+connection's Messages watch (`oa_messages_watch`) carries `asks_wake`, an
+ordered opaque key of the occurrences that connection's program may answer
+now through `responder@1`: ASK-R5's routine first-use questions and ASK-R9's
+shared choice options. The key is present only while the program holds a
+current enrollment (ASK-R5) and something is answerable; it advances when a
+new occurrence appears and is empty when none remains. It carries no question
+text, asker, option or ID. While the program is enrolled, one held watch lasts
+at most 15 seconds, so a new occurrence reaches the chat within that time. A
+host adapter that receives a greater key for a chat with a live inbox
+(attached and open) wakes that idle chat once, through its existing
+message-wake path, with the fixed pointer `OA: question to answer.` from the
+generated wake catalogue. An adapter that holds several open chats of one
+program wakes only the one the person used last; the others take the key
+without a turn. A busy chat takes it at its next idle; a returned drop
+retries at the next idle; an unknown delivery is never resent for the same
+key. The model then calls
+`oa_asks_list_answerable` or `oa_asks_list_choices` and answers through
+`responder@1` as before; every ASK-R5 and ASK-R9 check still applies to each
+listed record and answer. A person-only question (an administrative one under
+ASK-R6, `command.once`, one about the answerer's own program) is never listed,
+so it never wakes a chat. The wake adds no authority beyond the person's
+enrollment, and the adapter's background Messages Disable also holds it. A
+closed or cold chat is never started for a question; that would change start
+consent.
 
 **[ASK-O12] `ReadChoiceDetails`.** `ReadChoiceDetails(id)` MUST return, for an
 authorized operator, the same `ChoiceRead` as `ReadChoice` together with the
@@ -938,6 +1213,44 @@ Tests: `TestAnswerAuditKeepsEveryRecordedAnswerPastItsRecord`,
 `TestVersion8DelegatedAuditMovesIntoTheAnswerAudit` (go),
 `TestOperatorListsTheAnswerAuditInBoundedPages` (go/application).
 
+**[ASK-O16] Retained catalogue content is independent of rendered wording.**
+New catalogue admissions MUST retain a detached copy of their admitted slots.
+A trusted first-use admission without catalogue slots retains its exact immutable
+permission request and an empty slot map; its authority remains ASK-O11's structured target,
+never a slot. The existing versioned Book and answer audit own this content.
+Answering MUST copy it into the same audit entry before the original question
+can be dismissed. No replay changes it. Content MUST satisfy the catalogue slot
+bounds and About binding; first-use content MUST agree with the retained exact
+permission. Invalid current content refuses and MUST NOT fall back to English.
+
+`ReadQuestionContent(id)` MUST return the existing authenticated QuestionAsker
+projection plus optional retained content from that same occurrence. Only found
+may carry content. `ListAnswerContents(cursor, limit)` MUST return the existing
+answer audit entries plus their optional retained content in the page itself,
+without per-entry question reads. It reuses ASK-O15's snapshot/revision and
+completeness time and ASK-O2's authorization, cursor and encoded page bounds;
+its cursor namespace is distinct from ListAnswers. Added content counts toward
+the same 4-MiB question partition, 256-entry/256-KiB audit and 64-entry/256-KiB
+page bounds. Retiring the question leaves audit content until the same audit
+expiry or eviction. Refusals disclose neither entries nor content.
+
+`asks-application@13` retains this content. Versions 1..12 remain readable under
+their existing rules and emit the new profile only through a real Book edit;
+reads do not rewrite them. Old readers refuse the new profile. Missing content
+on an earlier occurrence stays absent, explicitly unavailable, and is never
+reconstructed from rendered text. Existing published RecordMetadata,
+QuestionAsker and AnswerEntry shapes remain unchanged. Both methods are additive
+on operator@1; an earlier service answers unknown_method. A client may then use
+its existing metadata reads with absent content; current read failures or
+malformed content permit no fallback. Slots are untrusted display data and
+confer no answer, permission, runtime-key admission or operator authority.
+Tests: `TestCatalogueContentSurvivesTextChangeRetirementAndCallerMutation`,
+`TestCatalogueContentLegacyReadsStayAbsentAndMigrateOnEdit`,
+`TestCatalogueContentMalformedCurrentAndDowngradedProfilesRefuse` (go),
+`TestOperatorContentCurrentRetiredPagesAndAuthorization`,
+`TestOperatorContentAuditAndEncodedPageIncludeAddedBytes` (go/application),
+`TestReadContentOnlyUnknownMethodUsesExistingMetadataCompatibility` (go/client).
+
 **[ASK-E2] Ordinary outcomes establish no application effect.** Exactly
 `pending`, `answered` and `dismissed` observations carry the occurrence ID;
 exactly `answered` and `dismissed` carry the recorded decision. `expired`,
@@ -957,7 +1270,9 @@ Trusted compiled capability bindings MUST resolve public target documents and
 admit only actually served definitions with the selected first-use selector.
 The ordinary `question.ask` gate (ASK-R1) remains on `application@1/@2`;
 permission admission uses this capability-owned boundary. Admission itself
-grants no permission and conveys no human-presence claim.
+grants no permission and conveys no human-presence claim. A selection of one
+of the runtime's exact first-use actions is asking before first use, and
+ASK-A14 governs it.
 
 **[ASK-R8] A live explicit block refuses consent admission.** The trusted
 owner MUST evaluate the complete prepared proposal at one policy revision.
@@ -990,9 +1305,52 @@ observers are released, and the requester's next `Observe` of its key reads
 still lacks a grant, or cannot be read, keeps the occurrence pending. An
 answered occurrence is never withdrawn.
 
+**[ASK-A14] An application asks before first use and waits for the answer.**
+A `permission@1` `Request` whose selection is one of the runtime's exact
+first-use actions (ASK-R2) under `abstraction.rights/legacy-exact-string@1`,
+selector `one` and target the exact resource, with no purpose, MUST be
+prepared by the runtime's first-use path for the proven caller. The served
+cases are `abstraction.inference/complete` on `host:<name>` for a server the
+router lists, `abstraction.model/lookup` on a registry the runtime lists,
+`abstraction.job/acceptance.submit` on `job:<kind>` for a kind the job
+owner's grammar names (JOB-A13), and the paired content
+profiles; any other target reads `invalid`. The exact enrollment target
+`abstraction.asks/question.answer` on `apps` shares `RequestAnswering`'s native
+eligibility check and joins the same first-use question (ASK-R10). A current
+permit reads `permitted` and a live Block `denied`, asking nothing.
+Otherwise the request raises or joins the same question a refused call of
+that action raises, under ASK-R2's key for the program, action and
+resource, so any number of requests and refusals make one question. It
+returns `pending` with the question's id, or `answered` with the person's
+standing answer while ASK-R2 does not ask again. No typed occurrence is
+admitted for it.
+`ObserveQuestion` MUST wait at most `wait_ms` (0..30000) for the answer to
+one first-use question whose permission names the proven caller's own
+program, whether a refusal named it (inference INF-W11) or `Request`
+returned it. Any other id, another program's question included, reads
+`unknown`. A pending observation carries `pending_until_ms`, the question's
+expiry (ASK-A7). Pending at the end of the wait is not consent. A recorded
+Allow supplies no committed-rule witness. A trusted native host may quietly
+observe current policy for the retained question and proven caller, returning
+`permitted` or `denied` with its current revision. While Allow's effect remains
+uncommitted, observation waits on the existing Book/rights change notifications
+and reports authorization pending at the wait boundary. The stored answer
+remains unchanged. Hosts without this observer retain the answered observation;
+callers treat its Allow as waiting. After a current permitted witness, the
+caller re-enters its enforcing call once with the same operation identity and
+arguments and rechecks authorization.
+Neither method answers, grants or widens anything: who may answer follows
+ASK-R6 and the party rule of ASK-R3, so an assistant never answers a
+question about its own program.
+
 **[ASK-O10] Typed answers and effects remain separate commits.** Only an
 explicitly authorized operator may call `AnswerPermissionIfPending`.
-Allow/Refuse are its fixed choices; a conditional repeat returns `conflict`.
+Allow/Refuse are the standard choices; a conditional repeat returns `conflict`.
+A trusted service may admit an exact native command occurrence with Allow
+once, Always allow and Not now. That occurrence uses the person's answer and
+the service's exact command receipt. It does not coalesce with other calls.
+Allow once writes no Rights rule. Application permission requests and
+delegated responders cannot select this occurrence kind.
 The operator MUST reread the full frozen effect/display before answering.
 Every operator UI that answers typed occurrences, the native permission
 dialog and the Panel's list of waiting requests alike, words them from the
@@ -1002,9 +1360,32 @@ Rights effect completion and Undo MUST accept only the retained occurrence ID
 and expected policy revision, resolve the pinned actual operator Allow, and
 commit the entire effect atomically with its durable occurrence receipt.
 Refuse writes no target rule. Lost or failed completion retains explicit Retry.
-Undo removes only still-current occurrence-owned rules. Existing responder
-enrollment or exact legacy delegation MUST NOT answer typed occurrences.
-Legacy public ask/read/list/answer methods MUST fail closed for typed entries.
+Undo removes only still-current occurrence-owned rules. Generic typed
+occurrences remain operator-only. The FAC-M19 routine application companion
+MAY let an enrolled nonparty responder answer the exact retained read,
+reveal and propose selections on one `app:<name>`, together. It MUST use the
+shared answerer and party rules, live enrollment and atomic effect
+completion. Exact delegation supplies no fallback. Those selections cover
+commands on a running instance only. An agent's start of a stopped
+application is person-only (coordinator, 2026-11-09): FAC-M32 asks it as the
+runtime-only once occurrence "Open <app>?", which no responder lists or
+answers, which writes no policy, and whose fingerprint differs from the
+routine permission question, so the two never coalesce. FAC-M20 standing
+edit, commit and spend remains person-only, with all three operations visible.
+The public single/storage-pair request limits remain unchanged.
+Deprecated public application/operator ask, read, list and answer methods MUST
+fail closed for typed entries.
+Legacy typed-detail readers refuse unfamiliar responder attribution and
+runtimes predating version 11 refuse its state. Compatible generic responder
+list/answer clients may consume the complete truthful text projection.
+
+For this finite responder projection, `RecordMetadata.text` MUST show the
+bound beneficiary account/program, exact application and every retained
+operation/disclosure on both list and answer. Stored archival Text remains
+unchanged. Display words supply no policy targets. The native finite-service
+occurrence admission companion MUST preserve same-key replay, pending
+coalescing, quotas and in-lock admission checks. A fresh call after Refuse,
+close or expiry may ask again; generic typed Refuse pacing remains ten minutes.
 
 **[ASK-E3] Typed observations convey bounded state.** `pending` and `answered`
 alone carry the retained answer shape; an unanswered record contains no
@@ -1039,6 +1420,11 @@ occurrence; changed content is `conflict`. A tag replaces, by withdrawal, the
 caller's live notification with the same tag. `now` delivery posts at
 admission; `operation_end` holds the notification `scheduled` until the
 trusted runtime observes the operation end and posts it.
+For a retained scheduled occurrence without native provenance, the live limit
+also counts native records whose captured provenance matches its exact executable
+scope. This count grants no access to those records. Posting remains deferred
+when the limit requires withdrawing a record outside the retained scope, or a
+matching tag would require changing such a record.
 
 **[ASK-N2] One-way content.** A notification MUST grant no authority and
 collect no text. Its title, body and action titles are application-authored.
@@ -1146,12 +1532,12 @@ never an inferred refusal or approval by a person.
 | `ListAnswerable` | `gap` | Caller, host epoch or Book revision changed; restart from an empty cursor (ASK-R3). |
 | `ListAnswerable` | `invalid`, `forbidden`, `unavailable` | Range invalid, no bound responder, or grant/Book cannot be checked (ASK-R3). |
 | `Answer` | `answered` | The Book choice is recorded; inspect `effect` separately before claiming a target permit (ASK-R4). |
-| `Answer` | `conflict`, `unknown`, `invalid`, `forbidden`, `unavailable` | A different choice, absent ID, invalid input, absent grant, a question that is not routine, a party or a script host, or an unavailable check refused (ASK-R3 to ASK-R7). |
-| `RequestAnswering` | `permitted`, `not_granted`, `forbidden`, `unavailable` | Enrolled; the person is asked in the native permission prompt; a script host, operator program, the runtime or another account; an unavailable decision (ASK-R10). |
+| `Answer` | `conflict`, `unknown`, `invalid`, `forbidden`, `unavailable` | A different choice, absent ID, invalid input, absent grant, a question that is not routine, a party or a program that runs foreign code, or an unavailable check refused (ASK-R3 to ASK-R7). |
+| `RequestAnswering` | `permitted`, `not_granted`, `forbidden`, `unavailable` | Enrolled; the person is asked in the native permission prompt; a program that runs foreign code, an operator program, the runtime or another account; an unavailable decision (ASK-R10). |
 | `ShareChoice` | as `Ask` of `application@2` | Shared options outside the offered IDs, repeated or more than three read `invalid` (ASK-A12). |
 | `ListChoices` (responder) | `page`, `gap`, `invalid`, `forbidden`, `unavailable` | Pending shared choices this caller may answer, with only their shared options; refusals as `ListAnswerable` (ASK-R9). |
 | `AnswerChoice` (responder) | `answered` | The shared option is recorded, or the same answerer's same option replays (ASK-R9). |
-| `AnswerChoice` (responder) | `conflict`, `expired`, `gone`, `unknown`, `invalid`, `forbidden`, `unavailable` | Another terminal decision; an elapsed deadline; an acknowledged choice; no occurrence; malformed input; an unshared choice or option or a refused answerer; an unavailable check (ASK-R9). |
+| `AnswerChoice` (responder) | `conflict`, `expired`, `gone`, `unknown`, `invalid`, `forbidden`, `unavailable` | Another terminal outcome; an elapsed deadline; an acknowledged choice; no occurrence; malformed input; an unshared choice or option or a refused answerer; an unavailable check (ASK-R9). |
 | `ReadChoiceDetails` | `found` and the read refusals | As `ReadChoice`, with requester program, shared options and route (ASK-O12). |
 | `ListAnswers` | `page`, `gap`, `invalid`, `forbidden`, `unavailable` | The answer audit newest first and the completeness time (ASK-O15). |
 
@@ -1165,9 +1551,10 @@ never an inferred refusal or approval by a person.
 | Go client default call budget | 5 seconds | ASK-W3 |
 | Go client `WithTimeout` budget | up to 35 seconds | ASK-W3 |
 | simultaneous host calls | at most 32, each bounded to 35 seconds | ASK-W3 |
-| application-profile file | at most 4 MiB + 1 MiB + 256 KiB + 4096 bytes; independent encoded partition bounds | ASK-P1, ASK-P4, ASK-O15 |
+| application-profile file | at most 4 MiB + 1 MiB + 256 KiB + 1 MiB + 328 KiB + 4096 bytes; independent encoded partition bounds | ASK-P1, ASK-P4, ASK-O15, ASK-P5 |
 | legacy admissions and retained records | at most 4096 each and 4 MiB | ASK-P2 |
 | ordinary admissions, including ack tombstones | at most 1024 and 1 MiB including time floor | ASK-P4 |
+| one program's share | an eighth of each partition: 512 `application@1` and `permission@1` admissions and 512 retained records; 128 ordinary admissions and 128 KiB | ASK-P5 |
 | ordinary title / each label | at most 80 Unicode characters, nonblank, single line, no controls | ASK-A9 |
 | ordinary options / each ID | 1..3 distinct IDs; each 1..64 UTF-8 bytes, nonblank, no controls | ASK-A9 |
 | ordinary replay admission horizon | at most seven days; caller retains the immutable full reference | ASK-W5 |
@@ -1195,31 +1582,22 @@ None declared for this release.
 
 ## Not built
 
-- `DismissQuestion` is the prose name this release; the wire method stays
-  `RetireQuestion` and the outcome stays `retired` until `operator@2`
-  (`research/vocabulary/RENAME-PLAN.md` §4, third release).
-- `unavailable` here carries no `INF-A2`-style reason family (`lease:<outcome>`,
-  `engine:<name>`); a caller distinguishes a storage failure from a capacity
-  refusal from diagnostic text only, not a structured reason.
-- Ordinary choice bindings are generated for Go, Python, C++, JavaScript and
-  Rust. The current ordinary owner tests exercise Go's native Program-bound
-  client and Python's public generated codec against the Go dispatcher and
-  Book. They do not demonstrate a native Python caller, an application adopter,
-  ordinary agent delegation or a native presenter.
-- Verified only on Windows 11 over a named pipe; Linux and macOS are not
-  examined (the unix socket listener is shared with `rights` and has never
-  run there either).
-- Native answering prompts (ASK-O6, ASK-O14) exist on Windows and macOS: the
-  Windows tray process shows a topmost TaskDialog, and the macOS Panel
-  launcher shows its on-top question panel; both answer through
-  `operator@1`. On macOS the panel's placement, level, focus and window-list
-  visibility have fixture evidence on macOS 26; the person-present check over
-  a full-screen app is pending. Linux has no tray, prompt or notification;
-  questions are answered on the Panel's Questions page.
-- Notifications (ASK-N1..N7) have Go owner tests for the Book, the
-  native service and the Go client. Native presenters, the runtime's
-  `operation_end` observer and an application adopter are separate slices,
-  with their own evidence.
-- No conformance scenario corpus cites this layer. The tests in `go/` send
-  every operation with a valid credential and no identity and expect five
-  refusals, covering the peer-boundary case only.
+- `operator@2` with the wire method `DismissQuestion` (D50;
+  `research/vocabulary/RENAME-PLAN.md` §4, third release). Until then
+  `DismissQuestion` is the prose name, and `operator@1` keeps
+  `RetireQuestion` and the outcome `retired`.
+- A structured reason on `unavailable`, an `INF-A2`-style family
+  (`lease:<outcome>`, `engine:<name>`). A caller tells a storage failure from
+  a capacity refusal by diagnostic text alone.
+- Ordinary-choice evidence beyond Go's native client and Python's generated
+  codec: a native Python caller, an application adopter, ordinary agent
+  delegation and a native presenter.
+- A Linux fixture receipt for the unix-socket listener shared with `rights`.
+- A Linux presenter for questions and notifications (asks audit P2-1).
+  Linux questions are answered on the Panel's Questions page.
+- The person-present check of the macOS question panel (ASK-O14) over a
+  full-screen app.
+- An application adopter of notifications (ASK-N1..N7).
+- A conformance scenario corpus that cites this layer. The `go/` tests cover
+  the peer-boundary case alone: every operation with a valid credential and
+  no identity, five refusals.

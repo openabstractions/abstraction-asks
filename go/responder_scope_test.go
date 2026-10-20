@@ -130,3 +130,34 @@ func TestScopedBookAnswerUsesOriginalAdmission(t *testing.T) {
 		t.Fatalf("different option %s %v", outcome, err)
 	}
 }
+
+// The operator setting an answering rule and the answering service checking
+// it may spell one program differently; both name the same first-use@1 rule
+// from the normalized target.
+func TestFirstUseAnswerResourceNamesOneRulePerProgram(t *testing.T) {
+	program := filepath.Join(t.TempDir(), "opencode.exe")
+	spelling := program
+	if runtime.GOOS == "windows" {
+		spelling = strings.ReplaceAll(strings.ToUpper(program), `\`, `/`)
+	}
+	normal := identityNormal(program)
+	if normal == identityNormal(spelling) && spelling != program {
+		a, errA := FirstUseAnswerResource(program, "abstraction.model/lookup", "hf", "allow")
+		b, errB := FirstUseAnswerResource(spelling, "abstraction.model/lookup", "hf", "allow")
+		if errA != nil || errB != nil || a != b {
+			t.Fatalf("two spellings of one program name two rules: %q %q %v %v", a, b, errA, errB)
+		}
+	}
+	encoded, _ := json.Marshal(normal)
+	if got, err := FirstUseAnswerResource(program, "abstraction.model/lookup", "hf", "allow"); err != nil || !strings.HasPrefix(got, "first-use@1:["+string(encoded)+",") {
+		t.Fatalf("the rule is not named from the normalized program: %q %v", got, err)
+	}
+}
+
+func identityNormal(program string) string {
+	target, err := NormalizePermissionTarget(PermissionTarget{Account: "implicit", Program: program, Action: "abstraction.model/lookup", Resource: "hf"})
+	if err != nil {
+		return ""
+	}
+	return target.Program
+}

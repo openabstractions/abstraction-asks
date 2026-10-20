@@ -47,53 +47,9 @@ def _strs(out, v, depth):
 
 
 def _raw(out, s, depth):
-    b = s.encode("utf-8") if isinstance(s, str) else s
-    i, n = 0, len(b)
-    while i < n:
-        c = b[i]
-        if c in _WS:
-            i += 1
-        elif c == 0x22:
-            j = i + 1
-            while j < n:
-                if b[j] == 0x5C:
-                    j += 2
-                    continue
-                if b[j] == 0x22:
-                    j += 1
-                    break
-                j += 1
-            out += b[i:j]
-            i = j
-        elif c in (0x7B, 0x5B):
-            out.append(c)
-            i += 1
-            j = i
-            while j < n and b[j] in _WS:
-                j += 1
-            if j < n and b[j] in (0x7D, 0x5D):
-                out.append(b[j])
-                i = j + 1
-            else:
-                depth += 1
-                out += b"\n"
-                _pad(out, depth)
-        elif c in (0x7D, 0x5D):
-            depth -= 1
-            out += b"\n"
-            _pad(out, depth)
-            out.append(c)
-            i += 1
-        elif c == 0x2C:
-            out += b",\n"
-            _pad(out, depth)
-            i += 1
-        elif c == 0x3A:
-            out += b": "
-            i += 1
-        else:
-            out.append(c)
-            i += 1
+    # An opaque value's bytes as they are ([DEF-A3]).
+    # Whitespace around the value is not part of it.
+    out += (s.encode("utf-8") if isinstance(s, str) else bytes(s)).strip(bytes(_WS))
 
 
 def _rawmap(out, m, depth):
@@ -379,9 +335,12 @@ RESOURCE_ACTIONS = ["abstraction.asks/question.ask", "abstraction.asks/question.
 
 @dataclasses.dataclass(kw_only=True)
 class Question:
-    """Own Ask fields. The service owns question text/options; callers supply a
-    known key and slots. Native Ask.For carries optional peer observation
-    evidence and remains a transport supplement, never caller authority."""
+    """[Question](https://openabstractions.github.io/reference.html#concept-asks.question-ask)
+    projects native
+    [Ask](https://openabstractions.github.io/reference.html#concept-asks.question-ask)
+    fields. The service owns question text/options; callers supply a known key
+    and slots. Native Ask.For carries optional peer observation evidence and
+    remains a transport supplement, never caller authority."""
 
     asker: str = ""
     key: str = ""
@@ -390,9 +349,11 @@ class Question:
 
 @dataclasses.dataclass(kw_only=True)
 class Request:
-    """Existing question operation concepts. Wait cancellation belongs to the
-    native client context. This metadata descriptor does not replace the
-    existing handwritten line transport."""
+    """Deprecated native question-operation request descriptor. Removal is
+    scheduled for Train B (expected 0.9.0), W2-01a.1, under TD13/TD57's
+    stored-state and declared outside-adopter retirement conditions. Wait
+    cancellation belongs to the native client context. This metadata descriptor
+    does not replace the existing handwritten line transport."""
 
     op: str = ""
     ask: Question | None = None
@@ -413,9 +374,12 @@ class Answer:
 
 @dataclasses.dataclass(kw_only=True)
 class RecordMetadata:
-    """Own question-history fields; timestamps retain existing RFC3339
-    representation. Native Record includes Via/For Seen evidence from shared
-    identity. Empty option means pending."""
+    """[RecordMetadata](https://openabstractions.github.io/reference.html#concept-asks.question-history-record)
+    projects native question-history fields; timestamps retain existing RFC3339
+    representation. Native
+    [Record](https://openabstractions.github.io/reference.html#concept-asks.question-history-record)
+    includes Via/For Seen evidence from shared identity. Empty option means
+    pending."""
 
     id: str = ""
     asker: str = ""
@@ -432,7 +396,10 @@ class RecordMetadata:
 
 @dataclasses.dataclass(kw_only=True)
 class ResponseMetadata:
-    """Own response projection. Any nonempty code/error refuses, including unknown
+    """Deprecated native question-operation response descriptor. Removal is
+    scheduled for Train B (expected 0.9.0), W2-01a.1, under TD13/TD57's
+    stored-state and declared outside-adopter retirement conditions. Own
+    response projection. Any nonempty code/error refuses, including unknown
     future codes. Evidence supplement and existing wire handling remain native;
     no generated complete service interface is claimed."""
 
@@ -606,6 +573,30 @@ class QuestionAsker:
 
     details: QuestionDetails = dataclasses.field(default_factory=QuestionDetails)
     program: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class CatalogueContent:
+    """Immutable catalogue content retained at admission. Slots are admitted
+    display data, never instructions or authority. Permission is present only
+    for a trusted runtime first-use occurrence and retains its existing
+    immutable exact targets; this read neither grants nor applies it. An empty
+    slot map is valid for a structured first-use admission. Missing old content
+    is not reconstructed from rendered text."""
+
+    slots: dict[str, str] = dataclasses.field(default_factory=dict)
+    permission: PermissionRequest | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class QuestionContent:
+    """Opt-in content from the same retained occurrence as question. Content is
+    present only when the Book retained it; absence explicitly means unavailable
+    structured content, including legacy occurrences. Every refusal carries no
+    content. Existing QuestionAsker and RecordMetadata stay unchanged."""
+
+    question: QuestionAsker = dataclasses.field(default_factory=QuestionAsker)
+    content: CatalogueContent | None = None
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -791,6 +782,32 @@ class AnswerEntryPage:
 
 
 @dataclasses.dataclass(kw_only=True)
+class AnswerContent:
+    """One unchanged answer audit entry with optional content retained with that
+    answer. Content survives retirement of the original question under the same
+    audit lifetime and byte bounds. Absence explicitly means unavailable
+    content; it is never reconstructed from title text. Ordinary choices carry
+    no catalogue content."""
+
+    answer: AnswerEntry = dataclasses.field(default_factory=AnswerEntry)
+    content: CatalogueContent | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class AnswerContentPage:
+    """The existing bounded answer-audit page semantics with content included.
+    Exactly page carries entries; every refusal has no entries or cursor. The
+    completeness time, authorization and cursor binding retain ListAnswers
+    semantics."""
+
+    outcome: OperatorPageOutcome | None = None
+    answers: list[AnswerContent] = dataclasses.field(default_factory=list)
+    next: str = ""
+    complete: bool = False
+    complete_since_ms: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
 class AnswerableChoice:
     """A pending shared ordinary choice as an enrolled assistant may answer it:
     options holds only the shared options, in the order the application offered
@@ -875,6 +892,16 @@ class TypedPermissionDetails:
     origin: str = ""
     purpose: str = ""
     display: PermissionDisplay | None = None
+
+
+@dataclasses.dataclass(kw_only=True)
+class PendingQuestion:
+    """observation reads pending or answered with the question's id, or a refusal
+    with no answer. pending_until_ms is the Unix millisecond time a pending
+    question expires (ASK-A7) and is zero for every other outcome."""
+
+    observation: PermissionObservation = dataclasses.field(default_factory=PermissionObservation)
+    pending_until_ms: int = 0
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -1071,6 +1098,17 @@ class _QuestionApplicationObserveArguments:
 
 
 @dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorReadQuestionContentArguments:
+    id: str = ""
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorListAnswerContentsArguments:
+    cursor: str = ""
+    limit: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
 class _QuestionOperatorListChoicesArguments:
     cursor: str = ""
     limit: int = 0
@@ -1213,6 +1251,12 @@ class _PermissionApplicationObserveArguments:
 
 
 @dataclasses.dataclass(kw_only=True)
+class _PermissionApplicationObserveQuestionArguments:
+    id: str = ""
+    wait_ms: int = 0
+
+
+@dataclasses.dataclass(kw_only=True)
 class _PermissionOperatorListPermissionsArguments:
     cursor: str = ""
     limit: int = 0
@@ -1316,6 +1360,16 @@ class _QuestionApplicationAskResult:
 @dataclasses.dataclass(kw_only=True)
 class _QuestionApplicationObserveResult:
     value: QuestionObservation = dataclasses.field(default_factory=QuestionObservation)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorReadQuestionContentResult:
+    value: QuestionContent = dataclasses.field(default_factory=QuestionContent)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _QuestionOperatorListAnswerContentsResult:
+    value: AnswerContentPage = dataclasses.field(default_factory=AnswerContentPage)
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -1441,6 +1495,11 @@ class _PermissionApplicationRequestResult:
 @dataclasses.dataclass(kw_only=True)
 class _PermissionApplicationObserveResult:
     value: PermissionObservation = dataclasses.field(default_factory=PermissionObservation)
+
+
+@dataclasses.dataclass(kw_only=True)
+class _PermissionApplicationObserveQuestionResult:
+    value: PendingQuestion = dataclasses.field(default_factory=PendingQuestion)
 
 
 @dataclasses.dataclass(kw_only=True)
@@ -2011,6 +2070,63 @@ def _write_question_asker(out, v, depth):
     out += b"}"
 
 
+def _write_catalogue_content(out, v, depth):
+    if isinstance(v.slots, dict):
+        _size = len(v.slots)
+        if _size > 32: raise Refusal("bad_value", 0)
+    if isinstance(v.slots, dict):
+        for oa_element in v.slots:
+            if isinstance(oa_element, str):
+                _size = len(oa_element.encode("utf-8", "surrogatepass"))
+                if _size < 1 or _size > 64: raise Refusal("bad_value", 0)
+    if isinstance(v.slots, dict):
+        for oa_element in v.slots:
+            if isinstance(oa_element, str) and not all(c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-" for c in oa_element): raise Refusal("bad_value", 0)
+    if isinstance(v.slots, dict):
+        for oa_element in v.slots.values():
+            if isinstance(oa_element, str):
+                _size = len(oa_element.encode("utf-8", "surrogatepass"))
+                if _size > 800: raise Refusal("bad_value", 0)
+    if isinstance(v.slots, dict):
+        for oa_element in v.slots.values():
+            if isinstance(oa_element, str) and any(c < "\x20" or "\x7f" <= c <= "\x9f" for c in oa_element): raise Refusal("bad_value", 0)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "slots")
+    out += b": "
+    _strmap(out, v.slots, depth + 1)
+    if v.permission is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "permission")
+        out += b": "
+        _write_permission_request(out, v.permission, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_question_content(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "question")
+    out += b": "
+    _write_question_asker(out, v.question, depth + 1)
+    if v.content is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "content")
+        out += b": "
+        _write_catalogue_content(out, v.content, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
 def _write_request_ref(out, v, depth):
     out += b"{"
     out += b"\n"
@@ -2458,6 +2574,68 @@ def _write_answer_entry_page(out, v, depth):
     out += b"}"
 
 
+def _write_answer_content(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "answer")
+    out += b": "
+    _write_answer_entry(out, v.answer, depth + 1)
+    if v.content is not None:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "content")
+        out += b": "
+        _write_catalogue_content(out, v.content, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_answer_content_page(out, v, depth):
+    if isinstance(v.answers, list):
+        _size = len(v.answers)
+        if _size > 64: raise Refusal("bad_value", 0)
+    if isinstance(v.next, str):
+        _size = len(v.next.encode("utf-8", "surrogatepass"))
+        if _size > 256: raise Refusal("bad_value", 0)
+    _closed_enum(OperatorPageOutcome, v.outcome)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "outcome")
+    out += b": "
+    _esc(out, v.outcome)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "answers")
+    out += b": "
+    _write_list(out, v.answers, depth + 1, _write_answer_content)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "next")
+    out += b": "
+    _esc(out, v.next)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "complete")
+    out += b": "
+    out += b"true" if v.complete else b"false"
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "complete_since_ms")
+    out += b": "
+    _num(out, v.complete_since_ms)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
 def _write_answerable_choice(out, v, depth):
     out += b"{"
     out += b"\n"
@@ -2678,6 +2856,25 @@ def _write_typed_permission_details(out, v, depth):
         _esc(out, "display")
         out += b": "
         _write_permission_display(out, v.display, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_pending_question(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "observation")
+    out += b": "
+    _write_permission_observation(out, v.observation, depth + 1)
+    if v.pending_until_ms != 0:
+        out += b","
+        out += b"\n"
+        _pad(out, depth + 1)
+        _esc(out, "pending_until_ms")
+        out += b": "
+        _num(out, v.pending_until_ms)
     out += b"\n"
     _pad(out, depth)
     out += b"}"
@@ -3177,6 +3374,45 @@ def _write_oa_question_application_observe_arguments(out, v, depth):
     out += b"}"
 
 
+def _write_oa_question_operator_read_question_content_arguments(out, v, depth):
+    if isinstance(v.id, str):
+        _size = len(v.id.encode("utf-8", "surrogatepass"))
+        if _size < 1 or _size > 128: raise Refusal("bad_value", 0)
+    if isinstance(v.id, str) and any(c < "\x20" or "\x7f" <= c <= "\x9f" for c in v.id): raise Refusal("bad_value", 0)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_list_answer_contents_arguments(out, v, depth):
+    if isinstance(v.cursor, str):
+        _size = len(v.cursor.encode("utf-8", "surrogatepass"))
+        if _size > 256: raise Refusal("bad_value", 0)
+    if type(v.limit) is not int: raise Refusal("wrong_type", 0)
+    if v.limit < 1 or v.limit > 64: raise Refusal("bad_value", 0)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "cursor")
+    out += b": "
+    _esc(out, v.cursor)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "limit")
+    out += b": "
+    _num(out, v.limit)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
 def _write_oa_question_operator_list_choices_arguments(out, v, depth):
     out += b"{"
     out += b"\n"
@@ -3572,6 +3808,30 @@ def _write_oa_permission_application_observe_arguments(out, v, depth):
     out += b"}"
 
 
+def _write_oa_permission_application_observe_question_arguments(out, v, depth):
+    if isinstance(v.id, str):
+        _size = len(v.id.encode("utf-8", "surrogatepass"))
+        if _size < 1 or _size > 128: raise Refusal("bad_value", 0)
+    if isinstance(v.id, str) and any(c < "\x20" or "\x7f" <= c <= "\x9f" for c in v.id): raise Refusal("bad_value", 0)
+    if type(v.wait_ms) is not int: raise Refusal("wrong_type", 0)
+    if v.wait_ms < 0 or v.wait_ms > 30000: raise Refusal("bad_value", 0)
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "id")
+    out += b": "
+    _esc(out, v.id)
+    out += b","
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "wait_ms")
+    out += b": "
+    _num(out, v.wait_ms)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
 def _write_oa_permission_operator_list_permissions_arguments(out, v, depth):
     out += b"{"
     out += b"\n"
@@ -3884,6 +4144,30 @@ def _write_oa_question_application_observe_result(out, v, depth):
     out += b"}"
 
 
+def _write_oa_question_operator_read_question_content_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_question_content(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_question_operator_list_answer_contents_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_answer_content_page(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
 def _write_oa_question_operator_list_choices_result(out, v, depth):
     out += b"{"
     out += b"\n"
@@ -4179,6 +4463,18 @@ def _write_oa_permission_application_observe_result(out, v, depth):
     _esc(out, "value")
     out += b": "
     _write_permission_observation(out, v.value, depth + 1)
+    out += b"\n"
+    _pad(out, depth)
+    out += b"}"
+
+
+def _write_oa_permission_application_observe_question_result(out, v, depth):
+    out += b"{"
+    out += b"\n"
+    _pad(out, depth + 1)
+    _esc(out, "value")
+    out += b": "
+    _write_pending_question(out, v.value, depth + 1)
     out += b"\n"
     _pad(out, depth)
     out += b"}"
@@ -5572,6 +5868,110 @@ def _read_question_asker(r):
     return v
 
 
+def _read_catalogue_content(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = CatalogueContent()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "slots":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.slots = r.str_map()
+            elif key == "permission":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.permission = _read_permission_request(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    _size = len(v.slots)
+    if _size > 32: raise r.refuse("bad_value")
+    if isinstance(v.slots, dict):
+        for oa_element in v.slots:
+            _size = len(oa_element.encode("utf-8", "surrogatepass"))
+            if _size < 1 or _size > 64: raise r.refuse("bad_value")
+    if isinstance(v.slots, dict):
+        for oa_element in v.slots:
+            if not all(c in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-" for c in oa_element): raise r.refuse("bad_value")
+    if isinstance(v.slots, dict):
+        for oa_element in v.slots.values():
+            _size = len(oa_element.encode("utf-8", "surrogatepass"))
+            if _size > 800: raise r.refuse("bad_value")
+    if isinstance(v.slots, dict):
+        for oa_element in v.slots.values():
+            if any(c < "\x20" or "\x7f" <= c <= "\x9f" for c in oa_element): raise r.refuse("bad_value")
+    return v
+
+
+def _read_question_content(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = QuestionContent()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "question":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.question = _read_question_asker(r)
+            elif key == "content":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.content = _read_catalogue_content(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
 def _read_request_ref(r):
     if r.at() != _LBRACE:
         raise r.refuse("wrong_type")
@@ -6340,6 +6740,117 @@ def _read_answer_entry_page(r):
     return v
 
 
+def _read_answer_content(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = AnswerContent()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "answer":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.answer = _read_answer_entry(r)
+            elif key == "content":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.content = _read_catalogue_content(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_answer_content_page(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = AnswerContentPage()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "outcome":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.outcome = r.string()
+            elif key == "answers":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.answers = _read_list(r, _read_answer_content)
+            elif key == "next":
+                if seen & 4:
+                    raise r.refuse("duplicate_field")
+                seen |= 4
+                v.next = r.string()
+            elif key == "complete":
+                if seen & 8:
+                    raise r.refuse("duplicate_field")
+                seen |= 8
+                v.complete = r.boolean()
+            elif key == "complete_since_ms":
+                if seen & 16:
+                    raise r.refuse("duplicate_field")
+                seen |= 16
+                v.complete_since_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 31 != 31:
+        raise r.refuse("missing_field")
+    _size = len(v.answers)
+    if _size > 64: raise r.refuse("bad_value")
+    _size = len(v.next.encode("utf-8", "surrogatepass"))
+    if _size > 256: raise r.refuse("bad_value")
+    try:
+        v.outcome = OperatorPageOutcome(v.outcome)
+    except ValueError:
+        raise r.refuse("bad_enum") from None
+    return v
+
+
 def _read_answerable_choice(r):
     if r.at() != _LBRACE:
         raise r.refuse("wrong_type")
@@ -6701,6 +7212,50 @@ def _read_typed_permission_details(r):
     r.pos += 1
     r.depth -= 1
     if seen & 29 != 29:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_pending_question(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = PendingQuestion()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "observation":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.observation = _read_permission_observation(r)
+            elif key == "pending_until_ms":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.pending_until_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
         raise r.refuse("missing_field")
     return v
 
@@ -7563,6 +8118,95 @@ def _read_oa_question_application_observe_arguments(r):
     r.depth -= 1
     if seen & 3 != 3:
         raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_read_question_content_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorReadQuestionContentArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    _size = len(v.id.encode("utf-8", "surrogatepass"))
+    if _size < 1 or _size > 128: raise r.refuse("bad_value")
+    if any(c < "\x20" or "\x7f" <= c <= "\x9f" for c in v.id): raise r.refuse("bad_value")
+    return v
+
+
+def _read_oa_question_operator_list_answer_contents_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorListAnswerContentsArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "cursor":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.cursor = r.string()
+            elif key == "limit":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.limit = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    _size = len(v.cursor.encode("utf-8", "surrogatepass"))
+    if _size > 256: raise r.refuse("bad_value")
+    if v.limit < 1 or v.limit > 64: raise r.refuse("bad_value")
     return v
 
 
@@ -8621,6 +9265,54 @@ def _read_oa_permission_application_observe_arguments(r):
     return v
 
 
+def _read_oa_permission_application_observe_question_arguments(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _PermissionApplicationObserveQuestionArguments()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "id":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.id = r.string()
+            elif key == "wait_ms":
+                if seen & 2:
+                    raise r.refuse("duplicate_field")
+                seen |= 2
+                v.wait_ms = r.integer(-9223372036854775808, 9223372036854775807)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 3 != 3:
+        raise r.refuse("missing_field")
+    _size = len(v.id.encode("utf-8", "surrogatepass"))
+    if _size < 1 or _size > 128: raise r.refuse("bad_value")
+    if any(c < "\x20" or "\x7f" <= c <= "\x9f" for c in v.id): raise r.refuse("bad_value")
+    if v.wait_ms < 0 or v.wait_ms > 30000: raise r.refuse("bad_value")
+    return v
+
+
 def _read_oa_permission_operator_list_permissions_arguments(r):
     if r.at() != _LBRACE:
         raise r.refuse("wrong_type")
@@ -9388,6 +10080,84 @@ def _read_oa_question_application_observe_result(r):
                     raise r.refuse("duplicate_field")
                 seen |= 1
                 v.value = _read_question_observation(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_read_question_content_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorReadQuestionContentResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_question_content(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
+def _read_oa_question_operator_list_answer_contents_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _QuestionOperatorListAnswerContentsResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_answer_content_page(r)
             else:
                 raise r.refuse("unknown_field")
             r.ws()
@@ -10378,6 +11148,45 @@ def _read_oa_permission_application_observe_result(r):
     return v
 
 
+def _read_oa_permission_application_observe_question_result(r):
+    if r.at() != _LBRACE:
+        raise r.refuse("wrong_type")
+    r.enter()
+    r.pos += 1
+    v = _PermissionApplicationObserveQuestionResult()
+    seen = 0
+    r.ws()
+    if r.at() != _RBRACE:
+        while True:
+            r.ws()
+            if r.at() != _QUOTE:
+                raise r.refuse("malformed")
+            key = r.string()
+            r.ws()
+            if r.at() != _COLON:
+                raise r.refuse("malformed")
+            r.pos += 1
+            r.ws()
+            if key == "value":
+                if seen & 1:
+                    raise r.refuse("duplicate_field")
+                seen |= 1
+                v.value = _read_pending_question(r)
+            else:
+                raise r.refuse("unknown_field")
+            r.ws()
+            if r.at() != _COMMA:
+                break
+            r.pos += 1
+    if r.at() != _RBRACE:
+        raise r.refuse("malformed")
+    r.pos += 1
+    r.depth -= 1
+    if seen & 1 != 1:
+        raise r.refuse("missing_field")
+    return v
+
+
 def _read_oa_permission_operator_list_permissions_result(r):
     if r.at() != _LBRACE:
         raise r.refuse("wrong_type")
@@ -10895,9 +11704,91 @@ def decode(data):
     return v
 
 
+_JSON_RECORDS = {
+    Question: (_write_question, _read_question),
+    Request: (_write_request, _read_request),
+    Answer: (_write_answer, _read_answer),
+    RecordMetadata: (_write_record_metadata, _read_record_metadata),
+    ResponseMetadata: (_write_response_metadata, _read_response_metadata),
+    ApplicationQuestion: (_write_application_question, _read_application_question),
+    QuestionObservation: (_write_question_observation, _read_question_observation),
+    OperatorPage: (_write_operator_page, _read_operator_page),
+    OperatorDecision: (_write_operator_decision, _read_operator_decision),
+    OperatorRetirement: (_write_operator_retirement, _read_operator_retirement),
+    OperatorQuestion: (_write_operator_question, _read_operator_question),
+    AttributedQuestion: (_write_attributed_question, _read_attributed_question),
+    PermissionTarget: (_write_permission_target, _read_permission_target),
+    PermissionRequest: (_write_permission_request, _read_permission_request),
+    QuestionDetails: (_write_question_details, _read_question_details),
+    QuestionAsker: (_write_question_asker, _read_question_asker),
+    CatalogueContent: (_write_catalogue_content, _read_catalogue_content),
+    QuestionContent: (_write_question_content, _read_question_content),
+    RequestRef: (_write_request_ref, _read_request_ref),
+    ChoiceOption: (_write_choice_option, _read_choice_option),
+    ChoiceRequest: (_write_choice_request, _read_choice_request),
+    ChoiceAnswer: (_write_choice_answer, _read_choice_answer),
+    ChoiceObservation: (_write_choice_observation, _read_choice_observation),
+    ChoiceAcknowledgement: (_write_choice_acknowledgement, _read_choice_acknowledgement),
+    ChoiceRecord: (_write_choice_record, _read_choice_record),
+    ChoicePage: (_write_choice_page, _read_choice_page),
+    ChoiceRead: (_write_choice_read, _read_choice_read),
+    ChoiceDecision: (_write_choice_decision, _read_choice_decision),
+    ChoiceDetails: (_write_choice_details, _read_choice_details),
+    AnswerEntry: (_write_answer_entry, _read_answer_entry),
+    AnswerEntryPage: (_write_answer_entry_page, _read_answer_entry_page),
+    AnswerContent: (_write_answer_content, _read_answer_content),
+    AnswerContentPage: (_write_answer_content_page, _read_answer_content_page),
+    AnswerableChoice: (_write_answerable_choice, _read_answerable_choice),
+    AnswerableChoicePage: (_write_answerable_choice_page, _read_answerable_choice_page),
+    ResponderDecision: (_write_responder_decision, _read_responder_decision),
+    PermissionIntent: (_write_permission_intent, _read_permission_intent),
+    PermissionObservation: (_write_permission_observation, _read_permission_observation),
+    TypedPermissionDetails: (_write_typed_permission_details, _read_typed_permission_details),
+    PendingQuestion: (_write_pending_question, _read_pending_question),
+    PermissionDisplaySelection: (_write_permission_display_selection, _read_permission_display_selection),
+    PermissionDisplay: (_write_permission_display, _read_permission_display),
+    NotificationAction: (_write_notification_action, _read_notification_action),
+    NotificationRequest: (_write_notification_request, _read_notification_request),
+    NotificationResult: (_write_notification_result, _read_notification_result),
+    NotificationObservation: (_write_notification_observation, _read_notification_observation),
+    NotificationRecord: (_write_notification_record, _read_notification_record),
+    NotificationPage: (_write_notification_page, _read_notification_page),
+    NotificationRead: (_write_notification_read, _read_notification_read),
+    NotificationDecision: (_write_notification_decision, _read_notification_decision),
+    NotifierDay: (_write_notifier_day, _read_notifier_day),
+    NotifierCount: (_write_notifier_count, _read_notifier_count),
+    NotifierPage: (_write_notifier_page, _read_notifier_page),
+}
+
+
+def to_json(value):
+    """One record as JSON bytes, laid out as this module's documents are and
+    without the document terminator."""
+    codec = _JSON_RECORDS.get(type(value))
+    if codec is None:
+        raise TypeError("to_json takes a record of this module, not %s" % type(value).__name__)
+    out = bytearray()
+    codec[0](out, value, 0)
+    return bytes(out)
+
+
+def from_json(kind, data):
+    """Read one record of class kind from data; a refused input raises Refusal."""
+    codec = _JSON_RECORDS.get(kind)
+    if codec is None:
+        raise TypeError("from_json takes a record class of this module, not %r" % (kind,))
+    r = _Reader(bytes(data))
+    r.ws()
+    v = codec[1](r)
+    r.ws()
+    if r.pos < len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
 # _REFUSALS is in the order two of them are chosen between.
 
-_REFUSALS = ["malformed", "bad_string", "number_spelling", "wrong_type", "depth_exceeded", "duplicate_key", "duplicate_field", "unknown_field", "missing_field", "bad_enum", "trailing_bytes"]
+_REFUSALS = ["malformed", "bad_string", "number_spelling", "wrong_type", "depth_exceeded", "duplicate_key", "duplicate_field", "unknown_field", "missing_field", "bad_enum", "bad_value", "trailing_bytes"]
 
 
 def _refusal_rank(word):
@@ -11037,6 +11928,8 @@ _SERVICE_RECORDS = {
     "PermissionRequest": (PermissionRequest, [("targets", "list<PermissionTarget>", "never"), ]),
     "QuestionDetails": (QuestionDetails, [("question", "AttributedQuestion", "never"), ("permission", "PermissionRequest", "absent"), ]),
     "QuestionAsker": (QuestionAsker, [("details", "QuestionDetails", "never"), ("program", "string", "absent"), ]),
+    "CatalogueContent": (CatalogueContent, [("slots", "map<string,string>", "never"), ("permission", "PermissionRequest", "absent"), ]),
+    "QuestionContent": (QuestionContent, [("question", "QuestionAsker", "never"), ("content", "CatalogueContent", "absent"), ]),
     "RequestRef": (RequestRef, [("key", "string", "never"), ("replay_until_ms", "i64", "never"), ]),
     "ChoiceOption": (ChoiceOption, [("id", "string", "never"), ("label", "string", "never"), ]),
     "ChoiceRequest": (ChoiceRequest, [("request_ref", "RequestRef", "never"), ("title", "string", "never"), ("options", "list<ChoiceOption>", "never"), ("pending_until_ms", "i64", "never"), ]),
@@ -11050,12 +11943,15 @@ _SERVICE_RECORDS = {
     "ChoiceDetails": (ChoiceDetails, [("choice", "ChoiceRead", "never"), ("asker_program", "string", "absent"), ("assistant_options", "list<string>", "never"), ("answered_via", "enum", "absent"), ]),
     "AnswerEntry": (AnswerEntry, [("id", "string", "never"), ("kind", "enum", "never"), ("key", "string", "never"), ("asker", "string", "never"), ("asker_program", "string", "absent"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ("about", "string", "never"), ("title", "string", "never"), ("option", "string", "never"), ("label", "string", "never"), ("answered_by", "enum", "never"), ("answerer", "string", "absent"), ("answered_ms", "i64", "never"), ]),
     "AnswerEntryPage": (AnswerEntryPage, [("outcome", "enum", "never"), ("answers", "list<AnswerEntry>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ("complete_since_ms", "i64", "never"), ]),
+    "AnswerContent": (AnswerContent, [("answer", "AnswerEntry", "never"), ("content", "CatalogueContent", "absent"), ]),
+    "AnswerContentPage": (AnswerContentPage, [("outcome", "enum", "never"), ("answers", "list<AnswerContent>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ("complete_since_ms", "i64", "never"), ]),
     "AnswerableChoice": (AnswerableChoice, [("id", "string", "never"), ("asker", "string", "never"), ("title", "string", "never"), ("options", "list<ChoiceOption>", "never"), ("pending_until_ms", "i64", "never"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ]),
     "AnswerableChoicePage": (AnswerableChoicePage, [("outcome", "enum", "never"), ("choices", "list<AnswerableChoice>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
     "ResponderDecision": (ResponderDecision, [("outcome", "enum", "never"), ("record", "RecordMetadata", "absent"), ("effect", "enum", "never"), ("target_outcome", "string", "absent"), ]),
     "PermissionIntent": (PermissionIntent, [("request_key", "string", "never"), ("selection", "OAImported0", "absent"), ("bundle_ref", "string", "absent"), ("bundle_selector", "OAImported1", "absent"), ("purpose", "string", "absent"), ]),
     "PermissionObservation": (PermissionObservation, [("outcome", "enum", "never"), ("answer", "Answer", "absent"), ("policy_revision", "string", "never"), ]),
     "TypedPermissionDetails": (TypedPermissionDetails, [("question", "AttributedQuestion", "never"), ("effect", "OAImported2", "absent"), ("effect_digest", "string", "never"), ("origin", "string", "never"), ("purpose", "string", "never"), ("display", "PermissionDisplay", "absent"), ]),
+    "PendingQuestion": (PendingQuestion, [("observation", "PermissionObservation", "never"), ("pending_until_ms", "i64", "zero"), ]),
     "PermissionDisplaySelection": (PermissionDisplaySelection, [("operation", "string", "never"), ("target", "string", "never"), ("collection", "string", "never"), ("all_effect", "string", "never"), ("disclosure", "string", "never"), ]),
     "PermissionDisplay": (PermissionDisplay, [("selections", "list<PermissionDisplaySelection>", "never"), ("bundle_label", "string", "never"), ("bundle_disclosure", "string", "never"), ("requires_os_authorization", "bool", "never"), ]),
     "NotificationAction": (NotificationAction, [("id", "string", "never"), ("title", "string", "never"), ("activation", "enum", "never"), ]),
@@ -11071,6 +11967,8 @@ _SERVICE_RECORDS = {
     "NotifierPage": (NotifierPage, [("outcome", "enum", "never"), ("notifiers", "list<NotifierCount>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
     "OAQuestionApplicationAskArguments": (_QuestionApplicationAskArguments, [("question", "ApplicationQuestion", "never"), ]),
     "OAQuestionApplicationObserveArguments": (_QuestionApplicationObserveArguments, [("request_key", "string", "never"), ("wait_ms", "i64", "never"), ]),
+    "OAQuestionOperatorReadQuestionContentArguments": (_QuestionOperatorReadQuestionContentArguments, [("id", "string", "never"), ]),
+    "OAQuestionOperatorListAnswerContentsArguments": (_QuestionOperatorListAnswerContentsArguments, [("cursor", "string", "never"), ("limit", "i64", "never"), ]),
     "OAQuestionOperatorListChoicesArguments": (_QuestionOperatorListChoicesArguments, [("cursor", "string", "never"), ("limit", "i64", "never"), ]),
     "OAQuestionOperatorReadChoiceArguments": (_QuestionOperatorReadChoiceArguments, [("id", "string", "never"), ]),
     "OAQuestionOperatorAnswerChoiceArguments": (_QuestionOperatorAnswerChoiceArguments, [("id", "string", "never"), ("option", "string", "never"), ("if_pending", "bool", "never"), ]),
@@ -11096,6 +11994,7 @@ _SERVICE_RECORDS = {
     "OAQuestionResponderAnswerChoiceArguments": (_QuestionResponderAnswerChoiceArguments, [("id", "string", "never"), ("option", "string", "never"), ]),
     "OAPermissionApplicationRequestArguments": (_PermissionApplicationRequestArguments, [("request", "PermissionIntent", "never"), ]),
     "OAPermissionApplicationObserveArguments": (_PermissionApplicationObserveArguments, [("request_key", "string", "never"), ("wait_ms", "i64", "never"), ]),
+    "OAPermissionApplicationObserveQuestionArguments": (_PermissionApplicationObserveQuestionArguments, [("id", "string", "never"), ("wait_ms", "i64", "never"), ]),
     "OAPermissionOperatorListPermissionsArguments": (_PermissionOperatorListPermissionsArguments, [("cursor", "string", "never"), ("limit", "i64", "never"), ]),
     "OAPermissionOperatorReadPermissionDetailsArguments": (_PermissionOperatorReadPermissionDetailsArguments, [("id", "string", "never"), ]),
     "OAPermissionOperatorAnswerPermissionIfPendingArguments": (_PermissionOperatorAnswerPermissionIfPendingArguments, [("id", "string", "never"), ("option", "string", "never"), ]),
@@ -11114,6 +12013,8 @@ _SERVICE_RECORDS = {
     "OAServiceError": (_ServiceError, [("code", "string", "never"), ("message", "string", "never"), ]),
     "OAQuestionApplicationAskResult": (_QuestionApplicationAskResult, [("value", "QuestionObservation", "never"), ]),
     "OAQuestionApplicationObserveResult": (_QuestionApplicationObserveResult, [("value", "QuestionObservation", "never"), ]),
+    "OAQuestionOperatorReadQuestionContentResult": (_QuestionOperatorReadQuestionContentResult, [("value", "QuestionContent", "never"), ]),
+    "OAQuestionOperatorListAnswerContentsResult": (_QuestionOperatorListAnswerContentsResult, [("value", "AnswerContentPage", "never"), ]),
     "OAQuestionOperatorListChoicesResult": (_QuestionOperatorListChoicesResult, [("value", "ChoicePage", "never"), ]),
     "OAQuestionOperatorReadChoiceResult": (_QuestionOperatorReadChoiceResult, [("value", "ChoiceRead", "never"), ]),
     "OAQuestionOperatorAnswerChoiceResult": (_QuestionOperatorAnswerChoiceResult, [("value", "ChoiceDecision", "never"), ]),
@@ -11139,6 +12040,7 @@ _SERVICE_RECORDS = {
     "OAQuestionResponderAnswerChoiceResult": (_QuestionResponderAnswerChoiceResult, [("value", "ChoiceDecision", "never"), ]),
     "OAPermissionApplicationRequestResult": (_PermissionApplicationRequestResult, [("value", "PermissionObservation", "never"), ]),
     "OAPermissionApplicationObserveResult": (_PermissionApplicationObserveResult, [("value", "PermissionObservation", "never"), ]),
+    "OAPermissionApplicationObserveQuestionResult": (_PermissionApplicationObserveQuestionResult, [("value", "PendingQuestion", "never"), ]),
     "OAPermissionOperatorListPermissionsResult": (_PermissionOperatorListPermissionsResult, [("value", "OperatorPage", "never"), ]),
     "OAPermissionOperatorReadPermissionDetailsResult": (_PermissionOperatorReadPermissionDetailsResult, [("value", "TypedPermissionDetails", "never"), ]),
     "OAPermissionOperatorAnswerPermissionIfPendingResult": (_PermissionOperatorAnswerPermissionIfPendingResult, [("value", "OperatorDecision", "never"), ]),
@@ -11158,9 +12060,12 @@ _SERVICE_RECORDS = {
 class QuestionApplication:
     """Application-side human question admission and observation. Server derives
     caller scope and text, preserves native Via evidence, and owns a versioned
-    bounded Book. Operator answering/history use the separately authorized
-    QuestionOperator service; this application service exposes no administrative
-    secret or operator methods."""
+    bounded
+    [Book](https://openabstractions.github.io/reference.html#concept-asks.book).
+    Operator answering/history use the separately authorized
+    [QuestionOperator](https://openabstractions.github.io/reference.html#concept-asks.question-operator)
+    service; this application service exposes no administrative secret or
+    operator methods."""
 
     def ask(self, question: ApplicationQuestion) -> QuestionObservation:
         """Admit or replay one caller-scoped question. No automatic retry.
@@ -11194,6 +12099,8 @@ class QuestionApplicationClient(QuestionApplication):
         _request = _service_request("abstraction.asks/application@1", "Ask", _arguments)
         _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/application@1", "Ask")
         _result = _service_decode(_read_oa_question_application_ask_result, _payload, 1)
+        if (_result.value.outcome == "pending" or _result.value.outcome == "answered") != (_result.value.answer is not None):
+            raise ServiceError("invalid_result", "")
         return _result.value
 
     def observe(self, request_key: str, wait_ms: int) -> QuestionObservation:
@@ -11207,15 +12114,40 @@ class QuestionApplicationClient(QuestionApplication):
         _request = _service_request("abstraction.asks/application@1", "Observe", _arguments)
         _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/application@1", "Observe")
         _result = _service_decode(_read_oa_question_application_observe_result, _payload, 1)
+        if (_result.value.outcome == "pending" or _result.value.outcome == "answered") != (_result.value.answer is not None):
+            raise ServiceError("invalid_result", "")
         return _result.value
 
 
 class QuestionOperator:
-    """Operator history, answering and retirement on the configured application
-    Book. Host must explicitly authorize the receiving operator; requests
-    contain no credentials, authority claims or provider paths. Authorization
-    callbacks are trusted service configuration and may use the rights service.
-    Retirement and native Forget both retain admission tombstones."""
+    """[QuestionOperator](https://openabstractions.github.io/reference.html#concept-asks.question-operator)
+    provides operator history, answering and retirement on the configured
+    application
+    [Book](https://openabstractions.github.io/reference.html#concept-asks.book).
+    [Host](https://openabstractions.github.io/reference.html#concept-asks.application-host)
+    must explicitly authorize the receiving operator; requests contain no
+    credentials, authority claims or provider paths. Authorization callbacks are
+    trusted service configuration and may use the rights service. Retirement and
+    native Forget both retain admission tombstones."""
+
+    def read_question_content(self, id: str) -> QuestionContent:
+        """Read the existing authenticated QuestionAsker projection and optional
+        retained catalogue content for the same occurrence. The same operator
+        authorization and ID bounds apply, with no disclosure on refusal. Legacy
+        absent content stays absent; no rendered-English recovery occurs. An
+        earlier operator@1 service answers unknown_method."""
+        raise NotImplementedError
+
+    def list_answer_contents(self, cursor: str, limit: int) -> AnswerContentPage:
+        """Read the existing answer audit with optional immutable catalogue content
+        in each entry, including after the original question is retired. Reuse
+        operator authorization, newest-first audit snapshots,
+        caller/epoch/revision cursor binding, seven-day retention and
+        1..64/256-KiB encoded page bounds including content. No per-entry
+        follow-up read is needed. Legacy content is absent. An earlier
+        operator@1 service answers unknown_method; ListAnswers keeps its closed
+        result."""
+        raise NotImplementedError
 
     def list_choices(self, cursor: str, limit: int) -> ChoicePage:
         """Opt-in bounded enumeration of application-authored ordinary choices.
@@ -11247,10 +12179,12 @@ class QuestionOperator:
 
     def list_questions(self, cursor: str, limit: int) -> OperatorPage:
         """Read bounded current-book pages. Empty cursor starts enumeration; a gap
-        requires an explicit restart. Receiver checks same-account Program
+        requires an explicit restart. Receiver checks same-account
+        [Program](https://openabstractions.github.io/reference.html#concept-identity.listener-program-need)
         identity and its configured operator authorization on every call before
-        reading the Book. Slow/disconnected callers retain no server enumeration
-        state."""
+        reading the
+        [Book](https://openabstractions.github.io/reference.html#concept-asks.book).
+        Slow/disconnected callers retain no server enumeration state."""
         raise NotImplementedError
 
     def answer_question(self, id: str, option: str) -> OperatorDecision:
@@ -11323,6 +12257,30 @@ class QuestionOperatorClient(QuestionOperator):
 
     def __init__(self, transport):
         self._transport = transport
+
+    def read_question_content(self, id: str) -> QuestionContent:
+        _service_check("string", id)
+        _args = _QuestionOperatorReadQuestionContentArguments()
+        _args.id = id
+        _arguments = _service_encode(_write_oa_question_operator_read_question_content_arguments, _args, 1)
+        _service_decode(_read_oa_question_operator_read_question_content_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/operator@1", "ReadQuestionContent", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/operator@1", "ReadQuestionContent")
+        _result = _service_decode(_read_oa_question_operator_read_question_content_result, _payload, 1)
+        return _result.value
+
+    def list_answer_contents(self, cursor: str, limit: int) -> AnswerContentPage:
+        _service_check("string", cursor)
+        _service_check("i64", limit)
+        _args = _QuestionOperatorListAnswerContentsArguments()
+        _args.cursor = cursor
+        _args.limit = limit
+        _arguments = _service_encode(_write_oa_question_operator_list_answer_contents_arguments, _args, 1)
+        _service_decode(_read_oa_question_operator_list_answer_contents_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/operator@1", "ListAnswerContents", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/operator@1", "ListAnswerContents")
+        _result = _service_decode(_read_oa_question_operator_list_answer_contents_result, _payload, 1)
+        return _result.value
 
     def list_choices(self, cursor: str, limit: int) -> ChoicePage:
         _service_check("string", cursor)
@@ -11777,6 +12735,16 @@ class PermissionApplication:
     def observe(self, request_key: str, wait_ms: int) -> PermissionObservation:
         raise NotImplementedError
 
+    def observe_question(self, id: str, wait_ms: int) -> PendingQuestion:
+        """Wait up to wait_ms for the person's answer to one first-use question
+        about this proven caller's own program, named by a refusal (inference
+        INF-W11) or by Request. Any other id, another program's question
+        included, reads unknown and discloses nothing. Pending at the end of the
+        wait is not consent; an Allow is no proof of a committed rule, so retry
+        the enforcing call once. Grants, answers and admits nothing (ASK-A14).
+        An earlier permission@1 service answers unknown_method."""
+        raise NotImplementedError
+
 
 class PermissionApplicationClient(PermissionApplication):
     """Calls abstraction.asks/permission@1 through a transport that exchanges frames."""
@@ -11793,6 +12761,8 @@ class PermissionApplicationClient(PermissionApplication):
         _request = _service_request("abstraction.asks/permission@1", "Request", _arguments)
         _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/permission@1", "Request")
         _result = _service_decode(_read_oa_permission_application_request_result, _payload, 1)
+        if (_result.value.outcome == "pending" or _result.value.outcome == "answered") != (_result.value.answer is not None):
+            raise ServiceError("invalid_result", "")
         return _result.value
 
     def observe(self, request_key: str, wait_ms: int) -> PermissionObservation:
@@ -11806,6 +12776,21 @@ class PermissionApplicationClient(PermissionApplication):
         _request = _service_request("abstraction.asks/permission@1", "Observe", _arguments)
         _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/permission@1", "Observe")
         _result = _service_decode(_read_oa_permission_application_observe_result, _payload, 1)
+        if (_result.value.outcome == "pending" or _result.value.outcome == "answered") != (_result.value.answer is not None):
+            raise ServiceError("invalid_result", "")
+        return _result.value
+
+    def observe_question(self, id: str, wait_ms: int) -> PendingQuestion:
+        _service_check("string", id)
+        _service_check("i64", wait_ms)
+        _args = _PermissionApplicationObserveQuestionArguments()
+        _args.id = id
+        _args.wait_ms = wait_ms
+        _arguments = _service_encode(_write_oa_permission_application_observe_question_arguments, _args, 1)
+        _service_decode(_read_oa_permission_application_observe_question_arguments, _arguments, 1)
+        _request = _service_request("abstraction.asks/permission@1", "ObserveQuestion", _arguments)
+        _payload = _service_response(self._transport.exchange_frame(_request), "abstraction.asks/permission@1", "ObserveQuestion")
+        _result = _service_decode(_read_oa_permission_application_observe_question_result, _payload, 1)
         return _result.value
 
 
@@ -12205,6 +13190,8 @@ _NAMED_RECORDS = {
     "PermissionRequest": (PermissionRequest, [("targets", "list<PermissionTarget>", "never"), ]),
     "QuestionDetails": (QuestionDetails, [("question", "AttributedQuestion", "never"), ("permission", "PermissionRequest", "absent"), ]),
     "QuestionAsker": (QuestionAsker, [("details", "QuestionDetails", "never"), ("program", "string", "absent"), ]),
+    "CatalogueContent": (CatalogueContent, [("slots", "map<string,string>", "never"), ("permission", "PermissionRequest", "absent"), ]),
+    "QuestionContent": (QuestionContent, [("question", "QuestionAsker", "never"), ("content", "CatalogueContent", "absent"), ]),
     "RequestRef": (RequestRef, [("key", "string", "never"), ("replay_until_ms", "i64", "never"), ]),
     "ChoiceOption": (ChoiceOption, [("id", "string", "never"), ("label", "string", "never"), ]),
     "ChoiceRequest": (ChoiceRequest, [("request_ref", "RequestRef", "never"), ("title", "string", "never"), ("options", "list<ChoiceOption>", "never"), ("pending_until_ms", "i64", "never"), ]),
@@ -12218,12 +13205,15 @@ _NAMED_RECORDS = {
     "ChoiceDetails": (ChoiceDetails, [("choice", "ChoiceRead", "never"), ("asker_program", "string", "absent"), ("assistant_options", "list<string>", "never"), ("answered_via", "enum", "absent"), ]),
     "AnswerEntry": (AnswerEntry, [("id", "string", "never"), ("kind", "enum", "never"), ("key", "string", "never"), ("asker", "string", "never"), ("asker_program", "string", "absent"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ("about", "string", "never"), ("title", "string", "never"), ("option", "string", "never"), ("label", "string", "never"), ("answered_by", "enum", "never"), ("answerer", "string", "absent"), ("answered_ms", "i64", "never"), ]),
     "AnswerEntryPage": (AnswerEntryPage, [("outcome", "enum", "never"), ("answers", "list<AnswerEntry>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ("complete_since_ms", "i64", "never"), ]),
+    "AnswerContent": (AnswerContent, [("answer", "AnswerEntry", "never"), ("content", "CatalogueContent", "absent"), ]),
+    "AnswerContentPage": (AnswerContentPage, [("outcome", "enum", "never"), ("answers", "list<AnswerContent>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ("complete_since_ms", "i64", "never"), ]),
     "AnswerableChoice": (AnswerableChoice, [("id", "string", "never"), ("asker", "string", "never"), ("title", "string", "never"), ("options", "list<ChoiceOption>", "never"), ("pending_until_ms", "i64", "never"), ("publisher", "string", "absent"), ("publisher_trusted", "bool", "zero"), ]),
     "AnswerableChoicePage": (AnswerableChoicePage, [("outcome", "enum", "never"), ("choices", "list<AnswerableChoice>", "never"), ("next", "string", "never"), ("complete", "bool", "never"), ]),
     "ResponderDecision": (ResponderDecision, [("outcome", "enum", "never"), ("record", "RecordMetadata", "absent"), ("effect", "enum", "never"), ("target_outcome", "string", "absent"), ]),
     "PermissionIntent": (PermissionIntent, [("request_key", "string", "never"), ("selection", "OAImported0", "absent"), ("bundle_ref", "string", "absent"), ("bundle_selector", "OAImported1", "absent"), ("purpose", "string", "absent"), ]),
     "PermissionObservation": (PermissionObservation, [("outcome", "enum", "never"), ("answer", "Answer", "absent"), ("policy_revision", "string", "never"), ]),
     "TypedPermissionDetails": (TypedPermissionDetails, [("question", "AttributedQuestion", "never"), ("effect", "OAImported2", "absent"), ("effect_digest", "string", "never"), ("origin", "string", "never"), ("purpose", "string", "never"), ("display", "PermissionDisplay", "absent"), ]),
+    "PendingQuestion": (PendingQuestion, [("observation", "PermissionObservation", "never"), ("pending_until_ms", "i64", "zero"), ]),
     "PermissionDisplaySelection": (PermissionDisplaySelection, [("operation", "string", "never"), ("target", "string", "never"), ("collection", "string", "never"), ("all_effect", "string", "never"), ("disclosure", "string", "never"), ]),
     "PermissionDisplay": (PermissionDisplay, [("selections", "list<PermissionDisplaySelection>", "never"), ("bundle_label", "string", "never"), ("bundle_disclosure", "string", "never"), ("requires_os_authorization", "bool", "never"), ]),
     "NotificationAction": (NotificationAction, [("id", "string", "never"), ("title", "string", "never"), ("activation", "enum", "never"), ]),
@@ -12355,6 +13345,14 @@ def _check_question_asker(v, depth=0, limit=_DEPTH_LIMIT):
     _named_check("QuestionAsker", v, depth, min(limit, _DEPTH_LIMIT))
 
 
+def _check_catalogue_content(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("CatalogueContent", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_question_content(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("QuestionContent", v, depth, min(limit, _DEPTH_LIMIT))
+
+
 def _check_request_ref(v, depth=0, limit=_DEPTH_LIMIT):
     _named_check("RequestRef", v, depth, min(limit, _DEPTH_LIMIT))
 
@@ -12407,6 +13405,14 @@ def _check_answer_entry_page(v, depth=0, limit=_DEPTH_LIMIT):
     _named_check("AnswerEntryPage", v, depth, min(limit, _DEPTH_LIMIT))
 
 
+def _check_answer_content(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("AnswerContent", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_answer_content_page(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("AnswerContentPage", v, depth, min(limit, _DEPTH_LIMIT))
+
+
 def _check_answerable_choice(v, depth=0, limit=_DEPTH_LIMIT):
     _named_check("AnswerableChoice", v, depth, min(limit, _DEPTH_LIMIT))
 
@@ -12429,6 +13435,10 @@ def _check_permission_observation(v, depth=0, limit=_DEPTH_LIMIT):
 
 def _check_typed_permission_details(v, depth=0, limit=_DEPTH_LIMIT):
     _named_check("TypedPermissionDetails", v, depth, min(limit, _DEPTH_LIMIT))
+
+
+def _check_pending_question(v, depth=0, limit=_DEPTH_LIMIT):
+    _named_check("PendingQuestion", v, depth, min(limit, _DEPTH_LIMIT))
 
 
 def _check_permission_display_selection(v, depth=0, limit=_DEPTH_LIMIT):
@@ -13043,6 +14053,76 @@ def decode_question_asker(data):
     return v
 
 
+def _decode_catalogue_content_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_catalogue_content(r)
+    return v, r.pos
+
+
+def _encode_catalogue_content_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_catalogue_content(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_catalogue_content(out, v, depth)
+    _decode_catalogue_content_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_catalogue_content(v):
+    return _encode_catalogue_content_at(v, 0) + "\n".encode()
+
+
+def decode_catalogue_content(data):
+    v, n = _decode_catalogue_content_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_question_content_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_question_content(r)
+    return v, r.pos
+
+
+def _encode_question_content_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_question_content(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_question_content(out, v, depth)
+    _decode_question_content_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_question_content(v):
+    return _encode_question_content_at(v, 0) + "\n".encode()
+
+
+def decode_question_content(data):
+    v, n = _decode_question_content_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
 def _decode_request_ref_at(data, depth, limit):
     r = _Reader(bytes(data))
     if depth < 0 or limit < 1:
@@ -13498,6 +14578,76 @@ def decode_answer_entry_page(data):
     return v
 
 
+def _decode_answer_content_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_answer_content(r)
+    return v, r.pos
+
+
+def _encode_answer_content_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_answer_content(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_answer_content(out, v, depth)
+    _decode_answer_content_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_answer_content(v):
+    return _encode_answer_content_at(v, 0) + "\n".encode()
+
+
+def decode_answer_content(data):
+    v, n = _decode_answer_content_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_answer_content_page_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_answer_content_page(r)
+    return v, r.pos
+
+
+def _encode_answer_content_page_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_answer_content_page(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_answer_content_page(out, v, depth)
+    _decode_answer_content_page_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_answer_content_page(v):
+    return _encode_answer_content_page_at(v, 0) + "\n".encode()
+
+
+def decode_answer_content_page(data):
+    v, n = _decode_answer_content_page_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
 def _decode_answerable_choice_at(data, depth, limit):
     r = _Reader(bytes(data))
     if depth < 0 or limit < 1:
@@ -13700,6 +14850,41 @@ def encode_typed_permission_details(v):
 
 def decode_typed_permission_details(data):
     v, n = _decode_typed_permission_details_at(data, 0, _DEPTH_LIMIT)
+    r = _Reader(bytes(data))
+    r.pos = n
+    r.ws()
+    if r.pos != len(r.buf):
+        raise r.refuse("trailing_bytes")
+    return v
+
+
+def _decode_pending_question_at(data, depth, limit):
+    r = _Reader(bytes(data))
+    if depth < 0 or limit < 1:
+        raise r.refuse("depth_exceeded")
+    r.depth = depth
+    r.limit = min(limit, _DEPTH_LIMIT)
+    r.ws()
+    v = _read_pending_question(r)
+    return v, r.pos
+
+
+def _encode_pending_question_at(v, depth):
+    if depth < 0 or depth >= _DEPTH_LIMIT:
+        raise _Reader(b"").refuse("depth_exceeded")
+    _check_pending_question(v, depth, _DEPTH_LIMIT)
+    out = bytearray()
+    _write_pending_question(out, v, depth)
+    _decode_pending_question_at(out, depth, _DEPTH_LIMIT)
+    return bytes(out)
+
+
+def encode_pending_question(v):
+    return _encode_pending_question_at(v, 0) + "\n".encode()
+
+
+def decode_pending_question(data):
+    v, n = _decode_pending_question_at(data, 0, _DEPTH_LIMIT)
     r = _Reader(bytes(data))
     r.pos = n
     r.ws()

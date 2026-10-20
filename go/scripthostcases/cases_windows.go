@@ -42,7 +42,7 @@ func platformCases(t testing.TB, dir string) []Case {
 	if err := os.WriteFile(long, []byte("a host by name"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if short, ok := shortAlias(long); ok && filepath.Base(short) != filepath.Base(long) {
+	if short, ok := ShortAlias(long); ok && filepath.Base(short) != filepath.Base(long) {
 		cases = append(cases, Case{Name: "a short 8.3 alias of powershell.exe", Program: short, Host: true})
 	} else {
 		t.Log("this volume makes no distinct short name; the short alias row is skipped")
@@ -50,7 +50,9 @@ func platformCases(t testing.TB, dir string) []Case {
 	return cases
 }
 
-func shortAlias(path string) (string, bool) {
+// ShortAlias is the 8.3 short name Windows gives path, and whether it gave
+// one; callers' tests compare a program under both spellings.
+func ShortAlias(path string) (string, bool) {
 	long, err := syscall.UTF16PtrFromString(path)
 	if err != nil {
 		return "", false

@@ -3,10 +3,10 @@ package client
 import (
 	"context"
 	"errors"
+	"github.com/openabstractions/abstraction-asks/go/typedpermission"
 	"time"
 	"unicode/utf8"
 
-	asks "github.com/openabstractions/abstraction-asks/go"
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
 	"github.com/openabstractions/abstraction-identity/listen"
 )
@@ -103,9 +103,6 @@ func (c *NotificationClient) PostContext(ctx context.Context, q NotificationRequ
 	if err := ctx.Err(); err != nil {
 		return NotificationObservation{}, err
 	}
-	if !asks.ValidNotificationRequest(q) {
-		return NotificationObservation{}, errors.New("asks: invalid notification")
-	}
 	result, err := checkedNotification(wire.NewNotificationApplicationClient(c.transport.WithContext(ctx)).Post(q))
 	if err == nil && result.Result != nil && result.Result.State == NotificationStateActed && !offered(q, result.Result.Action) {
 		return NotificationObservation{}, errors.New("asks: unoffered notification action")
@@ -124,26 +121,17 @@ func (c *NotificationClient) ObserveContext(ctx context.Context, ref RequestRef,
 	if err := ctx.Err(); err != nil {
 		return NotificationObservation{}, err
 	}
-	if !asks.ValidChoiceReference(ref) || waitMS < 0 || waitMS > 30000 {
-		return NotificationObservation{}, errors.New("asks: invalid notification observation")
-	}
 	return checkedNotification(wire.NewNotificationApplicationClient(c.transport.WithContext(ctx)).Observe(ref, waitMS))
 }
 func (c *NotificationClient) WithdrawContext(ctx context.Context, ref RequestRef) (NotificationObservation, error) {
 	if err := ctx.Err(); err != nil {
 		return NotificationObservation{}, err
 	}
-	if !asks.ValidChoiceReference(ref) {
-		return NotificationObservation{}, errors.New("asks: invalid notification withdrawal")
-	}
 	return checkedNotification(wire.NewNotificationApplicationClient(c.transport.WithContext(ctx)).Withdraw(ref))
 }
 func (c *NotificationClient) AcknowledgeContext(ctx context.Context, ref RequestRef, result NotificationResult) (ChoiceAcknowledgement, error) {
 	if err := ctx.Err(); err != nil {
 		return ChoiceAcknowledgement{}, err
-	}
-	if !asks.ValidChoiceReference(ref) || !asks.ValidNotificationResult(result) {
-		return ChoiceAcknowledgement{}, errors.New("asks: invalid notification acknowledgement")
 	}
 	return wire.NewNotificationApplicationClient(c.transport.WithContext(ctx)).Acknowledge(ref, result)
 }
@@ -154,12 +142,12 @@ func checkedNotification(result NotificationObservation, err error) (Notificatio
 	}
 	switch result.Outcome {
 	case NotificationOutcomeScheduled, NotificationOutcomePosted:
-		if result.ID == "" || result.Result != nil || !asks.ValidRequestKey(result.ID) {
+		if result.ID == "" || result.Result != nil || !operatorWord(result.ID) {
 			return NotificationObservation{}, errors.New("asks: inconsistent notification observation")
 		}
 	case NotificationOutcomeActed, NotificationOutcomeDismissed, NotificationOutcomeWithdrawn:
 		r := result.Result
-		if result.ID == "" || r == nil || !asks.ValidNotificationResult(*r) || r.ID != result.ID || r.State.String() != result.Outcome.String() {
+		if result.ID == "" || r == nil || !typedpermission.ValidNotificationResult(*r, nativePermissionValidators()) || r.ID != result.ID || r.State.String() != result.Outcome.String() {
 			return NotificationObservation{}, errors.New("asks: inconsistent notification result")
 		}
 	default:
@@ -218,33 +206,7 @@ func (c *NotificationOperator) ListNotificationsContext(ctx context.Context, cur
 func validServedNotification(r NotificationRecord) bool {
 	stored := r
 	stored.Presentation = ""
-	return asks.ValidNotificationRecord(stored) && len(r.Presentation) <= 64
-}
-
-// ListAllNotificationsContext reads every page, restarting once on a gap.
-func (c *NotificationOperator) ListAllNotificationsContext(ctx context.Context) ([]NotificationRecord, error) {
-	for attempt := 0; attempt < 2; attempt++ {
-		var out []NotificationRecord
-		cursor := ""
-		for page := 0; page < 64; page++ {
-			result, err := c.ListNotificationsContext(ctx, cursor, 64)
-			if err != nil {
-				return nil, err
-			}
-			if result.Outcome == wire.OperatorPageOutcomeGap {
-				break
-			}
-			if result.Outcome != wire.OperatorPageOutcomePage {
-				return nil, errors.New("asks: notifications " + result.Outcome.String())
-			}
-			out = append(out, result.Records...)
-			if result.Complete {
-				return out, nil
-			}
-			cursor = result.Next
-		}
-	}
-	return nil, errors.New("asks: notification list kept changing")
+	return typedpermission.ValidNotificationRecord(stored, nativePermissionValidators()) && len(r.Presentation) <= 64
 }
 
 func (c *NotificationOperator) ReadNotificationContext(ctx context.Context, id string) (NotificationRead, error) {

@@ -90,7 +90,15 @@ func (b *Book) AnswerApplicationAsResponder(id, option, answerer string, authori
 	if !validAnswerer(answerer) {
 		return Record{}, "invalid", nil
 	}
-	return b.answerApplication(id, option, false, AnsweredByResponder, answerer, authorize)
+	return b.answerApplication(id, option, false, AnsweredByResponder, answerer, func(r Record, scope string) error {
+		if r.TypedPermission != nil {
+			return ErrTypedPermissionRequired
+		}
+		if authorize != nil {
+			return authorize(r, scope)
+		}
+		return nil
+	})
 }
 
 // AnswerApplicationIfPendingAuthorized records option only while the question
@@ -107,7 +115,7 @@ func (b *Book) AnswerApplicationIfPendingAuthorized(id, option string, authorize
 	})
 }
 
-func (b *Book) answerApplication(id, option string, ifPending bool, by, answerer string, authorize func(Record, string) error) (Record, string, error) {
+func (b *Book) answerApplication(id, option string, ifPending bool, by, answerer string, authorize func(Record, string) error, committed ...func()) (Record, string, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if !b.application {
@@ -141,7 +149,7 @@ func (b *Book) answerApplication(id, option string, ifPending bool, by, answerer
 		if !ok {
 			return ErrUnknownQuestion
 		}
-		o, ok := q.Option(option)
+		o, ok := recordedQuestionOption(*r, q, option, by)
 		if !ok {
 			outcome = "invalid"
 			return unchanged
@@ -157,7 +165,7 @@ func (b *Book) answerApplication(id, option string, ifPending bool, by, answerer
 		}
 		r.Option, r.Yes, r.Kept, r.Answered, r.AnsweredBy, r.Answerer = o.Name, o.Yes, o.Kept, time.Now().UTC(), by, answerer
 		// The answer audit keeps it past release and dismissal (ASK-O15).
-		f.recordAnswer(questionAnswerEntry(*r), b.clock().UnixMilli())
+		f.recordAnswer(questionAnswerEntry(*r), b.clock().UnixMilli(), r.Content)
 		out = *r
 		outcome = "answered"
 		return nil
@@ -169,6 +177,9 @@ func (b *Book) answerApplication(id, option string, ifPending bool, by, answerer
 		return Record{}, "unavailable", err
 	}
 	if outcome == "answered" {
+		if len(committed) == 1 {
+			committed[0]()
+		}
 		b.settle(id)
 	}
 	return out, outcome, nil
@@ -180,6 +191,21 @@ func (b *Book) answerApplication(id, option string, ifPending bool, by, answerer
 // replay and observation report gone. An ID named only by an admission was
 // already retired or forgotten and replays retired without a record.
 func (b *Book) RetireApplicationAuthorized(id string, authorize func() error) (Record, string, error) {
+	return b.retireApplicationAuthorized(id, authorize, false)
+}
+
+// RetirePendingApplicationAuthorized retires only an unanswered occurrence.
+// An answered occurrence is retained and returns answered without an edit.
+// Trusted service admission is rechecked under the same atomic edit as retirement.
+func (b *Book) RetirePendingApplicationAuthorized(id string, authorize func() error) (Record, string, error) {
+	return b.retireApplicationAuthorized(id, authorize, true)
+}
+
+func (b *Book) retireApplicationAuthorized(id string, authorize func() error, pendingOnly bool) (Record, string, error) {
+	return b.retireApplicationSelected(id, authorize, pendingOnly, nil)
+}
+
+func (b *Book) retireApplicationSelected(id string, authorize func() error, pendingOnly bool, selected func(Record) bool) (Record, string, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if !b.application {
@@ -208,6 +234,14 @@ func (b *Book) RetireApplicationAuthorized(id string, authorize func() error) (R
 			return unchanged
 		}
 		out = *f.Asks[i]
+		if selected != nil && !selected(out) {
+			outcome = "forbidden"
+			return unchanged
+		}
+		if pendingOnly && !out.Pending() {
+			outcome = "answered"
+			return unchanged
+		}
 		f.Asks = slices.Delete(f.Asks, i, i+1)
 		outcome = "retired"
 		return nil

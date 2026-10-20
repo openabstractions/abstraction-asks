@@ -65,3 +65,11 @@ func (b *Book) clock() time.Time {
 	}
 	return time.Now()
 }
+
+// PendingUntil is the time a pending question expires (ASK-A7): its recorded
+// asked time plus this Book's pending lifetime.
+func (b *Book) PendingUntil(r Record) time.Time {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return r.Asked.Add(b.pendingLifetime())
+}

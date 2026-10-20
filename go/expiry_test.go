@@ -85,3 +85,36 @@ func TestPendingQuestionsExpire(t *testing.T) {
 		t.Fatalf("a configured lifetime must apply: %q %v", outcome, err)
 	}
 }
+
+// A question read as decided while it looked expired, then revived by a
+// longer lifetime and answered, settles without closing its decided channel
+// twice: the Book keeps no channel it already closed.
+func TestDecidedOnALapsedQuestionThenItsAnswerSettlesOnce(t *testing.T) {
+	b, err := LoadApplicationBook(filepath.Join(t.TempDir(), "application.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock := time.Date(2026, 11, 10, 9, 0, 0, 0, time.UTC)
+	b.now = func() time.Time { return clock }
+	pending, outcome, err := b.AskApplication("scope", "app", "lapses", "download.reach", map[string]string{"host": "example.com"}, listen.Seen{})
+	if err != nil || outcome != "pending" {
+		t.Fatal(outcome, err)
+	}
+	if err := b.SetPendingLifetime(time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	clock = clock.Add(2 * time.Minute)
+	select {
+	case <-b.Decided(pending.ID):
+	default:
+		t.Fatal("a lapsed question must read as decided")
+	}
+	if err := b.SetPendingLifetime(time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	waiting := b.Decided(pending.ID)
+	if _, outcome, err := b.AnswerApplication(pending.ID, "allow"); err != nil || outcome != "answered" {
+		t.Fatal(outcome, err)
+	}
+	<-waiting
+}

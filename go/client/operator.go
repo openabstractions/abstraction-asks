@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	asks "github.com/openabstractions/abstraction-asks/go"
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
+	"github.com/openabstractions/abstraction-asks/go/typedpermission"
 	identity "github.com/openabstractions/abstraction-identity"
 	"github.com/openabstractions/abstraction-identity/listen"
 	"strings"
@@ -160,18 +160,7 @@ func validateQuestionRead(result wire.OperatorQuestion, id string) error {
 }
 
 func validateDetails(result wire.QuestionDetails, id string) error {
-	if err := validateQuestionRead(result.Question.Question, id); err != nil {
-		return err
-	}
-	q := result.Question.Question
-	if result.Question.Answerer != "" && (q.AnsweredBy == nil || *q.AnsweredBy != wire.AnswererResponder || !identity.ValidSubjectProgram(result.Question.Answerer)) {
-		return errors.New("asks: malformed permission attribution")
-	}
-	if result.Permission != nil && (q.Outcome != wire.OperatorQuestionOutcomeFound || q.Record.Key != asks.FirstUseKey || !asks.ValidPermissionRequest(*result.Permission)) ||
-		q.Outcome == wire.OperatorQuestionOutcomeFound && q.Record.Key == asks.FirstUseKey && result.Permission == nil {
-		return errors.New("asks: malformed permission details")
-	}
-	return nil
+	return typedpermission.CheckQuestionDetails(result, id, nativePermissionValidators())
 }
 
 // ReadQuestionAskerContext reads trusted occurrence details with
@@ -200,15 +189,7 @@ func (c *Operator) ReadQuestionAskerContext(ctx context.Context, id string) (wir
 // validateAskerProgram checks a reported asker program against the record it
 // came with: a clean absolute path whose display name is the record's asker.
 func validateAskerProgram(details wire.QuestionDetails, program string) error {
-	if program == "" {
-		return nil
-	}
-	q := details.Question.Question
-	if q.Outcome != wire.OperatorQuestionOutcomeFound || q.Record == nil || len(program) > 4096 || !utf8.ValidString(program) ||
-		!identity.ValidSubjectProgram(program) || strings.HasPrefix(program, identity.PackagedProgramPrefix) || q.Record.Asker != asks.AskerDisplay(program) {
-		return errors.New("asks: malformed asker program")
-	}
-	return nil
+	return typedpermission.CheckAskerProgram(details, program, nativePermissionValidators())
 }
 
 func operatorWord(s string) bool {

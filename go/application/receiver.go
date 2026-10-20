@@ -1,17 +1,12 @@
 package application
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
 	asks "github.com/openabstractions/abstraction-asks/go"
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
 	identity "github.com/openabstractions/abstraction-identity"
 	"github.com/openabstractions/abstraction-identity/listen"
 	"path/filepath"
-	"strconv"
-	"time"
 )
 
 type receiver struct {
@@ -27,27 +22,19 @@ func callerScope(p *identity.Peer, owner string) (string, string, error) {
 	if p == nil {
 		return "", "", errors.New("asks: caller required")
 	}
-	u, e := p.User.AtLeast(listen.Program.User)
-	if e != nil {
-		return "", "", e
-	}
-	principal := ""
-	if u.Kind == "windows" {
-		principal = u.SID
-	} else if u.Kind == "posix" && u.UID >= 0 {
-		principal = strconv.Itoa(u.UID)
-	}
-	if principal == "" || principal != owner {
+	s, verdict := identity.AdmitOwner(p, identity.Need{User: listen.Program.User}, owner)
+	if verdict == identity.OwnerOtherAccount {
 		return "", "", errors.New("asks: caller account refused")
+	}
+	if verdict != identity.OwnerAdmitted {
+		return "", "", errors.New("asks: caller identity required")
 	}
 	path, e := p.Path.AtLeast(listen.Program.Path)
 	if e != nil || !filepath.IsAbs(path) {
 		return "", "", errors.New("asks: bound program required")
 	}
 	path = filepath.Clean(path)
-	data, _ := json.Marshal([]string{"asks-owner-program@1", u.Kind, principal, path})
-	sum := sha256.Sum256(data)
-	return "asks-owner-program@1:" + hex.EncodeToString(sum[:]), path, nil
+	return asks.ApplicationOwnerProgramScope(s.AccountKind, s.Account, path), path, nil
 }
 func (r *receiver) scope() (string, string, error) {
 	p, e := r.call.Peer()
@@ -102,7 +89,7 @@ func (r *receiver) Ask(q wire.ApplicationQuestion) (wire.QuestionObservation, er
 			publisher = asks.CodePublisher(code)
 		}
 	}
-	record, outcome, e := r.host.book.AskApplicationAs(scope, program, q.RequestKey, q.Key, q.Slots, r.call.Caller, publisher)
+	record, outcome, e := r.nativeBookAskApplicationAs(scope, program, q.RequestKey, q.Key, q.Slots, r.call.Caller, publisher)
 	return observation(record, outcome, e), nil
 }
 func (r *receiver) Observe(key string, waitMS int64) (wire.QuestionObservation, error) {
@@ -113,23 +100,21 @@ func (r *receiver) Observe(key string, waitMS int64) (wire.QuestionObservation, 
 	if waitMS < 0 || waitMS > 30000 || !asks.ValidRequestKey(key) {
 		return wire.QuestionObservation{Outcome: wire.ObservationOutcomeInvalid}, nil
 	}
-	record, outcome, e := r.host.book.ObserveApplication(scope, key)
-	if e != nil || outcome != wire.ObservationOutcomePending.String() || waitMS == 0 {
-		return observation(record, outcome, e), nil
-	}
-	waitCtx := r.call.WaitContext()
-	timer := time.NewTimer(time.Duration(waitMS) * time.Millisecond)
-	defer timer.Stop()
-	select {
-	case <-waitCtx.Done():
-		return wire.QuestionObservation{}, waitCtx.Err()
-	case <-timer.C:
-	case <-r.host.book.Decided(record.ID):
-	}
-	// Recheck binding and storage after every wake; forgetting is an explicit gap.
-	if _, _, e = r.scope(); e != nil {
+	var record asks.Record
+	var outcome string
+	var readErr error
+	// Recheck binding and storage after every read; forgetting is an explicit gap.
+	waited, e := r.host.observe(r.call.WaitContext(), waitMS, func() bool {
+		record, outcome, readErr = r.nativeBookObserveApplication(scope, key)
+		return readErr != nil || outcome != wire.ObservationOutcomePending.String()
+	}, func() error { _, _, err := r.scope(); return err }, func() string { return record.ID })
+	switch waited {
+	case waitForbidden:
 		return wire.QuestionObservation{Outcome: wire.ObservationOutcomeForbidden}, nil
+	case waitCancelled:
+		return wire.QuestionObservation{}, e
+	case waitUnavailable:
+		return wire.QuestionObservation{Outcome: wire.ObservationOutcomeUnavailable}, nil
 	}
-	record, outcome, e = r.host.book.ObserveApplication(scope, key)
-	return observation(record, outcome, e), nil
+	return observation(record, outcome, readErr), nil
 }

@@ -3,10 +3,8 @@ package asks
 import (
 	"encoding/json"
 	"errors"
+	"github.com/openabstractions/abstraction-asks/go/typedpermission"
 	"slices"
-	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
 	"github.com/openabstractions/abstraction-identity/listen"
@@ -40,6 +38,7 @@ var (
 // occurrence keeps only its reference, fingerprints and ID until its replay
 // deadline.
 type notificationAdmission struct {
+	NativeOwner *nativeApplicationOwner  `json:"native_owner,omitempty"`
 	Scope       string                   `json:"scope"`
 	Reference   wire.RequestRef          `json:"reference"`
 	Fingerprint string                   `json:"fingerprint"`
@@ -62,66 +61,17 @@ type notifierDay struct {
 	Posts int64 `json:"posts"`
 }
 
-func notificationLine(s string, limit int) bool {
-	return utf8.ValidString(s) && utf8.RuneCountInString(s) <= limit && strings.TrimSpace(s) != "" && strings.IndexFunc(s, func(r rune) bool {
-		return unicode.IsControl(r) || unicode.Is(unicode.Zl, r) || unicode.Is(unicode.Zp, r)
-	}) < 0
-}
-func notificationBody(s string) bool {
-	return utf8.ValidString(s) && utf8.RuneCountInString(s) <= 240 && strings.TrimSpace(s) != "" && strings.IndexFunc(s, func(r rune) bool {
-		return r != '\n' && (unicode.IsControl(r) || unicode.Is(unicode.Zl, r) || unicode.Is(unicode.Zp, r))
-	}) < 0
-}
+func notificationLine(s string, limit int) bool { return typedpermission.NotificationLine(s, limit) }
+func notificationBody(s string) bool            { return typedpermission.NotificationBody(s) }
 
 // ValidOperationID reports the job operation id grammar a notification may
 // reference: 1..128 lowercase ASCII letters, digits and '-' (JOB-A13).
-func ValidOperationID(s string) bool {
-	if len(s) == 0 || len(s) > 128 {
-		return false
-	}
-	for _, c := range []byte(s) {
-		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-') {
-			return false
-		}
-	}
-	return true
-}
+func ValidOperationID(s string) bool { return typedpermission.ValidOperationID(s) }
 
 // ValidNotificationRequest checks immutable shape independently of the
 // service clock (ASK-N1).
 func ValidNotificationRequest(q wire.NotificationRequest) bool {
-	if !ValidChoiceReference(q.RequestRef) || !notificationLine(q.Title, 80) || q.Body != "" && !notificationBody(q.Body) || len(q.Actions) > 2 || q.ExpiresMs <= 0 || q.ExpiresMs > q.RequestRef.ReplayUntilMs {
-		return false
-	}
-	if q.OperationID != "" && !ValidOperationID(q.OperationID) || q.Tag != "" && !ValidChoiceOptionID(q.Tag) {
-		return false
-	}
-	switch q.Delivery {
-	case wire.NotificationDeliveryNow:
-	case wire.NotificationDeliveryOperationEnd:
-		if q.OperationID == "" {
-			return false
-		}
-	default:
-		return false
-	}
-	ids := map[string]bool{}
-	for _, a := range q.Actions {
-		if !ValidChoiceOptionID(a.ID) || !notificationLine(a.Title, 40) || ids[a.ID] {
-			return false
-		}
-		switch a.Activation {
-		case wire.NotificationActivationApp:
-		case wire.NotificationActivationOpenActivity:
-			if q.OperationID == "" {
-				return false
-			}
-		default:
-			return false
-		}
-		ids[a.ID] = true
-	}
-	return true
+	return typedpermission.ValidNotificationRequest(q)
 }
 
 func cloneNotification(r wire.NotificationRecord) wire.NotificationRecord {
@@ -134,7 +84,7 @@ func cloneNotification(r wire.NotificationRecord) wire.NotificationRecord {
 }
 
 func notificationOffers(q wire.NotificationRequest, id string) bool {
-	return slices.ContainsFunc(q.Actions, func(a wire.NotificationAction) bool { return a.ID == id })
+	return typedpermission.NotificationOffers(q, id)
 }
 
 func notificationLive(s wire.NotificationState) bool {
@@ -143,44 +93,12 @@ func notificationLive(s wire.NotificationState) bool {
 
 // ValidNotificationResult checks one recorded terminal outcome.
 func ValidNotificationResult(r wire.NotificationResult) bool {
-	if !ValidRequestKey(r.ID) || r.DecidedMs <= 0 || !validAnswerer(r.DecidedBy) {
-		return false
-	}
-	switch r.State {
-	case wire.NotificationStateActed:
-		return ValidChoiceOptionID(r.Action)
-	case wire.NotificationStateDismissed, wire.NotificationStateWithdrawn:
-		return r.Action == ""
-	}
-	return false
+	return typedpermission.ValidNotificationResult(r, permissionValidators())
 }
 
 // ValidNotificationRecord checks a stored or served record's consistency.
 func ValidNotificationRecord(r wire.NotificationRecord) bool {
-	if !ValidRequestKey(r.ID) || !validAnswerer(r.Program) || r.Asker != AskerDisplay(r.Program) || !ValidNotificationRequest(r.Request) || r.AdmittedMs <= 0 || r.AdmittedMs >= r.Request.ExpiresMs || r.Request.RequestRef.ReplayUntilMs-r.AdmittedMs > MaxChoiceReplayMilliseconds {
-		return false
-	}
-	p := Record{Publisher: r.Publisher, PublisherTrusted: r.PublisherTrusted, ProgramDescription: r.ProgramDescription, ProgramOriginalName: r.ProgramOriginalName}
-	if !validRecordedPublisher(&p) || r.PostedMs < 0 || r.PostedMs != 0 && r.PostedMs < r.AdmittedMs {
-		return false
-	}
-	switch r.State {
-	case wire.NotificationStateScheduled:
-		return r.PostedMs == 0 && r.Result == nil
-	case wire.NotificationStatePosted:
-		return r.PostedMs > 0 && r.Result == nil
-	case wire.NotificationStateExpired:
-		return r.Result == nil
-	case wire.NotificationStateActed, wire.NotificationStateDismissed, wire.NotificationStateWithdrawn:
-		if r.Result == nil || !ValidNotificationResult(*r.Result) || r.Result.ID != r.ID || r.Result.State != r.State || r.Result.DecidedMs < r.AdmittedMs {
-			return false
-		}
-		if r.State == wire.NotificationStateActed {
-			return r.PostedMs > 0 && notificationOffers(r.Request, r.Result.Action)
-		}
-		return true
-	}
-	return false
+	return typedpermission.ValidNotificationRecord(r, permissionValidators())
 }
 
 // notificationPartitionBytes is the encoded size the notification bound counts.
@@ -193,7 +111,7 @@ func notificationPartitionBytes(f book) (int, error) {
 }
 
 func validateNotificationPartition(f book) error {
-	if f.Profile != ApplicationProfile && f.Profile != notificationApplicationProfile && (len(f.Notifications) != 0 || len(f.Notifiers) != 0) {
+	if !slices.Contains([]string{ApplicationProfile, nativeApplicationProfile, responderApplicationProfile, shareApplicationProfile, auditApplicationProfile, notificationApplicationProfile}, f.Profile) && (len(f.Notifications) != 0 || len(f.Notifiers) != 0) {
 		return errors.New("asks: notifications need application profile version 8 or later")
 	}
 	if n, e := notificationPartitionBytes(f); e != nil || n > MaxNotificationBytes || len(f.Notifications) > MaxNotificationAdmissions || len(f.Notifiers) > MaxNotifiers {
@@ -324,7 +242,10 @@ func withdrawRecord(r *wire.NotificationRecord, actor string, now int64) {
 // runs inside the same edit and returns ErrNotificationSuppressed for a live
 // block. The caller has already confirmed that a referenced operation is its
 // own. Settled lists IDs a presenter may need to remove.
-func (b *Book) PostNotificationFrom(scope, program string, q wire.NotificationRequest, via listen.Seen, publisher Publisher, authorize func() error) (wire.NotificationObservation, []string, error) {
+func (b *Book) nativePostNotificationFrom(native *nativeApplicationOwner, scope, program string, q wire.NotificationRequest, via listen.Seen, publisher Publisher, authorize func() error) (wire.NotificationObservation, []string, error) {
+	if native != nil {
+		program = native.Subject.Program
+	}
 	if !b.application || !ValidRequestKey(scope) || !validAnswerer(program) || !ValidNotificationRequest(q) {
 		return wire.NotificationObservation{Outcome: wire.NotificationOutcomeInvalid}, nil, nil
 	}
@@ -341,6 +262,12 @@ func (b *Book) PostNotificationFrom(scope, program string, q wire.NotificationRe
 				return e
 			}
 		}
+		selected, nativeErr := f.nativeScope(native, scope, "notification", q.RequestRef)
+		if nativeErr != nil {
+			return nativeErr
+		}
+		scope = selected
+
 		now := f.choiceTime(b.clock().UnixMilli())
 		if now <= 0 {
 			return errors.New("asks: ordinary service time unavailable")
@@ -373,7 +300,7 @@ func (b *Book) PostNotificationFrom(scope, program string, q wire.NotificationRe
 		live := []int{}
 		for i := range f.Notifications {
 			a := &f.Notifications[i]
-			if a.Scope != scope || a.Record == nil || !notificationLive(a.Record.State) {
+			if !nativeNotificationOwner(native, scope, *a) || a.Record == nil || !notificationLive(a.Record.State) {
 				continue
 			}
 			if q.Tag != "" && a.Record.Request.Tag == q.Tag {
@@ -403,7 +330,7 @@ func (b *Book) PostNotificationFrom(scope, program string, q wire.NotificationRe
 			record.State, record.PostedMs = wire.NotificationStatePosted, now
 		}
 		record = cloneNotification(record)
-		a := notificationAdmission{Scope: scope, Reference: q.RequestRef, Fingerprint: choiceFingerprint(q), ID: record.ID, Record: &record, Via: &via}
+		a := notificationAdmission{NativeOwner: native.recorded(scope), Scope: scope, Reference: q.RequestRef, Fingerprint: choiceFingerprint(q), ID: record.ID, Record: &record, Via: &via}
 		f.Notifications = append(f.Notifications, a)
 		f.noteChoiceTime(now)
 		result = notificationObservation(a)
@@ -422,7 +349,7 @@ func (b *Book) PostNotificationFrom(scope, program string, q wire.NotificationRe
 }
 
 // ObserveNotification reads this caller's own full reference.
-func (b *Book) ObserveNotification(scope string, ref wire.RequestRef) (wire.NotificationObservation, error) {
+func (b *Book) nativeObserveNotification(native *nativeApplicationOwner, scope string, ref wire.RequestRef) (wire.NotificationObservation, error) {
 	if !b.application || !ValidRequestKey(scope) || !ValidChoiceReference(ref) {
 		return wire.NotificationObservation{Outcome: wire.NotificationOutcomeInvalid}, nil
 	}
@@ -432,6 +359,13 @@ func (b *Book) ObserveNotification(scope string, ref wire.RequestRef) (wire.Noti
 	if err != nil {
 		return wire.NotificationObservation{}, err
 	}
+
+	selected, nativeErr := f.nativeScope(native, scope, "notification", ref)
+	if nativeErr != nil {
+		return wire.NotificationObservation{}, nativeErr
+	}
+	scope = selected
+
 	now := f.choiceTime(b.clock().UnixMilli())
 	if now >= ref.ReplayUntilMs {
 		if now > f.ChoiceTimeMs {
@@ -473,18 +407,24 @@ func (b *Book) DecideNotification(id string, kind NotificationKind, action, acto
 	if !b.application || !ValidRequestKey(id) || !validAnswerer(actor) || kind == NotificationAct && !ValidChoiceOptionID(action) || kind != NotificationAct && action != "" || kind == NotificationWithdraw {
 		return wire.NotificationDecision{Outcome: wire.NotificationDecisionOutcomeInvalid}, nil
 	}
-	return b.decideNotification(func(f *book) int { return f.notificationID(id) }, nil, kind, action, actor, authorize)
+	return b.decideNotification(func(f *book) (int, error) { return f.notificationID(id), nil }, nil, kind, action, actor, authorize)
 }
 
 // WithdrawOwnNotification withdraws the proven poster's own full reference.
-func (b *Book) WithdrawOwnNotification(scope string, ref wire.RequestRef, actor string, authorize func(program string) error) (wire.NotificationDecision, error) {
+func (b *Book) nativeWithdrawOwnNotification(native *nativeApplicationOwner, scope string, ref wire.RequestRef, actor string, authorize func(program string) error) (wire.NotificationDecision, error) {
 	if !b.application || !ValidRequestKey(scope) || !ValidChoiceReference(ref) || !validAnswerer(actor) {
 		return wire.NotificationDecision{Outcome: wire.NotificationDecisionOutcomeInvalid}, nil
 	}
-	return b.decideNotification(func(f *book) int { return f.notificationIndex(scope, ref) }, &ref, NotificationWithdraw, "", actor, authorize)
+	return b.decideNotification(func(f *book) (int, error) {
+		selected, err := f.nativeScope(native, scope, "notification", ref)
+		if err != nil {
+			return -1, err
+		}
+		return f.notificationIndex(selected, ref), nil
+	}, &ref, NotificationWithdraw, "", actor, authorize)
 }
 
-func (b *Book) decideNotification(find func(*book) int, ref *wire.RequestRef, kind NotificationKind, action, actor string, authorize func(string) error) (wire.NotificationDecision, error) {
+func (b *Book) decideNotification(find func(*book) (int, error), ref *wire.RequestRef, kind NotificationKind, action, actor string, authorize func(string) error) (wire.NotificationDecision, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	result := wire.NotificationDecision{Outcome: wire.NotificationDecisionOutcomeUnknown}
@@ -498,7 +438,10 @@ func (b *Book) decideNotification(find func(*book) int, ref *wire.RequestRef, ki
 			result.Outcome = wire.NotificationDecisionOutcomeExpired
 			return nil
 		}
-		i := find(f)
+		i, findErr := find(f)
+		if findErr != nil {
+			return findErr
+		}
 		if i < 0 {
 			return nil
 		}
@@ -599,7 +542,7 @@ func (b *Book) WithdrawProgramNotifications(program, actor string, authorize fun
 
 // AcknowledgeNotification relinquishes service replay of the exact recorded
 // result (ASK-N5).
-func (b *Book) AcknowledgeNotification(scope string, ref wire.RequestRef, result wire.NotificationResult, authorize func() error) (wire.ChoiceAcknowledgement, error) {
+func (b *Book) nativeAcknowledgeNotification(native *nativeApplicationOwner, scope string, ref wire.RequestRef, result wire.NotificationResult, authorize func() error) (wire.ChoiceAcknowledgement, error) {
 	if !b.application || !ValidRequestKey(scope) || !ValidChoiceReference(ref) || !ValidNotificationResult(result) {
 		return wire.ChoiceAcknowledgement{Outcome: wire.ChoiceAckOutcomeInvalid}, nil
 	}
@@ -612,6 +555,12 @@ func (b *Book) AcknowledgeNotification(scope string, ref wire.RequestRef, result
 				return e
 			}
 		}
+		selected, nativeErr := f.nativeScope(native, scope, "notification", ref)
+		if nativeErr != nil {
+			return nativeErr
+		}
+		scope = selected
+
 		now := f.choiceTime(b.clock().UnixMilli())
 		if now <= 0 {
 			return errors.New("asks: ordinary service time unavailable")
@@ -731,6 +680,8 @@ func (b *Book) ScheduledNotifications() ([]ScheduledNotification, error) {
 // PostScheduledNotification posts one held notification after the trusted
 // runtime observed its operation end. It reports whether the record changed;
 // an expired, withdrawn or dismissed record stays as it is.
+// A retained scope remains scheduled when posting would exceed its compatible
+// native quota or replace a native tag outside its mutation authority.
 func (b *Book) PostScheduledNotification(id string) (bool, error) {
 	if !b.application || !ValidRequestKey(id) {
 		return false, nil
@@ -749,13 +700,28 @@ func (b *Book) PostScheduledNotification(id string) (bool, error) {
 		}
 		r := f.Notifications[i].Record
 		live := []int{}
+		count := 0
 		for j := range f.Notifications {
 			o := f.Notifications[j].Record
-			if j != i && f.Notifications[j].Scope == f.Notifications[i].Scope && o != nil && o.State == wire.NotificationStatePosted {
+			if j == i || o == nil || !notificationLive(o.State) || !nativeNotificationQuotaOwner(f.Notifications[i].NativeOwner, f.Notifications[i].Scope, f.Notifications[j]) {
+				continue
+			}
+			owned := nativeNotificationOwner(f.Notifications[i].NativeOwner, f.Notifications[i].Scope, f.Notifications[j])
+			if !owned && r.Request.Tag != "" && o.Request.Tag == r.Request.Tag {
+				return nil
+			}
+			if o.State != wire.NotificationStatePosted {
+				continue
+			}
+			count++
+			if owned {
 				live = append(live, j)
 			}
 		}
-		if len(live) >= MaxLiveNotifications {
+		if count >= MaxLiveNotifications {
+			if count > MaxLiveNotifications || len(live) == 0 {
+				return nil
+			}
 			oldest := live[0]
 			for _, j := range live[1:] {
 				if f.Notifications[j].Record.PostedMs < f.Notifications[oldest].Record.PostedMs {

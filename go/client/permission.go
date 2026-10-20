@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"slices"
+	"github.com/openabstractions/abstraction-asks/go/typedpermission"
+	identity "github.com/openabstractions/abstraction-identity"
+	"github.com/openabstractions/abstraction-identity/fileid"
+	"github.com/openabstractions/abstraction-identity/remote"
 	"time"
 
-	asks "github.com/openabstractions/abstraction-asks/go"
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
 	"github.com/openabstractions/abstraction-identity/listen"
 )
@@ -56,14 +58,15 @@ func checkedPermissionObservation(v wire.PermissionObservation, err error) (wire
 	}
 	switch v.Outcome {
 	case wire.PermissionOutcomePending, wire.PermissionOutcomeAnswered:
-		if v.Answer == nil || !asks.ValidRequestKey(v.Answer.ID) || v.Answer.Pending != (v.Outcome == wire.PermissionOutcomePending) || v.PolicyRevision != "" {
+		if v.Answer == nil || !operatorWord(v.Answer.ID) || v.Answer.Pending != (v.Outcome == wire.PermissionOutcomePending) || v.PolicyRevision != "" {
 			return wire.PermissionObservation{}, errors.New("asks: malformed permission observation")
 		}
-		if v.Answer.Pending && (v.Answer.Option != "" || v.Answer.Yes || v.Answer.Kept) || !v.Answer.Pending && (v.Answer.Option != "allow" && v.Answer.Option != "refuse" || v.Answer.Yes != (v.Answer.Option == "allow") || v.Answer.Kept) {
+		affirmative := v.Answer.Option == "allow" || v.Answer.Option == "once"
+		if v.Answer.Pending && (v.Answer.Option != "" || v.Answer.Yes || v.Answer.Kept) || !v.Answer.Pending && (!affirmative && v.Answer.Option != "refuse" && v.Answer.Option != "never" || v.Answer.Yes != affirmative || v.Answer.Kept) {
 			return wire.PermissionObservation{}, errors.New("asks: malformed permission answer")
 		}
 	case wire.PermissionOutcomePermitted, wire.PermissionOutcomeDenied:
-		if v.Answer != nil || !asks.ValidRequestKey(v.PolicyRevision) {
+		if v.Answer != nil || !operatorWord(v.PolicyRevision) {
 			return wire.PermissionObservation{}, errors.New("asks: malformed permission decision")
 		}
 	case wire.PermissionOutcomeUnknown, wire.PermissionOutcomeGone, wire.PermissionOutcomeInvalid, wire.PermissionOutcomeConflict, wire.PermissionOutcomeForbidden, wire.PermissionOutcomeUnavailable:
@@ -86,48 +89,52 @@ func (c *PermissionClient) ObserveContext(ctx context.Context, key string, waitM
 	if err := ctx.Err(); err != nil {
 		return wire.PermissionObservation{}, err
 	}
-	if !asks.ValidRequestKey(key) || waitMS < 0 || waitMS > 30000 {
-		return wire.PermissionObservation{}, errors.New("asks: invalid permission observation")
-	}
 	v, err := wire.NewPermissionApplicationClient(c.transport.WithContext(ctx)).Observe(key, waitMS)
 	return checkedPermissionObservation(v, err)
+}
+
+// PendingQuestion is one first-use question's observation and, while it is
+// pending, the Unix millisecond time it expires (ASK-A14).
+type PendingQuestion = wire.PendingQuestion
+
+// ObserveQuestionContext waits up to waitMS for the answer to one first-use
+// question about this program, named by a refusal's rights:question_pending
+// word or by Request (ASK-A14). Pending is not consent, and an Allow is no
+// proof of a committed rule. A current permitted revision supplies the witness
+// for one enforcing re-entry. Earlier hosts may return only the stored answer.
+func (c *PermissionClient) ObserveQuestionContext(ctx context.Context, id string, waitMS int64) (wire.PendingQuestion, error) {
+	if err := ctx.Err(); err != nil {
+		return wire.PendingQuestion{}, err
+	}
+	v, err := wire.NewPermissionApplicationClient(c.transport.WithContext(ctx)).ObserveQuestion(id, waitMS)
+	if err != nil {
+		return wire.PendingQuestion{}, err
+	}
+	observation, err := checkedPermissionObservation(v.Observation, nil)
+	if err != nil || (v.PendingUntilMs != 0) != (observation.Outcome == wire.PermissionOutcomePending) {
+		return wire.PendingQuestion{}, errors.New("asks: malformed question observation")
+	}
+	return v, nil
 }
 
 type PermissionDetailsReader interface {
 	ReadPermissionDetailsContext(ctx context.Context, id string) (wire.TypedPermissionDetails, error)
 }
 
-// ReadPermissionDetailsContext validates the entire immutable occurrence. There
-// is no legacy method or English fallback for typed permission data.
+// ReadPermissionDetailsContext preserves the legacy authority reader.
+// Deprecated: authority presenters use typedpermission.ReadPermissionDetailsContext
+// with their explicit native Identity validators. Generic clients project data.
 func ReadPermissionDetailsContext(ctx context.Context, r PermissionDetailsReader, account, id string) (wire.TypedPermissionDetails, error) {
-	v, err := r.ReadPermissionDetailsContext(ctx, id)
-	if err != nil {
-		return wire.TypedPermissionDetails{}, err
-	}
-	return checkedPermissionDetails(v, account, id)
+	return typedpermission.ReadPermissionDetailsContext(ctx, r, account, id, typedpermission.Validators{PackagedProgramPrefix: identity.PackagedProgramPrefix,
+		RemoteProgram: remote.ValidSubjectProgram,
+		NativeProgram: fileid.ValidSubjectProgram,
+	})
 }
 func checkedPermissionDetails(v wire.TypedPermissionDetails, account, id string) (wire.TypedPermissionDetails, error) {
-	q := v.Question.Question
-	if err := validateQuestionRead(q, id); err != nil {
-		return wire.TypedPermissionDetails{}, err
-	}
-	if q.Outcome != wire.OperatorQuestionOutcomeFound {
-		if q.Outcome != wire.OperatorQuestionOutcomeUnknown && q.Outcome != wire.OperatorQuestionOutcomeInvalid && q.Outcome != wire.OperatorQuestionOutcomeForbidden && q.Outcome != wire.OperatorQuestionOutcomeUnavailable || q.Record != nil || q.Publisher != "" || q.AnsweredBy != nil || v.Question.Answerer != "" || v.Effect != nil || v.Display != nil || v.EffectDigest != "" || v.Origin != "" || v.Purpose != "" {
-			return wire.TypedPermissionDetails{}, errors.New("asks: malformed typed details refusal")
-		}
-		return v, nil
-	}
-	if q.Record == nil || !validPermissionRecord(*q.Record) || q.Record.ID != id || v.Effect == nil || v.Display == nil || v.Effect.Subject.Account != account || q.Record.About != v.Effect.Subject.Program || q.Record.Option == "" && q.AnsweredBy != nil || q.Record.Option != "" && (q.AnsweredBy == nil || *q.AnsweredBy != wire.AnswererOperator) || v.Question.Answerer != "" {
-		return wire.TypedPermissionDetails{}, errors.New("asks: malformed or foreign typed details")
-	}
-	p := asks.TypedPermission{Effect: *v.Effect, Digest: v.EffectDigest, Origin: v.Origin, Purpose: v.Purpose, Display: *v.Display}
-	if !asks.ValidTypedPermission(p) {
-		return wire.TypedPermissionDetails{}, errors.New("asks: invalid frozen permission effect")
+	if v.Question.Question.Record != nil && v.Question.Question.Record.ID != id || account != "" && v.Effect != nil && v.Effect.Subject.Account != account {
+		return wire.TypedPermissionDetails{}, errors.New("asks: mismatched permission occurrence")
 	}
 	return ClonePermissionDetails(v), nil
-}
-func validPermissionRecord(r wire.RecordMetadata) bool {
-	return validOperatorRecord(r) && r.Key == asks.TypedPermissionKey && r.Text == "OA permission request" && slices.Equal(r.Options, []string{"allow", "refuse"}) && !r.Kept && (r.Option == "" && !r.Yes || r.Option == "allow" && r.Yes || r.Option == "refuse" && !r.Yes)
 }
 func ClonePermissionDetails(v wire.TypedPermissionDetails) wire.TypedPermissionDetails {
 	raw, _ := json.Marshal(v)
@@ -158,12 +165,12 @@ func (c *PermissionOperator) AnswerPermissionIfPendingContext(ctx context.Contex
 	if err := ctx.Err(); err != nil {
 		return wire.OperatorDecision{}, err
 	}
-	if !operatorWord(id) || (option != "allow" && option != "refuse") {
+	if !operatorWord(id) || (option != "allow" && option != "once" && option != "refuse") {
 		return wire.OperatorDecision{}, errors.New("asks: invalid permission answer")
 	}
 	v, err := wire.NewPermissionOperatorClient(c.transport.WithContext(ctx)).AnswerPermissionIfPending(id, option)
 	v, err = checkedDecision(v, err, id, option)
-	if err == nil && v.Record != nil && !validPermissionRecord(*v.Record) {
+	if err == nil && v.Record != nil && !validOperatorRecord(*v.Record) {
 		return wire.OperatorDecision{}, errors.New("asks: wrong permission answer occurrence")
 	}
 	return v, err
@@ -190,7 +197,7 @@ func (c *PermissionOperator) ListPermissionsContext(ctx context.Context, cursor 
 	}
 	seen := map[string]bool{}
 	for _, r := range v.Records {
-		if !validPermissionRecord(r) || seen[r.ID] {
+		if !validOperatorRecord(r) || seen[r.ID] {
 			return wire.OperatorPage{}, errors.New("asks: invalid permission page record")
 		}
 		seen[r.ID] = true

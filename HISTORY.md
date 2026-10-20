@@ -2,6 +2,68 @@
 
 Linked from [CONTRACT.md](CONTRACT.md)'s "Reading this page."
 
+## ASK-R6 local spend (2026-11-10)
+
+- ASK-R6's routine `complete` narrowed from "a server on this machine (a
+  literal loopback HTTP endpoint or authenticated local native IPC)" to a
+  native provider OpenAbstractions runs with product standing. A loopback
+  model server or proxy can forward to a paid
+  hosted service; `complete` there is administrative
+  (`backlog/ASK-R6-LOCAL-SPEND.md`).
+
+## 0.8.0 contract truth pass (W0-02, 2026-10-21)
+
+- Not built, platforms: outdated; macOS XPC fixtures exist, and the Linux
+  listener receipt is the missing artifact (asks audit 3.9).
+- Not built, `operation_end` observer: outdated; the facade runtime posts
+  it (`notifications.go`).
+- Not built, every line: outdated wording. Each bullet now names its
+  missing artifact alone. The native-prompt bullet's description of the
+  Windows tray and macOS panel left; the Linux presenter, the macOS
+  person-present check and the notification adopter are separate bullets,
+  and "Linux has no tray, prompt or notification" merged into the Linux
+  presenter bullet (asks audit P2-1).
+- README version: outdated, `go/v0.5.0` is the published tag.
+- ASK-R7's Bun note already reads stock OpenCode after W1-14; no change.
+- Deferred: asks audit P1-7's move of ASK-P1's per-version migration rules
+  (versions 1 to 9) into this page behind one rule. TODO.md "ASK-P1 per-version
+  rules move to HISTORY.md" carries it; owner: asks.
+
+## Application profile field history
+
+[ASK-P1](CONTRACT.md#the-profile) owns the current writer and the one retained
+reader/migration rule. The field history below follows
+`go/application_book.go`'s per-version decoder. It changes no decoder, writer,
+bound or stored bytes. The current writer is `asks-application@12`; the old
+cleanup request's version10 describes its historical starting point.
+
+| First profile | Retained field/decoding behavior |
+|---|---|
+| 1 | The original application admissions and question records; an answering-program attribution is refused. |
+| 2 | A responder's answering program may be recorded. |
+| 3 | `rights.first_use` requires its complete structured permission, rejecting missing, malformed or foreign-account data; profiles1/2 refuse that field. |
+| 4 | The ordinary choice partition and its service time are admitted. Earlier profiles refuse them. |
+| 5 | Typed permission records use only `rights.permission@2`; the decoder validates the entire effect, digest, owner account, trusted display and fixed Allow/Refuse projection. A typed occurrence carries no legacy PermissionRequest. Earlier profiles refuse typed data. |
+| 6 | A record may carry its bound asker program: a clean absolute path of at most 4096 bytes whose file name is the display asker. Earlier profiles refuse it. |
+| 7 | Ordinary choices may carry their bound requester, shared options and decision route. Profiles7/8 may carry the delegated-answer list; earlier profiles refuse shared choices. |
+| 8 | Notification admissions and notifier histories are admitted. |
+| 9 | The complete answer audit replaces the delegated list. Later profiles inherit the audit and refuse the replaced delegated fields. |
+| 10 | Admissions and acknowledged choices may carry `program_hash`, lowercase hex SHA256 of the recorded program spelling; earlier profiles refuse it. A retained admission's fingerprint must match its record or be absent. |
+| 11 | A typed responder answer may retain its exact nonempty answering program; earlier profiles refuse this attribution. The trusted host's finite routine-effect guard still applies. |
+| 12 | New native admissions may retain validated native-owner provenance. Earlier profiles refuse it. Old rows keep their scopes, IDs, outcomes and operator access without provenance promotion, and provenance consumes existing encoded bounds. |
+
+A read of profiles7/8 converts each delegated entry in memory into the answer
+audit as a responder's answer to a choice, retaining its eviction time. A read
+of an earlier profile computes retained records' program fingerprints for the
+next edit. Reads preserve the original file bytes; the next successful edit
+writes the current profile. Canonical JSON validation precedes those conversions.
+Unknown fields, invalid attribution and unsupported field/profile combinations
+remain refusals. No deprecated native state is adopted.
+
+The earlier W0-02 entry above records why this cleanup was deferred at that
+time; this source-bound move completes its documentation scope without changing
+the historical Original or any format behavior.
+
 ## Superseded ids
 
 No id is retired this release. `ASK-R1` keeps its number, restated in the

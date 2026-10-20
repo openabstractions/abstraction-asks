@@ -2,7 +2,6 @@ package application
 
 import (
 	"errors"
-	"path/filepath"
 	"time"
 
 	asks "github.com/openabstractions/abstraction-asks/go"
@@ -74,7 +73,7 @@ func (r *choiceReceiver) ask(q wire.ChoiceRequest, shared []string) (wire.Choice
 			publisher = asks.CodePublisher(code)
 		}
 	}
-	result, err := r.host.book.AskChoiceAs(scope, program, q, shared, r.call.Caller, publisher, r.authorizeAsk)
+	result, err := r.nativeBookAskChoiceAs(scope, program, q, shared, r.call.Caller, publisher, r.authorizeAsk)
 	if err != nil {
 		result = wire.ChoiceObservation{Outcome: choiceFailure(err)}
 	}
@@ -88,7 +87,7 @@ func (r *choiceReceiver) Observe(ref wire.RequestRef, waitMS int64) (wire.Choice
 	if waitMS < 0 || waitMS > 30000 || !asks.ValidChoiceReference(ref) {
 		return wire.ChoiceObservation{Outcome: wire.ChoiceOutcomeInvalid}, nil
 	}
-	result, err := r.host.book.ObserveChoice(scope, ref)
+	result, err := r.nativeBookObserveChoice(scope, ref)
 	if err != nil {
 		return wire.ChoiceObservation{Outcome: wire.ChoiceOutcomeUnavailable}, nil
 	}
@@ -104,19 +103,16 @@ func (r *choiceReceiver) Observe(ref wire.RequestRef, waitMS int64) (wire.Choice
 			wait = max(until, 0)
 		}
 	}
-	timer := time.NewTimer(wait)
-	defer timer.Stop()
-	select {
-	case <-r.call.WaitContext().Done():
-		return wire.ChoiceObservation{}, r.call.WaitContext().Err()
-	case <-timer.C:
-	case <-r.host.book.Decided(result.ID):
-	}
-	if _, _, err := r.scope(); err != nil {
+	waited, err := r.host.observeFor(r.call.WaitContext(), wait, func() bool {
+		result, err = r.nativeBookObserveChoice(scope, ref)
+		return err != nil || result.Outcome != wire.ChoiceOutcomePending
+	}, func() error { _, _, err := r.scope(); return err })
+	switch {
+	case waited == waitForbidden:
 		return wire.ChoiceObservation{Outcome: wire.ChoiceOutcomeForbidden}, nil
-	}
-	result, err = r.host.book.ObserveChoice(scope, ref)
-	if err != nil {
+	case waited == waitCancelled:
+		return wire.ChoiceObservation{}, err
+	case waited == waitUnavailable, err != nil:
 		return wire.ChoiceObservation{Outcome: wire.ChoiceOutcomeUnavailable}, nil
 	}
 	return result, nil
@@ -126,7 +122,7 @@ func (r *choiceReceiver) Acknowledge(ref wire.RequestRef, answer wire.ChoiceAnsw
 	if err != nil {
 		return wire.ChoiceAcknowledgement{Outcome: wire.ChoiceAckOutcomeForbidden}, nil
 	}
-	result, err := r.host.book.AcknowledgeChoice(scope, ref, answer, func() error {
+	result, err := r.nativeBookAcknowledgeChoice(scope, ref, answer, func() error {
 		if err := r.call.WaitContext().Err(); err != nil {
 			return err
 		}
@@ -164,7 +160,7 @@ func (r *choiceReceiver) decideOwnChoice(ref wire.RequestRef, option string, dis
 	if err != nil {
 		return failed(err), nil
 	}
-	result, err := r.host.book.DecideOwnChoiceAuthorized(scope, ref, option, actor, dismiss, ifPending, func() error {
+	result, err := r.nativeBookDecideOwnChoiceAuthorized(scope, ref, option, actor, dismiss, ifPending, func() error {
 		if err := r.call.WaitContext().Err(); err != nil {
 			return err
 		}
@@ -189,9 +185,13 @@ func (r *receiver) choiceActor() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	program, err := peer.Path.AtLeast(listen.Program.Path)
-	if err != nil || !filepath.IsAbs(program) {
+	return choiceActorFromPeer(peer)
+}
+
+func choiceActorFromPeer(peer *identity.Peer) (string, error) {
+	subject, err := identity.SubjectOf(peer, identity.Need{User: listen.Program.User, Path: listen.Program.Path})
+	if err != nil {
 		return "", ErrOperatorForbidden
 	}
-	return identity.CanonicalProgramPath(filepath.Clean(program)), nil
+	return subject.Program, nil
 }

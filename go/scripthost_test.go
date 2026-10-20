@@ -1,30 +1,46 @@
 package asks
 
 import (
+	"path/filepath"
 	"testing"
 
+	"github.com/openabstractions/abstraction-identity/hostfixture"
 	rwire "github.com/openabstractions/abstraction-rights/go/abstraction/rights/api"
 )
 
-// TestScriptHostSentence: a reviewed script host's question adds one sentence
-// naming the host by its signed description; any other program adds none
-// (ASK-A8). The key is the signed OriginalFilename, compared without case.
+// TestScriptHostSentence: a question whose recorded program is a shared
+// interpreter, with a trusted publisher, adds one sentence naming the host by
+// its signed description; any other program adds none (ASK-A8). The rule is
+// ScriptHostSubject's, so the trusted OriginalFilename (compared without
+// case) or the program's own name decides, and stock OpenCode, a Bun
+// standalone executable that keeps Bun's resource, adds none.
 func TestScriptHostSentence(t *testing.T) {
-	for _, tc := range []struct{ description, originalName, want string }{
-		{"Windows PowerShell", "PowerShell.EXE",
+	dir := t.TempDir()
+	app := filepath.Join(dir, "renamed.exe")
+	for _, tc := range []struct {
+		program                   string
+		description, originalName string
+		trusted                   bool
+		want                      string
+	}{
+		{app, "Windows PowerShell", "PowerShell.EXE", true,
 			"Windows PowerShell runs scripts; its publisher covers Windows PowerShell and the script it runs is unverified."},
-		{"Windows Command Processor", "Cmd.Exe",
+		{app, "Windows Command Processor", "Cmd.Exe", true,
 			"Windows Command Processor runs scripts; its publisher covers Windows Command Processor and the script it runs is unverified."},
-		{"", "node.exe", "node.exe runs scripts; its publisher covers node.exe and the script it runs is unverified."},
-		{"Git for Windows", "git.exe",
+		{app, "", "node.exe", true, "node.exe runs scripts; its publisher covers node.exe and the script it runs is unverified."},
+		{app, "Git for Windows", "git.exe", true,
 			"Git for Windows runs scripts; its publisher covers Git for Windows and the script it runs is unverified."},
-		{"Notepad", "NOTEPAD.EXE", ""},
-		{"Windows PowerShell", "", ""},
-		{"", "", ""},
-		{"Windows PowerShell", "PowerShell.EXE.MUI", ""},
+		{filepath.Join(dir, "python.exe"), "", "", true, "python.exe runs scripts; its publisher covers python.exe and the script it runs is unverified."},
+		{app, "Windows PowerShell", "PowerShell.EXE", false, ""},
+		{app, "Notepad", "NOTEPAD.EXE", true, ""},
+		{app, "Windows PowerShell", "", true, ""},
+		{app, "", "", true, ""},
+		{app, "Windows PowerShell", "PowerShell.EXE.MUI", true, ""},
+		{hostfixture.Bun(t, dir, "opencode.exe", true), "Bun", "bun.exe", true, ""},
 	} {
-		if got := ScriptHostSentence(tc.description, tc.originalName); got != tc.want {
-			t.Errorf("ScriptHostSentence(%q, %q) = %q, want %q", tc.description, tc.originalName, got, tc.want)
+		publisher := Publisher{Subject: "Publisher", Trusted: tc.trusted, Description: tc.description, OriginalName: tc.originalName}
+		if got := ScriptHostSentence(tc.program, publisher); got != tc.want {
+			t.Errorf("ScriptHostSentence(%q, %+v) = %q, want %q", tc.program, publisher, got, tc.want)
 		}
 	}
 	for _, name := range []string{"PowerShell.EXE", "pwsh.exe", "pwsh.dll", "Cmd.Exe", "wscript.exe", "cscript.exe", "MSHTA.EXE",
@@ -85,14 +101,4 @@ func TestScriptHostNamesLinux(t *testing.T) {
 		"/usr/bin/dotnet": true, "/usr/local/bin/julia": true, "/usr/bin/Rscript": true,
 		"/usr/bin/opencode": false, "/usr/bin/vim": false, "/usr/bin/shellcheck": false,
 	})
-}
-
-// TestScriptHostListsAgree: every signed Windows name also reads as a script
-// host by file name, so the two lists cannot drift apart.
-func TestScriptHostListsAgree(t *testing.T) {
-	for name := range scriptHosts {
-		if !ScriptHostFileName(name) {
-			t.Errorf("%s is a signed script host but not one by file name", name)
-		}
-	}
 }

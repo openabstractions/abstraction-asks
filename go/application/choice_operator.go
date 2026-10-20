@@ -153,6 +153,14 @@ func (r *operatorReceiver) ListAnswers(cursor string, limit int64) (wire.AnswerE
 	return wire.AnswerEntryPage{Outcome: page.Outcome, Answers: answers, Next: page.Next, Complete: page.Complete, CompleteSinceMs: page.CompleteSinceMs}, nil
 }
 
+func (r *operatorReceiver) ListAnswerContents(cursor string, limit int64) (wire.AnswerContentPage, error) {
+	answers, page, err := pageAudit(r, cursor, limit, "answer-contents", (*asks.Book).AuditedAnswerContents)
+	if page.Outcome != wire.OperatorPageOutcomePage {
+		return wire.AnswerContentPage{Outcome: page.Outcome, Answers: []wire.AnswerContent{}}, err
+	}
+	return wire.AnswerContentPage{Outcome: page.Outcome, Answers: answers, Next: page.Next, Complete: page.Complete, CompleteSinceMs: page.CompleteSinceMs}, nil
+}
+
 // auditPage is one audit page's outcome, cursor and completeness.
 type auditPage struct {
 	Outcome         wire.OperatorPageOutcome

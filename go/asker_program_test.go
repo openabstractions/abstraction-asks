@@ -67,10 +67,10 @@ func TestApplicationAskerProgramProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	current, err := os.ReadFile(path)
-	if err != nil || !bytes.Contains(current, []byte(`"profile":"asks-application@9"`)) {
+	if err != nil || !bytes.Contains(current, []byte(`"profile":"`+ApplicationProfile+`"`)) {
 		t.Fatalf("expected version 7: %s %v", current, err)
 	}
-	older := bytes.Replace(current, []byte(`"asks-application@9"`), []byte(`"asks-application@5"`), 1)
+	older := withoutProgramHashes(bytes.Replace(current, []byte(`"`+ApplicationProfile+`"`), []byte(`"asks-application@5"`), 1))
 	if _, err := decodeApplication(older); err == nil {
 		t.Fatal("version 5 must refuse an asker program")
 	}
@@ -95,7 +95,7 @@ func TestApplicationAskerProgramProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(legacyPath, bytes.Replace(data, []byte(`"asks-application@9"`), []byte(`"asks-application@5"`), 1), 0o600); err != nil {
+	if err := os.WriteFile(legacyPath, withoutCatalogueContent(bytes.Replace(data, []byte(`"`+ApplicationProfile+`"`), []byte(`"asks-application@5"`), 1)), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	reopened, err := LoadApplicationBook(legacyPath)
@@ -106,7 +106,7 @@ func TestApplicationAskerProgramProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	migrated, err := os.ReadFile(legacyPath)
-	if err != nil || !bytes.Contains(migrated, []byte(`"profile":"asks-application@9"`)) {
+	if err != nil || !bytes.Contains(migrated, []byte(`"profile":"`+ApplicationProfile+`"`)) {
 		t.Fatalf("version 5 must migrate on edit: %s %v", migrated, err)
 	}
 	kept, found, err := reopened.ApplicationRecord(old.ID)

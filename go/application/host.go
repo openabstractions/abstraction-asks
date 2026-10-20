@@ -8,6 +8,8 @@ import (
 	"errors"
 	asks "github.com/openabstractions/abstraction-asks/go"
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
+	presenterwire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/presenter"
+	responderwait "github.com/openabstractions/abstraction-asks/go/abstraction/asks/responderwait"
 	"github.com/openabstractions/abstraction-identity/listen"
 	"os/user"
 
@@ -21,26 +23,31 @@ type Host struct {
 	lifecycle sync.Mutex
 	serving   bool
 	listener  listen.Listener
+	endpoint  string
 	owner     string
 	book      *asks.Book
 	ctx       context.Context
 	cancel    context.CancelFunc
 	once      sync.Once
 	workers   sync.WaitGroup
-	slots     chan struct{}
+	slots     listen.CallAdmission
 	OnError   func(error)
 	// Assign before Serve. Called when admission stops, before calls drain.
-	OnStopped func()
-	operator  AuthorizeOperator
-	responder AuthorizeResponder
+	OnStopped            func()
+	operator             AuthorizeOperator
+	presenter            PresentationSession
+	responder            AuthorizeResponder
+	responderWait        ResponderEnrollment
+	responderPreparation func(context.Context) (context.Context, error)
 	// choiceResponder checks an enrolled assistant answering a shared
 	// ordinary choice (ASK-R9).
 	choiceResponder AuthorizeChoiceResponder
 	// answeringRequest asks for an answerer's enrollment (ASK-R10).
-	answeringRequest RequestAnswering
-	operatorEpoch    string
-	askPolicy        AskPolicy
-	permission       PreparePermission
+	answeringRequest      RequestAnswering
+	operatorEpoch         string
+	askPolicy             AskPolicy
+	permission            PreparePermission
+	permissionObservation ObservePermission
 	// Notification configuration (ASK-N1..N7) and the per-epoch key that
 	// binds presentation tokens.
 	notificationPolicy  NotificationPolicy
@@ -74,7 +81,7 @@ func Listen(endpoint string, book *asks.Book) (*Host, error) {
 		return nil, e
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Host{listener: listen.Sessions(l, listen.SessionOptions{MaxSessions: 32}), owner: owner.Uid, book: book, ctx: ctx, cancel: cancel, slots: make(chan struct{}, 32), operatorEpoch: hex.EncodeToString(epoch[:]), presentationKey: key}, nil
+	return &Host{listener: listen.Sessions(l, listen.SessionOptions{MaxSessions: 32}), endpoint: endpoint, owner: owner.Uid, book: book, ctx: ctx, cancel: cancel, slots: listen.NewCallAdmission(32), operatorEpoch: hex.EncodeToString(epoch[:]), presentationKey: key}, nil
 }
 func (h *Host) Close() error {
 	var e error
@@ -106,16 +113,14 @@ func (h *Host) Serve(ctx context.Context) error {
 			}
 			return e
 		}
-		select {
-		case h.slots <- struct{}{}:
-		default:
-			conn.Close()
+		release, admitted := h.slots.Take(conn)
+		if !admitted {
 			continue
 		}
 		h.workers.Add(1)
 		go func() {
 			defer h.workers.Done()
-			defer func() { <-h.slots }()
+			defer release()
 			defer conn.Close()
 			callCtx, cancel := context.WithTimeout(h.ctx, 35*time.Second)
 			defer cancel()
@@ -125,7 +130,7 @@ func (h *Host) Serve(ctx context.Context) error {
 			}
 			if e == nil {
 				var reply []byte
-				reply, e = wire.ServeEndpoint(call.Frame, "openabstractions", "",
+				services := []wire.ServedService{
 					&wire.QuestionApplicationDispatcher{Handler: &receiver{host: h, call: call}},
 					&wire.ChoiceApplicationDispatcher{Handler: &choiceReceiver{receiver{host: h, call: call}}},
 					&wire.PermissionApplicationDispatcher{Handler: &permissionReceiver{receiver{host: h, call: call}}},
@@ -133,7 +138,17 @@ func (h *Host) Serve(ctx context.Context) error {
 					&wire.QuestionOperatorDispatcher{Handler: &operatorReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()}},
 					&wire.QuestionResponderDispatcher{Handler: &responderReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()}},
 					&wire.NotificationApplicationDispatcher{Handler: &notificationReceiver{receiver{host: h, call: call}}},
-					&wire.NotificationOperatorDispatcher{Handler: &notificationOperatorReceiver{operatorReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()}}})
+					&wire.NotificationOperatorDispatcher{Handler: &notificationOperatorReceiver{operatorReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()}}},
+				}
+				if h.presenter != nil {
+					services = append(services, &presenterwire.PresenterDispatcher{Handler: &presenterReceiver{operatorReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()}}})
+				}
+				if h.responderWait != nil {
+					services = append(services, &responderwait.ResponderWaitDispatcher{Handler: &responderWaitReceiver{
+						responderReceiver{receiver: receiver{host: h, call: call}, ctx: call.WaitContext()},
+					}})
+				}
+				reply, e = wire.ServeEndpoint(call.Frame, "openabstractions", "", services...)
 				if e == nil {
 					e = call.Reply(reply)
 				}

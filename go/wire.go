@@ -3,6 +3,7 @@ package asks
 import (
 	"time"
 
+	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
 	"github.com/openabstractions/abstraction-identity/listen"
 )
 
@@ -88,6 +89,9 @@ type Record struct {
 	// Permission is set only by trusted runtime admission and stays immutable.
 	Permission      *PermissionRequest `json:"permission,omitempty"`
 	TypedPermission *TypedPermission   `json:"typed_permission,omitempty"`
+	// Content is immutable display data retained by the versioned application
+	// Book. Nil explicitly means it was not retained, including legacy rows.
+	Content *wire.CatalogueContent `json:"content,omitempty"`
 	// Set only after canonical @1/@2 decoding; never serialized or caller supplied.
 	legacyPermission bool
 }

@@ -320,7 +320,7 @@ func TestNotificationVersion7Reads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := decodeApplication(bytes.Replace(current, []byte(`"asks-application@9"`), []byte(`"asks-application@7"`), 1)); err != nil {
+	if _, err := decodeApplication(bytes.Replace(current, []byte(`"`+ApplicationProfile+`"`), []byte(`"asks-application@7"`), 1)); err != nil {
 		t.Fatalf("version 7 without notifications must read: %v", err)
 	}
 }
@@ -330,10 +330,10 @@ func TestNotificationProfileVersion(t *testing.T) {
 	b, clock, program := notifyBook(t)
 	post(t, b, "scope", program, notificationRequest(*clock, "v"), nil)
 	data, err := os.ReadFile(b.path)
-	if err != nil || !bytes.Contains(data, []byte(`"profile":"asks-application@9"`)) || !bytes.Contains(data, []byte(`"notifications":[`)) {
+	if err != nil || !bytes.Contains(data, []byte(`"profile":"`+ApplicationProfile+`"`)) || !bytes.Contains(data, []byte(`"notifications":[`)) {
 		t.Fatalf("%s %v", data, err)
 	}
-	if _, err := decodeApplication(bytes.Replace(data, []byte(`"asks-application@9"`), []byte(`"asks-application@7"`), 1)); err == nil {
+	if _, err := decodeApplication(bytes.Replace(data, []byte(`"`+ApplicationProfile+`"`), []byte(`"asks-application@7"`), 1)); err == nil {
 		t.Fatal("version 7 cannot carry notifications")
 	}
 	tampered := bytes.Replace(data, []byte(`"Title":"Download finished"`), []byte(`"Title":"Something else"`), 1)
@@ -342,5 +342,48 @@ func TestNotificationProfileVersion(t *testing.T) {
 	}
 	if _, err := decodeApplication(tampered); err == nil {
 		t.Fatal("a record whose content does not match its fingerprint is refused")
+	}
+}
+
+func TestNotificationVersion12ReadsWithoutRewritingAndMigratesOnEdit(t *testing.T) {
+	b, clock, program := notifyBook(t)
+	q := notificationRequest(*clock, "old12")
+	posted := post(t, b, "scope", program, q, nil)
+	data, err := os.ReadFile(b.path)
+	if err != nil || !bytes.Contains(data, []byte(`"notifications":[`)) || !bytes.Contains(data, []byte(`"notifiers":[`)) {
+		t.Fatal("fixture needs both retained notification and notifier", err)
+	}
+	old := bytes.Replace(data, []byte(`"`+ApplicationProfile+`"`), []byte(`"`+nativeApplicationProfile+`"`), 1)
+	if err := os.WriteFile(b.path, old, 0600); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := LoadApplicationBook(b.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reopened.now = b.now
+	history, _, err := reopened.NotificationHistory()
+	if err != nil || len(history) != 1 || history[0].ID != posted.ID {
+		t.Fatal(history, err)
+	}
+	counts, _, err := reopened.NotifierCounts()
+	if err != nil || len(counts) != 1 || counts[0].Program != program {
+		t.Fatal(counts, err)
+	}
+	if replay := post(t, reopened, "scope", program, q, nil); replay.ID != posted.ID {
+		t.Fatal(replay)
+	}
+	after, err := os.ReadFile(b.path)
+	if err != nil || !bytes.Equal(old, after) {
+		t.Fatal("read or replay rewrote version 12", err)
+	}
+	post(t, reopened, "scope", program, notificationRequest(*clock, "new13"), nil)
+	after, err = os.ReadFile(b.path)
+	if err != nil || !bytes.Contains(after, []byte(`"profile":"`+ApplicationProfile+`"`)) {
+		t.Fatal("real edit did not migrate", err)
+	}
+	history, _, err = reopened.NotificationHistory()
+	if err != nil || len(history) != 2 {
+		t.Fatal(history, err)
 	}
 }

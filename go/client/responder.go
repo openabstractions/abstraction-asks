@@ -3,11 +3,11 @@ package client
 import (
 	"context"
 	"errors"
+	"github.com/openabstractions/abstraction-asks/go/typedpermission"
 	"slices"
 	"time"
 	"unicode/utf8"
 
-	asks "github.com/openabstractions/abstraction-asks/go"
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
 	"github.com/openabstractions/abstraction-identity/listen"
 )
@@ -93,11 +93,11 @@ func (c *Responder) ListChoicesContext(ctx context.Context, cursor string, limit
 		return wire.AnswerableChoicePage{}, errors.New("asks: malformed responder page")
 	}
 	for _, choice := range page.Choices {
-		if !asks.ValidRequestKey(choice.ID) || choice.Asker == "" || choice.PendingUntilMs <= 0 || len(choice.Options) < 1 || len(choice.Options) > 3 {
+		if !operatorWord(choice.ID) || choice.Asker == "" || choice.PendingUntilMs <= 0 || len(choice.Options) < 1 || len(choice.Options) > 3 {
 			return wire.AnswerableChoicePage{}, errors.New("asks: malformed answerable choice")
 		}
 		for i, o := range choice.Options {
-			if !asks.ValidChoiceOptionID(o.ID) || slices.ContainsFunc(choice.Options[:i], func(p wire.ChoiceOption) bool { return p.ID == o.ID }) {
+			if !typedpermission.ValidChoiceOptionID(o.ID) || slices.ContainsFunc(choice.Options[:i], func(p wire.ChoiceOption) bool { return p.ID == o.ID }) {
 				return wire.AnswerableChoicePage{}, errors.New("asks: malformed answerable choice")
 			}
 		}
@@ -111,9 +111,6 @@ func (c *Responder) ListChoicesContext(ctx context.Context, cursor string, limit
 func (c *Responder) AnswerChoiceContext(ctx context.Context, id, option string) (wire.ChoiceDecision, error) {
 	if err := ctx.Err(); err != nil {
 		return wire.ChoiceDecision{}, err
-	}
-	if !asks.ValidRequestKey(id) || !asks.ValidChoiceOptionID(option) {
-		return wire.ChoiceDecision{}, errors.New("asks: invalid shared choice answer")
 	}
 	result, err := wire.NewQuestionResponderClient(c.transport.WithContext(ctx)).AnswerChoice(id, option)
 	result, err = checkedChoiceDecision(result, err, id, option, false)

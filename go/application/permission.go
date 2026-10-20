@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"time"
 
 	asks "github.com/openabstractions/abstraction-asks/go"
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
@@ -18,6 +17,24 @@ import (
 // native subject/owner target evidence before any Book lock. Pending means the
 // supported effect needs consent. Explicit blocks and outage admit no request.
 type PreparePermission func(context.Context, *identity.Peer, wire.PermissionIntent) (PreparedPermission, error)
+
+// ObservePermission quietly reads current authority for the retained question.
+// It performs no admission or edit. The host verifies caller/question binding
+// before invoking it and accepts only a current permitted/denied revision.
+type ObservePermission func(context.Context, *identity.Peer, asks.Record) (wire.PermissionObservation, error)
+
+// EnablePermissionObservation is additive to EnablePermission. Earlier custom
+// hosts may omit it; an answered Allow then supplies no committed-grant witness.
+func (h *Host) EnablePermissionObservation(observe ObservePermission) error {
+	h.lifecycle.Lock()
+	defer h.lifecycle.Unlock()
+	if h.serving || h.ctx.Err() != nil || observe == nil {
+		return errors.New("asks: configure permission observation before Serve")
+	}
+	h.permissionObservation = observe
+	return nil
+}
+
 type PreparedPermission struct {
 	Permission asks.TypedPermission
 	Outcome    wire.PermissionOutcome
@@ -25,6 +42,13 @@ type PreparedPermission struct {
 	// Recheck runs with the Book pinned immediately before admission. It reads
 	// the same owning policy revision quietly and performs no Ask or rule edit.
 	Recheck func() error
+	// Exact marks a request for one of the runtime's exact first-use actions
+	// (ASK-A14). No typed occurrence is admitted for it: Outcome permitted or
+	// denied is the current decision, and pending or answered carries in Joined
+	// the runtime's own first-use question (ASK-R2) the request raised or
+	// joined, which the requester observes by id with ObserveQuestion.
+	Exact  bool
+	Joined *asks.Record
 }
 
 func (h *Host) EnablePermission(prepare PreparePermission) error {
@@ -35,6 +59,12 @@ func (h *Host) EnablePermission(prepare PreparePermission) error {
 	}
 	h.permission = prepare
 	return nil
+}
+
+// PermissionScope is the Book scope of one subject's typed permission
+// requests: a capability reads its own retained question by request key.
+func PermissionScope(subjectAccount, subjectProgram string) string {
+	return permissionScope(subjectAccount, subjectProgram)
 }
 
 func permissionScope(subjectAccount, subjectProgram string) string {
@@ -93,6 +123,9 @@ func (r *permissionReceiver) Request(q wire.PermissionIntent) (wire.PermissionOb
 	if err != nil || ctx.Err() != nil {
 		return wire.PermissionObservation{Outcome: wire.PermissionOutcomeUnavailable}, nil
 	}
+	if prepared.Exact {
+		return exactObservation(prepared, r.host.owner, subject), nil
+	}
 	switch prepared.Outcome {
 	case wire.PermissionOutcomeInvalid, wire.PermissionOutcomeForbidden, wire.PermissionOutcomeUnavailable:
 		return wire.PermissionObservation{Outcome: prepared.Outcome}, nil
@@ -147,22 +180,22 @@ func (r *permissionReceiver) Observe(key string, waitMS int64) (wire.PermissionO
 		return wire.PermissionObservation{Outcome: wire.PermissionOutcomeForbidden}, nil
 	}
 	scope := permissionScope(subject.Account, subject.Program)
-	record, outcome, err := r.host.book.ObserveApplication(scope, key)
-	if err == nil && outcome == "pending" && waitMS > 0 {
-		timer := time.NewTimer(time.Duration(waitMS) * time.Millisecond)
-		defer timer.Stop()
-		select {
-		case <-r.call.WaitContext().Done():
-			return wire.PermissionObservation{}, r.call.WaitContext().Err()
-		case <-timer.C:
-		case <-r.host.book.Decided(record.ID):
-		}
-		record, outcome, err = r.host.book.ObserveApplication(scope, key)
-	}
-	if r.call.Recheck() != nil {
+	var record asks.Record
+	var outcome string
+	var readErr error
+	waited, err := r.host.observe(r.call.WaitContext(), waitMS, func() bool {
+		record, outcome, readErr = r.host.book.ObserveApplication(scope, key)
+		return readErr != nil || outcome != "pending"
+	}, r.call.Recheck, func() string { return record.ID })
+	switch waited {
+	case waitForbidden:
 		return wire.PermissionObservation{Outcome: wire.PermissionOutcomeForbidden}, nil
+	case waitCancelled:
+		return wire.PermissionObservation{}, err
+	case waitUnavailable:
+		return wire.PermissionObservation{Outcome: wire.PermissionOutcomeUnavailable}, nil
 	}
-	return permissionObservation(record, outcome, err), nil
+	return permissionObservation(record, outcome, readErr), nil
 }
 
 type permissionOperatorReceiver struct{ operatorReceiver }

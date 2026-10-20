@@ -3,12 +3,73 @@ package asks
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/openabstractions/abstraction-identity/listen"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 )
+
+func TestPendingRetirementRechecksAnswerAfterLockWait(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "book.json")
+	b, err := LoadApplicationBook(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	question, _, err := b.AskApplication("scope", "application", "request", "download.reach", map[string]string{"host": "example.com"}, listen.Seen{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := LoadApplicationBook(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.mu.Lock()
+	started := make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		close(started)
+		_, outcome, err := b.RetirePendingApplicationAuthorized(question.ID, nil)
+		if err == nil && outcome != "answered" {
+			err = fmt.Errorf("retirement outcome %s", outcome)
+		}
+		done <- err
+	}()
+	<-started
+	_, outcome, answerErr := other.AnswerApplication(question.ID, "once")
+	b.mu.Unlock()
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if answerErr != nil || outcome != "answered" {
+		t.Fatal(outcome, answerErr)
+	}
+	if record, found, err := b.ApplicationRecord(question.ID); err != nil || !found || record.Pending() || record.Option != "once" {
+		t.Fatal("answer lost during retirement", record, found, err)
+	}
+}
+
+func TestPendingRetirementRemovesOnlyPendingQuestion(t *testing.T) {
+	b, _ := ordinaryBook(t)
+	question, _, err := b.AskApplication("scope", "application", "request", "download.reach", map[string]string{"host": "example.com"}, listen.Seen{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	refused := errors.New("authorization changed")
+	if _, _, err := b.RetirePendingApplicationAuthorized(question.ID, func() error { return refused }); !errors.Is(err, refused) {
+		t.Fatal("retirement skipped authorization", err)
+	}
+	if _, outcome, err := b.RetirePendingApplicationAuthorized(question.ID, nil); err != nil || outcome != "retired" {
+		t.Fatal(outcome, err)
+	}
+	if _, found, err := b.ApplicationRecord(question.ID); err != nil || found {
+		t.Fatal("pending question retained", found, err)
+	}
+	if _, outcome, err := b.RetirePendingApplicationAuthorized(question.ID, nil); err != nil || outcome != "retired" {
+		t.Fatal("retirement replay", outcome, err)
+	}
+}
 
 func TestOperatorBookReplayPreservesDecisionAndTombstone(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "book.json")

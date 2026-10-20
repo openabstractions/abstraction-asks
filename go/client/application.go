@@ -60,9 +60,6 @@ func checked(result QuestionObservation, e error) (QuestionObservation, error) {
 	}
 	pending := result.Outcome == wire.ObservationOutcomePending
 	answered := result.Outcome == wire.ObservationOutcomeAnswered
-	if (pending || answered) != (result.Answer != nil) {
-		return QuestionObservation{}, errors.New("asks: inconsistent observation")
-	}
 	if a := result.Answer; a != nil {
 		if a.ID == "" || a.Pending != pending || (pending && (a.Option != "" || a.Yes || a.Kept)) || (answered && a.Option == "") {
 			return QuestionObservation{}, errors.New("asks: inconsistent answer")

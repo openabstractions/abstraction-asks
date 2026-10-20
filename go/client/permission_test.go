@@ -67,6 +67,32 @@ func TestTypedPermissionDetailsRejectMalformedAuthority(t *testing.T) {
 	}
 }
 
+func TestTypedPermissionResponderDetailsPreserveActor(t *testing.T) {
+	v := permissionDetailsFixture()
+	v.Question.Question.Record.Option = "allow"
+	v.Question.Question.Record.Yes = true
+	v.Question.Question.Record.Answered = time.Now().UTC().Format(time.RFC3339Nano)
+	actor := wire.AnswererResponder
+	v.Question.Question.AnsweredBy = &actor
+	v.Question.Answerer = filepath.Join(t.TempDir(), "assistant.exe")
+	read, err := ReadPermissionDetailsContext(t.Context(), permissionReader{v}, "account", "question")
+	if err != nil || read.Question.Answerer != v.Question.Answerer {
+		t.Fatal(read, err)
+	}
+	for _, bad := range []string{"", "relative.exe"} {
+		broken := ClonePermissionDetails(v)
+		broken.Question.Answerer = bad
+		if _, err := ReadPermissionDetailsContext(t.Context(), permissionReader{broken}, "account", "question"); err == nil {
+			t.Fatal("invalid actor", bad)
+		}
+	}
+	operator := wire.AnswererOperator
+	v.Question.Question.AnsweredBy = &operator
+	if _, err := ReadPermissionDetailsContext(t.Context(), permissionReader{v}, "account", "question"); err == nil {
+		t.Fatal("operator carried responder actor")
+	}
+}
+
 func TestTypedPermissionObservationNeverInfersAnswer(t *testing.T) {
 	for _, v := range []wire.PermissionObservation{
 		{Outcome: wire.PermissionOutcomeUnavailable, Answer: &wire.Answer{ID: "question", Option: "allow", Yes: true}},

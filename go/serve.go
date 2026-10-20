@@ -10,7 +10,6 @@ import (
 	"os/signal"
 
 	identity "github.com/openabstractions/abstraction-identity"
-	logging "github.com/openabstractions/abstraction-logging/go"
 )
 
 const asksUsage = `Usage: openabstractions serve asks [options]
@@ -61,10 +60,12 @@ func Serve(args []string) error {
 		}
 		return errors.Join(fmt.Errorf("%w: %v", ErrUsage, err), usageErr)
 	}
-	// asksd can start with no logging runtime running. Its own diagnostics go
-	// to the explicitly selected environment chain, heard on stderr when nothing
-	// is configured [LOG-S8].
-	slog.SetDefault(slog.New(logging.LegacyDefault("asks")))
+	// Native diagnostics use the runtime when resolution succeeds.
+	handler, closeDiagnostics := resolvedDiagnostics("asks")
+	defer closeDiagnostics()
+	previousLogger := slog.Default()
+	slog.SetDefault(slog.New(handler))
+	defer slog.SetDefault(previousLogger)
 
 	s, err := Start(*endpoint, *state)
 	if err != nil {

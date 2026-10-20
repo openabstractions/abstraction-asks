@@ -41,46 +41,14 @@ function strs(out, v, depth) {
 
 const isWs = (c) => c === 0x20 || c === 0x09 || c === 0x0a || c === 0x0d;
 
+// raw writes an opaque value's bytes as they are ([DEF-A3]).
 function raw(out, s, depth) {
   const b = typeof s === "string" ? ENC.encode(s) : s;
-  let i = 0;
-  while (i < b.length) {
-    const c = b[i];
-    if (isWs(c)) { i++; continue; }
-    if (c === 0x22) {
-      let j = i + 1;
-      while (j < b.length) {
-        if (b[j] === 0x5c) { j += 2; continue; }
-        if (b[j] === 0x22) { j++; break; }
-        j++;
-      }
-      for (let k = i; k < j; k++) out.byte(b[k]);
-      i = j;
-    } else if (c === 0x7b || c === 0x5b) {
-      out.byte(c);
-      i++;
-      let j = i;
-      while (j < b.length && isWs(b[j])) j++;
-      if (j < b.length && (b[j] === 0x7d || b[j] === 0x5d)) { out.byte(b[j]); i = j + 1; }
-      else { depth++; out.byte(0x0a); pad(out, depth); }
-    } else if (c === 0x7d || c === 0x5d) {
-      depth--;
-      out.byte(0x0a);
-      pad(out, depth);
-      out.byte(c);
-      i++;
-    } else if (c === 0x2c) {
-      out.ascii(",\n");
-      pad(out, depth);
-      i++;
-    } else if (c === 0x3a) {
-      out.ascii(": ");
-      i++;
-    } else {
-      out.byte(c);
-      i++;
-    }
-  }
+  // Whitespace around the value is not part of it.
+  let i = 0, j = b.length;
+  while (i < j && isWs(b[i])) i++;
+  while (j > i && isWs(b[j - 1])) j--;
+  for (let k = i; k < j; k++) out.byte(b[k]);
 }
 
 // A JavaScript string sorts by UTF-16 code unit, which puts U+1D11E before
@@ -869,6 +837,59 @@ function writeQuestionAsker(out, v, depth) {
   out.byte(0x7d);
 }
 
+function writeCatalogueContent(out, v, depth) {
+  { const n = Object.keys(v.slots).length; if (n > 32) throw new Refusal("bad_value",0); }
+  if (v.slots && typeof v.slots === "object" && !Array.isArray(v.slots)) { for (const oaElement of Object.keys(v.slots)) { if (typeof oaElement === "string") {
+  { const n = ENC.encode(oaElement).length; if (n < 1 || n > 64) throw new Refusal("bad_value",0); }
+  } } }
+  if (v.slots && typeof v.slots === "object" && !Array.isArray(v.slots)) { for (const oaElement of Object.keys(v.slots)) { if (typeof oaElement === "string") {
+  if (!/^[A-Za-z0-9_.-]*$/.test(oaElement)) throw new Refusal("bad_value",0);
+  } } }
+  if (v.slots && typeof v.slots === "object" && !Array.isArray(v.slots)) { for (const oaElement of Object.values(v.slots)) { if (typeof oaElement === "string") {
+  { const n = ENC.encode(oaElement).length; if (n > 800) throw new Refusal("bad_value",0); }
+  } } }
+  if (v.slots && typeof v.slots === "object" && !Array.isArray(v.slots)) { for (const oaElement of Object.values(v.slots)) { if (typeof oaElement === "string") {
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(oaElement)) throw new Refusal("bad_value",0);
+  } } }
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "slots");
+  out.ascii(": ");
+  strmap(out, v.slots, depth + 1);
+  if (v.permission !== undefined && v.permission !== null) {
+    out.byte(0x2c);
+    out.byte(0x0a);
+    pad(out, depth + 1);
+    esc(out, "permission");
+    out.ascii(": ");
+    writePermissionRequest(out, v.permission, depth + 1);
+  }
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
+function writeQuestionContent(out, v, depth) {
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "question");
+  out.ascii(": ");
+  writeQuestionAsker(out, v.question, depth + 1);
+  if (v.content !== undefined && v.content !== null) {
+    out.byte(0x2c);
+    out.byte(0x0a);
+    pad(out, depth + 1);
+    esc(out, "content");
+    out.ascii(": ");
+    writeCatalogueContent(out, v.content, depth + 1);
+  }
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
 function writeRequestRef(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
@@ -1343,6 +1364,66 @@ function writeAnswerEntryPage(out, v, depth) {
   out.byte(0x7d);
 }
 
+function writeAnswerContent(out, v, depth) {
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "answer");
+  out.ascii(": ");
+  writeAnswerEntry(out, v.answer, depth + 1);
+  if (v.content !== undefined && v.content !== null) {
+    out.byte(0x2c);
+    out.byte(0x0a);
+    pad(out, depth + 1);
+    esc(out, "content");
+    out.ascii(": ");
+    writeCatalogueContent(out, v.content, depth + 1);
+  }
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
+function writeAnswerContentPage(out, v, depth) {
+  { const n = v.answers.length; if (n > 64) throw new Refusal("bad_value",0); }
+  { const n = ENC.encode(v.next).length; if (n > 256) throw new Refusal("bad_value",0); }
+    if (typeof v.outcome !== "string") throw new Refusal("wrong_type",0);
+    if (v.outcome !== "page" && v.outcome !== "gap" && v.outcome !== "invalid" && v.outcome !== "forbidden" && v.outcome !== "unavailable") { throw new Refusal("bad_enum",0); }
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "outcome");
+  out.ascii(": ");
+  esc(out, v.outcome);
+  out.byte(0x2c);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "answers");
+  out.ascii(": ");
+  writeList(out, v.answers, depth + 1, writeAnswerContent);
+  out.byte(0x2c);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "next");
+  out.ascii(": ");
+  esc(out, v.next);
+  out.byte(0x2c);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "complete");
+  out.ascii(": ");
+  out.ascii(v.complete ? "true" : "false");
+  out.byte(0x2c);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "complete_since_ms");
+  out.ascii(": ");
+  num(out, v.completeSinceMs);
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
 function writeAnswerableChoice(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
@@ -1577,6 +1658,26 @@ function writeTypedPermissionDetails(out, v, depth) {
     esc(out, "display");
     out.ascii(": ");
     writePermissionDisplay(out, v.display, depth + 1);
+  }
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
+function writePendingQuestion(out, v, depth) {
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "observation");
+  out.ascii(": ");
+  writePermissionObservation(out, v.observation, depth + 1);
+  if (v.pendingUntilMs !== 0n) {
+    out.byte(0x2c);
+    out.byte(0x0a);
+    pad(out, depth + 1);
+    esc(out, "pending_until_ms");
+    out.ascii(": ");
+    num(out, v.pendingUntilMs);
   }
   out.byte(0x0a);
   pad(out, depth);
@@ -2103,6 +2204,40 @@ function writeOAQuestionApplicationObserveArguments(out, v, depth) {
   out.byte(0x7d);
 }
 
+function writeOAQuestionOperatorReadQuestionContentArguments(out, v, depth) {
+  { const n = ENC.encode(v.id).length; if (n < 1 || n > 128) throw new Refusal("bad_value",0); }
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(v.id)) throw new Refusal("bad_value",0);
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "id");
+  out.ascii(": ");
+  esc(out, v.id);
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
+function writeOAQuestionOperatorListAnswerContentsArguments(out, v, depth) {
+  { const n = ENC.encode(v.cursor).length; if (n > 256) throw new Refusal("bad_value",0); }
+  if (v.limit < 1n || v.limit > 64n) throw new Refusal("bad_value",0);
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "cursor");
+  out.ascii(": ");
+  esc(out, v.cursor);
+  out.byte(0x2c);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "limit");
+  out.ascii(": ");
+  num(out, v.limit);
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
 function writeOAQuestionOperatorListChoicesArguments(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
@@ -2498,6 +2633,27 @@ function writeOAPermissionApplicationObserveArguments(out, v, depth) {
   out.byte(0x7d);
 }
 
+function writeOAPermissionApplicationObserveQuestionArguments(out, v, depth) {
+  { const n = ENC.encode(v.id).length; if (n < 1 || n > 128) throw new Refusal("bad_value",0); }
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(v.id)) throw new Refusal("bad_value",0);
+  if (v.waitMs < 0n || v.waitMs > 30000n) throw new Refusal("bad_value",0);
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "id");
+  out.ascii(": ");
+  esc(out, v.id);
+  out.byte(0x2c);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "wait_ms");
+  out.ascii(": ");
+  num(out, v.waitMs);
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
 function writeOAPermissionOperatorListPermissionsArguments(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
@@ -2810,6 +2966,30 @@ function writeOAQuestionApplicationObserveResult(out, v, depth) {
   out.byte(0x7d);
 }
 
+function writeOAQuestionOperatorReadQuestionContentResult(out, v, depth) {
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "value");
+  out.ascii(": ");
+  writeQuestionContent(out, v.value, depth + 1);
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
+function writeOAQuestionOperatorListAnswerContentsResult(out, v, depth) {
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "value");
+  out.ascii(": ");
+  writeAnswerContentPage(out, v.value, depth + 1);
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
 function writeOAQuestionOperatorListChoicesResult(out, v, depth) {
   out.byte(0x7b);
   out.byte(0x0a);
@@ -3105,6 +3285,18 @@ function writeOAPermissionApplicationObserveResult(out, v, depth) {
   esc(out, "value");
   out.ascii(": ");
   writePermissionObservation(out, v.value, depth + 1);
+  out.byte(0x0a);
+  pad(out, depth);
+  out.byte(0x7d);
+}
+
+function writeOAPermissionApplicationObserveQuestionResult(out, v, depth) {
+  out.byte(0x7b);
+  out.byte(0x0a);
+  pad(out, depth + 1);
+  esc(out, "value");
+  out.ascii(": ");
+  writePendingQuestion(out, v.value, depth + 1);
   out.byte(0x0a);
   pad(out, depth);
   out.byte(0x7d);
@@ -3595,16 +3787,21 @@ function readList(r, elem) {
   return out;
 }
 
-// Own Ask fields. The service owns question text/options; callers supply a
-// known key and slots. Native Ask.For carries optional peer observation
-// evidence and remains a transport supplement, never caller authority.
+// [Question](https://openabstractions.github.io/reference.html#concept-asks.question-ask)
+// projects native
+// [Ask](https://openabstractions.github.io/reference.html#concept-asks.question-ask)
+// fields. The service owns question text/options; callers supply a known key
+// and slots. Native Ask.For carries optional peer observation evidence and
+// remains a transport supplement, never caller authority.
 export function newQuestion() {
   return { asker: "", key: "", slots: {} };
 }
 
-// Existing question operation concepts. Wait cancellation belongs to the native
-// client context. This metadata descriptor does not replace the existing
-// handwritten line transport.
+// Deprecated native question-operation request descriptor. Removal is scheduled
+// for Train B (expected 0.9.0), W2-01a.1, under TD13/TD57's stored-state and
+// declared outside-adopter retirement conditions. Wait cancellation belongs to
+// the native client context. This metadata descriptor does not replace the
+// existing handwritten line transport.
 export function newRequest() {
   return { op: "", ask: null, wait: false, id: "", option: "", admin: "" };
 }
@@ -3613,16 +3810,22 @@ export function newAnswer() {
   return { id: "", pending: false, option: "", yes: false, kept: false };
 }
 
-// Own question-history fields; timestamps retain existing RFC3339
-// representation. Native Record includes Via/For Seen evidence from shared
-// identity. Empty option means pending.
+// [RecordMetadata](https://openabstractions.github.io/reference.html#concept-asks.question-history-record)
+// projects native question-history fields; timestamps retain existing RFC3339
+// representation. Native
+// [Record](https://openabstractions.github.io/reference.html#concept-asks.question-history-record)
+// includes Via/For Seen evidence from shared identity. Empty option means
+// pending.
 export function newRecordMetadata() {
   return { id: "", asker: "", key: "", about: "", text: "", options: [], asked: "", option: "", answered: "", kept: false, yes: false };
 }
 
-// Own response projection. Any nonempty code/error refuses, including unknown
-// future codes. Evidence supplement and existing wire handling remain native;
-// no generated complete service interface is claimed.
+// Deprecated native question-operation response descriptor. Removal is
+// scheduled for Train B (expected 0.9.0), W2-01a.1, under TD13/TD57's
+// stored-state and declared outside-adopter retirement conditions. Own response
+// projection. Any nonempty code/error refuses, including unknown future codes.
+// Evidence supplement and existing wire handling remain native; no generated
+// complete service interface is claimed.
 export function newResponseMetadata() {
   return { code: "", error: "", answer: null, records: [] };
 }
@@ -3750,6 +3953,24 @@ export function newQuestionAsker() {
   return { details: newQuestionDetails(), program: "" };
 }
 
+// Immutable catalogue content retained at admission. Slots are admitted display
+// data, never instructions or authority. Permission is present only for a
+// trusted runtime first-use occurrence and retains its existing immutable exact
+// targets; this read neither grants nor applies it. An empty slot map is valid
+// for a structured first-use admission. Missing old content is not
+// reconstructed from rendered text.
+export function newCatalogueContent() {
+  return { slots: {}, permission: null };
+}
+
+// Opt-in content from the same retained occurrence as question. Content is
+// present only when the Book retained it; absence explicitly means unavailable
+// structured content, including legacy occurrences. Every refusal carries no
+// content. Existing QuestionAsker and RecordMetadata stay unchanged.
+export function newQuestionContent() {
+  return { question: newQuestionAsker(), content: null };
+}
+
 // Caller-created immutable ordinary request identity: key is 1..128 UTF-8 bytes
 // without controls and replay_until_ms is an absolute Unix millisecond
 // deadline. Create it once and retain both fields unchanged for all retries.
@@ -3864,6 +4085,23 @@ export function newAnswerEntryPage() {
   return { outcome: "", answers: [], next: "", complete: false, completeSinceMs: 0n };
 }
 
+// One unchanged answer audit entry with optional content retained with that
+// answer. Content survives retirement of the original question under the same
+// audit lifetime and byte bounds. Absence explicitly means unavailable content;
+// it is never reconstructed from title text. Ordinary choices carry no
+// catalogue content.
+export function newAnswerContent() {
+  return { answer: newAnswerEntry(), content: null };
+}
+
+// The existing bounded answer-audit page semantics with content included.
+// Exactly page carries entries; every refusal has no entries or cursor. The
+// completeness time, authorization and cursor binding retain ListAnswers
+// semantics.
+export function newAnswerContentPage() {
+  return { outcome: "", answers: [], next: "", complete: false, completeSinceMs: 0n };
+}
+
 // A pending shared ordinary choice as an enrolled assistant may answer it:
 // options holds only the shared options, in the order the application offered
 // them. The title and labels are application-authored data and carry no
@@ -3914,6 +4152,13 @@ export function newPermissionObservation() {
 // and refuse typed entries.
 export function newTypedPermissionDetails() {
   return { question: newAttributedQuestion(), effect: null, effectDigest: "", origin: "", purpose: "", display: null };
+}
+
+// observation reads pending or answered with the question's id, or a refusal
+// with no answer. pending_until_ms is the Unix millisecond time a pending
+// question expires (ASK-A7) and is zero for every other outcome.
+export function newPendingQuestion() {
+  return { observation: newPermissionObservation(), pendingUntilMs: 0n };
 }
 
 // Trusted capability-authored explanation aligned in order with the frozen
@@ -4034,6 +4279,14 @@ function newOAQuestionApplicationObserveArguments() {
   return { requestKey: "", waitMs: 0n };
 }
 
+function newOAQuestionOperatorReadQuestionContentArguments() {
+  return { id: "" };
+}
+
+function newOAQuestionOperatorListAnswerContentsArguments() {
+  return { cursor: "", limit: 0n };
+}
+
 function newOAQuestionOperatorListChoicesArguments() {
   return { cursor: "", limit: 0n };
 }
@@ -4134,6 +4387,10 @@ function newOAPermissionApplicationObserveArguments() {
   return { requestKey: "", waitMs: 0n };
 }
 
+function newOAPermissionApplicationObserveQuestionArguments() {
+  return { id: "", waitMs: 0n };
+}
+
 function newOAPermissionOperatorListPermissionsArguments() {
   return { cursor: "", limit: 0n };
 }
@@ -4204,6 +4461,14 @@ function newOAQuestionApplicationAskResult() {
 
 function newOAQuestionApplicationObserveResult() {
   return { value: newQuestionObservation() };
+}
+
+function newOAQuestionOperatorReadQuestionContentResult() {
+  return { value: newQuestionContent() };
+}
+
+function newOAQuestionOperatorListAnswerContentsResult() {
+  return { value: newAnswerContentPage() };
 }
 
 function newOAQuestionOperatorListChoicesResult() {
@@ -4304,6 +4569,10 @@ function newOAPermissionApplicationRequestResult() {
 
 function newOAPermissionApplicationObserveResult() {
   return { value: newPermissionObservation() };
+}
+
+function newOAPermissionApplicationObserveQuestionResult() {
+  return { value: newPendingQuestion() };
 }
 
 function newOAPermissionOperatorListPermissionsResult() {
@@ -5101,6 +5370,97 @@ function readQuestionAsker(r) {
   return v;
 }
 
+function readCatalogueContent(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newCatalogueContent();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "slots") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.slots = strMap(r);
+      } else if (key === "permission") {
+        if (seen & 2) throw r.refuse("duplicate_field");
+        seen |= 2;
+        v.permission = readPermissionRequest(r);
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 1) >>> 0) !== 1) throw r.refuse("missing_field");
+  { const n = Object.keys(v.slots).length; if (n > 32) throw r.refuse("bad_value"); }
+  if (v.slots && typeof v.slots === "object" && !Array.isArray(v.slots)) { for (const oaElement of Object.keys(v.slots)) { if (typeof oaElement === "string") {
+  { const n = ENC.encode(oaElement).length; if (n < 1 || n > 64) throw r.refuse("bad_value"); }
+  } } }
+  if (v.slots && typeof v.slots === "object" && !Array.isArray(v.slots)) { for (const oaElement of Object.keys(v.slots)) { if (typeof oaElement === "string") {
+  if (!/^[A-Za-z0-9_.-]*$/.test(oaElement)) throw r.refuse("bad_value");
+  } } }
+  if (v.slots && typeof v.slots === "object" && !Array.isArray(v.slots)) { for (const oaElement of Object.values(v.slots)) { if (typeof oaElement === "string") {
+  { const n = ENC.encode(oaElement).length; if (n > 800) throw r.refuse("bad_value"); }
+  } } }
+  if (v.slots && typeof v.slots === "object" && !Array.isArray(v.slots)) { for (const oaElement of Object.values(v.slots)) { if (typeof oaElement === "string") {
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(oaElement)) throw r.refuse("bad_value");
+  } } }
+  return v;
+}
+
+function readQuestionContent(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newQuestionContent();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "question") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.question = readQuestionAsker(r);
+      } else if (key === "content") {
+        if (seen & 2) throw r.refuse("duplicate_field");
+        seen |= 2;
+        v.content = readCatalogueContent(r);
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 1) >>> 0) !== 1) throw r.refuse("missing_field");
+  return v;
+}
+
 function readRequestRef(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
@@ -5744,6 +6104,99 @@ function readAnswerEntryPage(r) {
   return v;
 }
 
+function readAnswerContent(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newAnswerContent();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "answer") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.answer = readAnswerEntry(r);
+      } else if (key === "content") {
+        if (seen & 2) throw r.refuse("duplicate_field");
+        seen |= 2;
+        v.content = readCatalogueContent(r);
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 1) >>> 0) !== 1) throw r.refuse("missing_field");
+  return v;
+}
+
+function readAnswerContentPage(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newAnswerContentPage();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "outcome") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.outcome = r.string();
+      } else if (key === "answers") {
+        if (seen & 2) throw r.refuse("duplicate_field");
+        seen |= 2;
+        v.answers = readList(r, readAnswerContent);
+      } else if (key === "next") {
+        if (seen & 4) throw r.refuse("duplicate_field");
+        seen |= 4;
+        v.next = r.string();
+      } else if (key === "complete") {
+        if (seen & 8) throw r.refuse("duplicate_field");
+        seen |= 8;
+        v.complete = r.boolean();
+      } else if (key === "complete_since_ms") {
+        if (seen & 16) throw r.refuse("duplicate_field");
+        seen |= 16;
+        v.completeSinceMs = r.integer(-9223372036854775808n, 9223372036854775807n);
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 31) >>> 0) !== 31) throw r.refuse("missing_field");
+  { const n = v.answers.length; if (n > 64) throw r.refuse("bad_value"); }
+  { const n = ENC.encode(v.next).length; if (n > 256) throw r.refuse("bad_value"); }
+    if (v.outcome !== "page" && v.outcome !== "gap" && v.outcome !== "invalid" && v.outcome !== "forbidden" && v.outcome !== "unavailable") { throw r.refuse("bad_enum"); }
+  return v;
+}
+
 function readAnswerableChoice(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
@@ -6047,6 +6500,45 @@ function readTypedPermissionDetails(r) {
   r.pos++;
   r.depth--;
   if (((seen & 29) >>> 0) !== 29) throw r.refuse("missing_field");
+  return v;
+}
+
+function readPendingQuestion(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newPendingQuestion();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "observation") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.observation = readPermissionObservation(r);
+      } else if (key === "pending_until_ms") {
+        if (seen & 2) throw r.refuse("duplicate_field");
+        seen |= 2;
+        v.pendingUntilMs = r.integer(-9223372036854775808n, 9223372036854775807n);
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 1) >>> 0) !== 1) throw r.refuse("missing_field");
   return v;
 }
 
@@ -6773,6 +7265,84 @@ function readOAQuestionApplicationObserveArguments(r) {
   r.pos++;
   r.depth--;
   if (((seen & 3) >>> 0) !== 3) throw r.refuse("missing_field");
+  return v;
+}
+
+function readOAQuestionOperatorReadQuestionContentArguments(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newOAQuestionOperatorReadQuestionContentArguments();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "id") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.id = r.string();
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 1) >>> 0) !== 1) throw r.refuse("missing_field");
+  { const n = ENC.encode(v.id).length; if (n < 1 || n > 128) throw r.refuse("bad_value"); }
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(v.id)) throw r.refuse("bad_value");
+  return v;
+}
+
+function readOAQuestionOperatorListAnswerContentsArguments(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newOAQuestionOperatorListAnswerContentsArguments();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "cursor") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.cursor = r.string();
+      } else if (key === "limit") {
+        if (seen & 2) throw r.refuse("duplicate_field");
+        seen |= 2;
+        v.limit = r.integer(-9223372036854775808n, 9223372036854775807n);
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 3) >>> 0) !== 3) throw r.refuse("missing_field");
+  { const n = ENC.encode(v.cursor).length; if (n > 256) throw r.refuse("bad_value"); }
+  if (v.limit < 1n || v.limit > 64n) throw r.refuse("bad_value");
   return v;
 }
 
@@ -7715,6 +8285,48 @@ function readOAPermissionApplicationObserveArguments(r) {
   return v;
 }
 
+function readOAPermissionApplicationObserveQuestionArguments(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newOAPermissionApplicationObserveQuestionArguments();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "id") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.id = r.string();
+      } else if (key === "wait_ms") {
+        if (seen & 2) throw r.refuse("duplicate_field");
+        seen |= 2;
+        v.waitMs = r.integer(-9223372036854775808n, 9223372036854775807n);
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 3) >>> 0) !== 3) throw r.refuse("missing_field");
+  { const n = ENC.encode(v.id).length; if (n < 1 || n > 128) throw r.refuse("bad_value"); }
+  if (/[\u0000-\u001f\u007f-\u009f]/.test(v.id)) throw r.refuse("bad_value");
+  if (v.waitMs < 0n || v.waitMs > 30000n) throw r.refuse("bad_value");
+  return v;
+}
+
 function readOAPermissionOperatorListPermissionsArguments(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
@@ -8394,6 +9006,76 @@ function readOAQuestionApplicationObserveResult(r) {
         if (seen & 1) throw r.refuse("duplicate_field");
         seen |= 1;
         v.value = readQuestionObservation(r);
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 1) >>> 0) !== 1) throw r.refuse("missing_field");
+  return v;
+}
+
+function readOAQuestionOperatorReadQuestionContentResult(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newOAQuestionOperatorReadQuestionContentResult();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "value") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.value = readQuestionContent(r);
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 1) >>> 0) !== 1) throw r.refuse("missing_field");
+  return v;
+}
+
+function readOAQuestionOperatorListAnswerContentsResult(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newOAQuestionOperatorListAnswerContentsResult();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "value") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.value = readAnswerContentPage(r);
       } else {
         throw r.refuse("unknown_field");
       }
@@ -9284,6 +9966,41 @@ function readOAPermissionApplicationObserveResult(r) {
   return v;
 }
 
+function readOAPermissionApplicationObserveQuestionResult(r) {
+  if (r.at() !== 0x7b) throw r.refuse("wrong_type");
+  r.enter();
+  r.pos++;
+  const v = newOAPermissionApplicationObserveQuestionResult();
+  let seen = 0;
+  r.ws();
+  if (r.at() !== 0x7d) {
+    for (;;) {
+      r.ws();
+      if (r.at() !== 0x22) throw r.refuse("malformed");
+      const key = r.string();
+      r.ws();
+      if (r.at() !== 0x3a) throw r.refuse("malformed");
+      r.pos++;
+      r.ws();
+      if (key === "value") {
+        if (seen & 1) throw r.refuse("duplicate_field");
+        seen |= 1;
+        v.value = readPendingQuestion(r);
+      } else {
+        throw r.refuse("unknown_field");
+      }
+      r.ws();
+      if (r.at() !== 0x2c) break;
+      r.pos++;
+    }
+  }
+  if (r.at() !== 0x7d) throw r.refuse("malformed");
+  r.pos++;
+  r.depth--;
+  if (((seen & 1) >>> 0) !== 1) throw r.refuse("missing_field");
+  return v;
+}
+
 function readOAPermissionOperatorListPermissionsResult(r) {
   if (r.at() !== 0x7b) throw r.refuse("wrong_type");
   r.enter();
@@ -9748,8 +10465,86 @@ export function decode(data) {
   return v;
 }
 
+const JSON_RECORDS = Object.freeze({
+  Question: [writeQuestion, readQuestion],
+  Request: [writeRequest, readRequest],
+  Answer: [writeAnswer, readAnswer],
+  RecordMetadata: [writeRecordMetadata, readRecordMetadata],
+  ResponseMetadata: [writeResponseMetadata, readResponseMetadata],
+  ApplicationQuestion: [writeApplicationQuestion, readApplicationQuestion],
+  QuestionObservation: [writeQuestionObservation, readQuestionObservation],
+  OperatorPage: [writeOperatorPage, readOperatorPage],
+  OperatorDecision: [writeOperatorDecision, readOperatorDecision],
+  OperatorRetirement: [writeOperatorRetirement, readOperatorRetirement],
+  OperatorQuestion: [writeOperatorQuestion, readOperatorQuestion],
+  AttributedQuestion: [writeAttributedQuestion, readAttributedQuestion],
+  PermissionTarget: [writePermissionTarget, readPermissionTarget],
+  PermissionRequest: [writePermissionRequest, readPermissionRequest],
+  QuestionDetails: [writeQuestionDetails, readQuestionDetails],
+  QuestionAsker: [writeQuestionAsker, readQuestionAsker],
+  CatalogueContent: [writeCatalogueContent, readCatalogueContent],
+  QuestionContent: [writeQuestionContent, readQuestionContent],
+  RequestRef: [writeRequestRef, readRequestRef],
+  ChoiceOption: [writeChoiceOption, readChoiceOption],
+  ChoiceRequest: [writeChoiceRequest, readChoiceRequest],
+  ChoiceAnswer: [writeChoiceAnswer, readChoiceAnswer],
+  ChoiceObservation: [writeChoiceObservation, readChoiceObservation],
+  ChoiceAcknowledgement: [writeChoiceAcknowledgement, readChoiceAcknowledgement],
+  ChoiceRecord: [writeChoiceRecord, readChoiceRecord],
+  ChoicePage: [writeChoicePage, readChoicePage],
+  ChoiceRead: [writeChoiceRead, readChoiceRead],
+  ChoiceDecision: [writeChoiceDecision, readChoiceDecision],
+  ChoiceDetails: [writeChoiceDetails, readChoiceDetails],
+  AnswerEntry: [writeAnswerEntry, readAnswerEntry],
+  AnswerEntryPage: [writeAnswerEntryPage, readAnswerEntryPage],
+  AnswerContent: [writeAnswerContent, readAnswerContent],
+  AnswerContentPage: [writeAnswerContentPage, readAnswerContentPage],
+  AnswerableChoice: [writeAnswerableChoice, readAnswerableChoice],
+  AnswerableChoicePage: [writeAnswerableChoicePage, readAnswerableChoicePage],
+  ResponderDecision: [writeResponderDecision, readResponderDecision],
+  PermissionIntent: [writePermissionIntent, readPermissionIntent],
+  PermissionObservation: [writePermissionObservation, readPermissionObservation],
+  TypedPermissionDetails: [writeTypedPermissionDetails, readTypedPermissionDetails],
+  PendingQuestion: [writePendingQuestion, readPendingQuestion],
+  PermissionDisplaySelection: [writePermissionDisplaySelection, readPermissionDisplaySelection],
+  PermissionDisplay: [writePermissionDisplay, readPermissionDisplay],
+  NotificationAction: [writeNotificationAction, readNotificationAction],
+  NotificationRequest: [writeNotificationRequest, readNotificationRequest],
+  NotificationResult: [writeNotificationResult, readNotificationResult],
+  NotificationObservation: [writeNotificationObservation, readNotificationObservation],
+  NotificationRecord: [writeNotificationRecord, readNotificationRecord],
+  NotificationPage: [writeNotificationPage, readNotificationPage],
+  NotificationRead: [writeNotificationRead, readNotificationRead],
+  NotificationDecision: [writeNotificationDecision, readNotificationDecision],
+  NotifierDay: [writeNotifierDay, readNotifierDay],
+  NotifierCount: [writeNotifierCount, readNotifierCount],
+  NotifierPage: [writeNotifierPage, readNotifierPage],
+});
+
+// toJson writes one record, named by kind, as JSON laid out as this module's
+// documents are and without the document terminator.
+export function toJson(kind, value) {
+  const codec = Object.hasOwn(JSON_RECORDS, kind) ? JSON_RECORDS[kind] : undefined;
+  if (codec === undefined) throw new TypeError("toJson takes a record name of this module, not " + String(kind));
+  const out = new Out();
+  codec[0](out, value, 0);
+  return out.bytes();
+}
+
+// fromJson reads one record, named by kind, from data; a refused input throws Refusal.
+export function fromJson(kind, data) {
+  const codec = Object.hasOwn(JSON_RECORDS, kind) ? JSON_RECORDS[kind] : undefined;
+  if (codec === undefined) throw new TypeError("fromJson takes a record name of this module, not " + String(kind));
+  const r = new Reader(data);
+  r.ws();
+  const v = codec[1](r);
+  r.ws();
+  if (r.pos < r.buf.length) throw r.refuse("trailing_bytes");
+  return v;
+}
+
 // refusals is in the order two of them are chosen between.
-const refusals = ["malformed", "bad_string", "number_spelling", "wrong_type", "depth_exceeded", "duplicate_key", "duplicate_field", "unknown_field", "missing_field", "bad_enum", "trailing_bytes"];
+const refusals = ["malformed", "bad_string", "number_spelling", "wrong_type", "depth_exceeded", "duplicate_key", "duplicate_field", "unknown_field", "missing_field", "bad_enum", "bad_value", "trailing_bytes"];
 
 function refusalRank(word) {
   return refusals.indexOf(word);
@@ -9827,6 +10622,8 @@ _serviceRecords["PermissionTarget"] = [["account","string","never"],["program","
 _serviceRecords["PermissionRequest"] = [["targets","list<PermissionTarget>","never"],];
 _serviceRecords["QuestionDetails"] = [["question","AttributedQuestion","never"],["permission","PermissionRequest","absent"],];
 _serviceRecords["QuestionAsker"] = [["details","QuestionDetails","never"],["program","string","absent"],];
+_serviceRecords["CatalogueContent"] = [["slots","map<string,string>","never"],["permission","PermissionRequest","absent"],];
+_serviceRecords["QuestionContent"] = [["question","QuestionAsker","never"],["content","CatalogueContent","absent"],];
 _serviceRecords["RequestRef"] = [["key","string","never"],["replayUntilMs","i64","never"],];
 _serviceRecords["ChoiceOption"] = [["id","string","never"],["label","string","never"],];
 _serviceRecords["ChoiceRequest"] = [["requestRef","RequestRef","never"],["title","string","never"],["options","list<ChoiceOption>","never"],["pendingUntilMs","i64","never"],];
@@ -9840,12 +10637,15 @@ _serviceRecords["ChoiceDecision"] = [["outcome","string","never"],["record","Cho
 _serviceRecords["ChoiceDetails"] = [["choice","ChoiceRead","never"],["askerProgram","string","absent"],["assistantOptions","list<string>","never"],["answeredVia","string","absent"],];
 _serviceRecords["AnswerEntry"] = [["id","string","never"],["kind","string","never"],["key","string","never"],["asker","string","never"],["askerProgram","string","absent"],["publisher","string","absent"],["publisherTrusted","bool","zero"],["about","string","never"],["title","string","never"],["option","string","never"],["label","string","never"],["answeredBy","string","never"],["answerer","string","absent"],["answeredMs","i64","never"],];
 _serviceRecords["AnswerEntryPage"] = [["outcome","string","never"],["answers","list<AnswerEntry>","never"],["next","string","never"],["complete","bool","never"],["completeSinceMs","i64","never"],];
+_serviceRecords["AnswerContent"] = [["answer","AnswerEntry","never"],["content","CatalogueContent","absent"],];
+_serviceRecords["AnswerContentPage"] = [["outcome","string","never"],["answers","list<AnswerContent>","never"],["next","string","never"],["complete","bool","never"],["completeSinceMs","i64","never"],];
 _serviceRecords["AnswerableChoice"] = [["id","string","never"],["asker","string","never"],["title","string","never"],["options","list<ChoiceOption>","never"],["pendingUntilMs","i64","never"],["publisher","string","absent"],["publisherTrusted","bool","zero"],];
 _serviceRecords["AnswerableChoicePage"] = [["outcome","string","never"],["choices","list<AnswerableChoice>","never"],["next","string","never"],["complete","bool","never"],];
 _serviceRecords["ResponderDecision"] = [["outcome","string","never"],["record","RecordMetadata","absent"],["effect","string","never"],["targetOutcome","string","absent"],];
 _serviceRecords["PermissionIntent"] = [["requestKey","string","never"],["selection","OAImported0","absent"],["bundleRef","string","absent"],["bundleSelector","OAImported1","absent"],["purpose","string","absent"],];
 _serviceRecords["PermissionObservation"] = [["outcome","string","never"],["answer","Answer","absent"],["policyRevision","string","never"],];
 _serviceRecords["TypedPermissionDetails"] = [["question","AttributedQuestion","never"],["effect","OAImported2","absent"],["effectDigest","string","never"],["origin","string","never"],["purpose","string","never"],["display","PermissionDisplay","absent"],];
+_serviceRecords["PendingQuestion"] = [["observation","PermissionObservation","never"],["pendingUntilMs","i64","zero"],];
 _serviceRecords["PermissionDisplaySelection"] = [["operation","string","never"],["target","string","never"],["collection","string","never"],["allEffect","string","never"],["disclosure","string","never"],];
 _serviceRecords["PermissionDisplay"] = [["selections","list<PermissionDisplaySelection>","never"],["bundleLabel","string","never"],["bundleDisclosure","string","never"],["requiresOsAuthorization","bool","never"],];
 _serviceRecords["NotificationAction"] = [["id","string","never"],["title","string","never"],["activation","string","never"],];
@@ -9861,6 +10661,8 @@ _serviceRecords["NotifierCount"] = [["program","string","never"],["asker","strin
 _serviceRecords["NotifierPage"] = [["outcome","string","never"],["notifiers","list<NotifierCount>","never"],["next","string","never"],["complete","bool","never"],];
 _serviceRecords["OAQuestionApplicationAskArguments"] = [["question","ApplicationQuestion","never"],];
 _serviceRecords["OAQuestionApplicationObserveArguments"] = [["requestKey","string","never"],["waitMs","i64","never"],];
+_serviceRecords["OAQuestionOperatorReadQuestionContentArguments"] = [["id","string","never"],];
+_serviceRecords["OAQuestionOperatorListAnswerContentsArguments"] = [["cursor","string","never"],["limit","i64","never"],];
 _serviceRecords["OAQuestionOperatorListChoicesArguments"] = [["cursor","string","never"],["limit","i64","never"],];
 _serviceRecords["OAQuestionOperatorReadChoiceArguments"] = [["id","string","never"],];
 _serviceRecords["OAQuestionOperatorAnswerChoiceArguments"] = [["id","string","never"],["option","string","never"],["ifPending","bool","never"],];
@@ -9886,6 +10688,7 @@ _serviceRecords["OAQuestionResponderRequestAnsweringArguments"] = [];
 _serviceRecords["OAQuestionResponderAnswerChoiceArguments"] = [["id","string","never"],["option","string","never"],];
 _serviceRecords["OAPermissionApplicationRequestArguments"] = [["request","PermissionIntent","never"],];
 _serviceRecords["OAPermissionApplicationObserveArguments"] = [["requestKey","string","never"],["waitMs","i64","never"],];
+_serviceRecords["OAPermissionApplicationObserveQuestionArguments"] = [["id","string","never"],["waitMs","i64","never"],];
 _serviceRecords["OAPermissionOperatorListPermissionsArguments"] = [["cursor","string","never"],["limit","i64","never"],];
 _serviceRecords["OAPermissionOperatorReadPermissionDetailsArguments"] = [["id","string","never"],];
 _serviceRecords["OAPermissionOperatorAnswerPermissionIfPendingArguments"] = [["id","string","never"],["option","string","never"],];
@@ -9904,6 +10707,8 @@ _serviceRecords["OAServiceReply"] = [["version","i32","never"],["service","strin
 _serviceRecords["OAServiceError"] = [["code","string","never"],["message","string","never"],];
 _serviceRecords["OAQuestionApplicationAskResult"] = [["value","QuestionObservation","never"],];
 _serviceRecords["OAQuestionApplicationObserveResult"] = [["value","QuestionObservation","never"],];
+_serviceRecords["OAQuestionOperatorReadQuestionContentResult"] = [["value","QuestionContent","never"],];
+_serviceRecords["OAQuestionOperatorListAnswerContentsResult"] = [["value","AnswerContentPage","never"],];
 _serviceRecords["OAQuestionOperatorListChoicesResult"] = [["value","ChoicePage","never"],];
 _serviceRecords["OAQuestionOperatorReadChoiceResult"] = [["value","ChoiceRead","never"],];
 _serviceRecords["OAQuestionOperatorAnswerChoiceResult"] = [["value","ChoiceDecision","never"],];
@@ -9929,6 +10734,7 @@ _serviceRecords["OAQuestionResponderRequestAnsweringResult"] = [["value","OAImpo
 _serviceRecords["OAQuestionResponderAnswerChoiceResult"] = [["value","ChoiceDecision","never"],];
 _serviceRecords["OAPermissionApplicationRequestResult"] = [["value","PermissionObservation","never"],];
 _serviceRecords["OAPermissionApplicationObserveResult"] = [["value","PermissionObservation","never"],];
+_serviceRecords["OAPermissionApplicationObserveQuestionResult"] = [["value","PendingQuestion","never"],];
 _serviceRecords["OAPermissionOperatorListPermissionsResult"] = [["value","OperatorPage","never"],];
 _serviceRecords["OAPermissionOperatorReadPermissionDetailsResult"] = [["value","TypedPermissionDetails","never"],];
 _serviceRecords["OAPermissionOperatorAnswerPermissionIfPendingResult"] = [["value","OperatorDecision","never"],];
@@ -9974,6 +10780,7 @@ export class QuestionApplicationClient {
     const _request = _serviceRequest("abstraction.asks/application@1", "Ask", _payload);
     const _reply = _serviceResponse(await this._transport.exchangeFrame(_request), "abstraction.asks/application@1", "Ask");
     const _result = _serviceDecode(readOAQuestionApplicationAskResult, _reply, 1);
+    if ((_result.value.outcome === "pending" || _result.value.outcome === "answered") !== (_result.value.answer !== undefined && _result.value.answer !== null)) throw new ServiceError("invalid_result", "");
     return _result.value;
   }
 
@@ -9987,6 +10794,7 @@ export class QuestionApplicationClient {
     const _request = _serviceRequest("abstraction.asks/application@1", "Observe", _payload);
     const _reply = _serviceResponse(await this._transport.exchangeFrame(_request), "abstraction.asks/application@1", "Observe");
     const _result = _serviceDecode(readOAQuestionApplicationObserveResult, _reply, 1);
+    if ((_result.value.outcome === "pending" || _result.value.outcome === "answered") !== (_result.value.answer !== undefined && _result.value.answer !== null)) throw new ServiceError("invalid_result", "");
     return _result.value;
   }
 }
@@ -9994,6 +10802,31 @@ export const QuestionApplicationService = Object.freeze({wireName:"abstraction.a
 
 export class QuestionOperatorClient {
   constructor(transport) { this._transport = transport; }
+
+  async readQuestionContent(id) {
+    const _args = newOAQuestionOperatorReadQuestionContentArguments();
+    _args.id = id;
+    _serviceCheck("OAQuestionOperatorReadQuestionContentArguments", _args);
+    const _payload = _serviceEncode(writeOAQuestionOperatorReadQuestionContentArguments, _args, 1);
+    _serviceDecode(readOAQuestionOperatorReadQuestionContentArguments, _payload, 1);
+    const _request = _serviceRequest("abstraction.asks/operator@1", "ReadQuestionContent", _payload);
+    const _reply = _serviceResponse(await this._transport.exchangeFrame(_request), "abstraction.asks/operator@1", "ReadQuestionContent");
+    const _result = _serviceDecode(readOAQuestionOperatorReadQuestionContentResult, _reply, 1);
+    return _result.value;
+  }
+
+  async listAnswerContents(cursor, limit) {
+    const _args = newOAQuestionOperatorListAnswerContentsArguments();
+    _args.cursor = cursor;
+    _args.limit = limit;
+    _serviceCheck("OAQuestionOperatorListAnswerContentsArguments", _args);
+    const _payload = _serviceEncode(writeOAQuestionOperatorListAnswerContentsArguments, _args, 1);
+    _serviceDecode(readOAQuestionOperatorListAnswerContentsArguments, _payload, 1);
+    const _request = _serviceRequest("abstraction.asks/operator@1", "ListAnswerContents", _payload);
+    const _reply = _serviceResponse(await this._transport.exchangeFrame(_request), "abstraction.asks/operator@1", "ListAnswerContents");
+    const _result = _serviceDecode(readOAQuestionOperatorListAnswerContentsResult, _reply, 1);
+    return _result.value;
+  }
 
   async listChoices(cursor, limit) {
     const _args = newOAQuestionOperatorListChoicesArguments();
@@ -10310,6 +11143,7 @@ export class PermissionApplicationClient {
     const _request = _serviceRequest("abstraction.asks/permission@1", "Request", _payload);
     const _reply = _serviceResponse(await this._transport.exchangeFrame(_request), "abstraction.asks/permission@1", "Request");
     const _result = _serviceDecode(readOAPermissionApplicationRequestResult, _reply, 1);
+    if ((_result.value.outcome === "pending" || _result.value.outcome === "answered") !== (_result.value.answer !== undefined && _result.value.answer !== null)) throw new ServiceError("invalid_result", "");
     return _result.value;
   }
 
@@ -10323,6 +11157,20 @@ export class PermissionApplicationClient {
     const _request = _serviceRequest("abstraction.asks/permission@1", "Observe", _payload);
     const _reply = _serviceResponse(await this._transport.exchangeFrame(_request), "abstraction.asks/permission@1", "Observe");
     const _result = _serviceDecode(readOAPermissionApplicationObserveResult, _reply, 1);
+    if ((_result.value.outcome === "pending" || _result.value.outcome === "answered") !== (_result.value.answer !== undefined && _result.value.answer !== null)) throw new ServiceError("invalid_result", "");
+    return _result.value;
+  }
+
+  async observeQuestion(id, waitMs) {
+    const _args = newOAPermissionApplicationObserveQuestionArguments();
+    _args.id = id;
+    _args.waitMs = waitMs;
+    _serviceCheck("OAPermissionApplicationObserveQuestionArguments", _args);
+    const _payload = _serviceEncode(writeOAPermissionApplicationObserveQuestionArguments, _args, 1);
+    _serviceDecode(readOAPermissionApplicationObserveQuestionArguments, _payload, 1);
+    const _request = _serviceRequest("abstraction.asks/permission@1", "ObserveQuestion", _payload);
+    const _reply = _serviceResponse(await this._transport.exchangeFrame(_request), "abstraction.asks/permission@1", "ObserveQuestion");
+    const _result = _serviceDecode(readOAPermissionApplicationObserveQuestionResult, _reply, 1);
     return _result.value;
   }
 }
@@ -10662,6 +11510,8 @@ _namedRecords["PermissionTarget"] = [["account","string","never"],["program","st
 _namedRecords["PermissionRequest"] = [["targets","list<PermissionTarget>","never"],];
 _namedRecords["QuestionDetails"] = [["question","AttributedQuestion","never"],["permission","PermissionRequest","absent"],];
 _namedRecords["QuestionAsker"] = [["details","QuestionDetails","never"],["program","string","absent"],];
+_namedRecords["CatalogueContent"] = [["slots","map<string,string>","never"],["permission","PermissionRequest","absent"],];
+_namedRecords["QuestionContent"] = [["question","QuestionAsker","never"],["content","CatalogueContent","absent"],];
 _namedRecords["RequestRef"] = [["key","string","never"],["replayUntilMs","i64","never"],];
 _namedRecords["ChoiceOption"] = [["id","string","never"],["label","string","never"],];
 _namedRecords["ChoiceRequest"] = [["requestRef","RequestRef","never"],["title","string","never"],["options","list<ChoiceOption>","never"],["pendingUntilMs","i64","never"],];
@@ -10675,12 +11525,15 @@ _namedRecords["ChoiceDecision"] = [["outcome","string","never"],["record","Choic
 _namedRecords["ChoiceDetails"] = [["choice","ChoiceRead","never"],["askerProgram","string","absent"],["assistantOptions","list<string>","never"],["answeredVia","string","absent"],];
 _namedRecords["AnswerEntry"] = [["id","string","never"],["kind","string","never"],["key","string","never"],["asker","string","never"],["askerProgram","string","absent"],["publisher","string","absent"],["publisherTrusted","bool","zero"],["about","string","never"],["title","string","never"],["option","string","never"],["label","string","never"],["answeredBy","string","never"],["answerer","string","absent"],["answeredMs","i64","never"],];
 _namedRecords["AnswerEntryPage"] = [["outcome","string","never"],["answers","list<AnswerEntry>","never"],["next","string","never"],["complete","bool","never"],["completeSinceMs","i64","never"],];
+_namedRecords["AnswerContent"] = [["answer","AnswerEntry","never"],["content","CatalogueContent","absent"],];
+_namedRecords["AnswerContentPage"] = [["outcome","string","never"],["answers","list<AnswerContent>","never"],["next","string","never"],["complete","bool","never"],["completeSinceMs","i64","never"],];
 _namedRecords["AnswerableChoice"] = [["id","string","never"],["asker","string","never"],["title","string","never"],["options","list<ChoiceOption>","never"],["pendingUntilMs","i64","never"],["publisher","string","absent"],["publisherTrusted","bool","zero"],];
 _namedRecords["AnswerableChoicePage"] = [["outcome","string","never"],["choices","list<AnswerableChoice>","never"],["next","string","never"],["complete","bool","never"],];
 _namedRecords["ResponderDecision"] = [["outcome","string","never"],["record","RecordMetadata","absent"],["effect","string","never"],["targetOutcome","string","absent"],];
 _namedRecords["PermissionIntent"] = [["requestKey","string","never"],["selection","OAImported0","absent"],["bundleRef","string","absent"],["bundleSelector","OAImported1","absent"],["purpose","string","absent"],];
 _namedRecords["PermissionObservation"] = [["outcome","string","never"],["answer","Answer","absent"],["policyRevision","string","never"],];
 _namedRecords["TypedPermissionDetails"] = [["question","AttributedQuestion","never"],["effect","OAImported2","absent"],["effectDigest","string","never"],["origin","string","never"],["purpose","string","never"],["display","PermissionDisplay","absent"],];
+_namedRecords["PendingQuestion"] = [["observation","PermissionObservation","never"],["pendingUntilMs","i64","zero"],];
 _namedRecords["PermissionDisplaySelection"] = [["operation","string","never"],["target","string","never"],["collection","string","never"],["allEffect","string","never"],["disclosure","string","never"],];
 _namedRecords["PermissionDisplay"] = [["selections","list<PermissionDisplaySelection>","never"],["bundleLabel","string","never"],["bundleDisclosure","string","never"],["requiresOsAuthorization","bool","never"],];
 _namedRecords["NotificationAction"] = [["id","string","never"],["title","string","never"],["activation","string","never"],];
@@ -10797,6 +11650,14 @@ export function checkQuestionAsker(v, depth = 0, limit = DEPTH_LIMIT) {
   _namedCheck("QuestionAsker", v, depth, Math.min(limit, DEPTH_LIMIT));
 }
 
+export function checkCatalogueContent(v, depth = 0, limit = DEPTH_LIMIT) {
+  _namedCheck("CatalogueContent", v, depth, Math.min(limit, DEPTH_LIMIT));
+}
+
+export function checkQuestionContent(v, depth = 0, limit = DEPTH_LIMIT) {
+  _namedCheck("QuestionContent", v, depth, Math.min(limit, DEPTH_LIMIT));
+}
+
 export function checkRequestRef(v, depth = 0, limit = DEPTH_LIMIT) {
   _namedCheck("RequestRef", v, depth, Math.min(limit, DEPTH_LIMIT));
 }
@@ -10849,6 +11710,14 @@ export function checkAnswerEntryPage(v, depth = 0, limit = DEPTH_LIMIT) {
   _namedCheck("AnswerEntryPage", v, depth, Math.min(limit, DEPTH_LIMIT));
 }
 
+export function checkAnswerContent(v, depth = 0, limit = DEPTH_LIMIT) {
+  _namedCheck("AnswerContent", v, depth, Math.min(limit, DEPTH_LIMIT));
+}
+
+export function checkAnswerContentPage(v, depth = 0, limit = DEPTH_LIMIT) {
+  _namedCheck("AnswerContentPage", v, depth, Math.min(limit, DEPTH_LIMIT));
+}
+
 export function checkAnswerableChoice(v, depth = 0, limit = DEPTH_LIMIT) {
   _namedCheck("AnswerableChoice", v, depth, Math.min(limit, DEPTH_LIMIT));
 }
@@ -10871,6 +11740,10 @@ export function checkPermissionObservation(v, depth = 0, limit = DEPTH_LIMIT) {
 
 export function checkTypedPermissionDetails(v, depth = 0, limit = DEPTH_LIMIT) {
   _namedCheck("TypedPermissionDetails", v, depth, Math.min(limit, DEPTH_LIMIT));
+}
+
+export function checkPendingQuestion(v, depth = 0, limit = DEPTH_LIMIT) {
+  _namedCheck("PendingQuestion", v, depth, Math.min(limit, DEPTH_LIMIT));
 }
 
 export function checkPermissionDisplaySelection(v, depth = 0, limit = DEPTH_LIMIT) {
@@ -11517,6 +12390,80 @@ export function decodeQuestionAsker(data) {
   return v;
 }
 
+export function decodeCatalogueContentAt(data, depth, limit) {
+  const r = new Reader(data);
+  if (depth < 0 || limit < 1) throw r.refuse("depth_exceeded");
+  r.depth = depth;
+  r.limit = Math.min(limit, DEPTH_LIMIT);
+  r.ws();
+  const v = readCatalogueContent(r);
+  return [v, r.pos];
+}
+
+export function encodeCatalogueContentAt(v, depth) {
+  if (depth < 0 || depth >= DEPTH_LIMIT) throw new Refusal("depth_exceeded", 0);
+  checkCatalogueContent(v, depth, DEPTH_LIMIT);
+  const out = new Out();
+  writeCatalogueContent(out, v, depth);
+  const bytes = out.bytes();
+  decodeCatalogueContentAt(bytes, depth, DEPTH_LIMIT);
+  return bytes;
+}
+
+export function encodeCatalogueContent(v) {
+  const bytes = encodeCatalogueContentAt(v, 0);
+  const out = new Uint8Array(bytes.length + 1);
+  out.set(bytes);
+  out[bytes.length] = 0x0a;
+  return out;
+}
+
+export function decodeCatalogueContent(data) {
+  const [v, n] = decodeCatalogueContentAt(data, 0, DEPTH_LIMIT);
+  const r = new Reader(data);
+  r.pos = n;
+  r.ws();
+  if (r.pos !== r.buf.length) throw r.refuse("trailing_bytes");
+  return v;
+}
+
+export function decodeQuestionContentAt(data, depth, limit) {
+  const r = new Reader(data);
+  if (depth < 0 || limit < 1) throw r.refuse("depth_exceeded");
+  r.depth = depth;
+  r.limit = Math.min(limit, DEPTH_LIMIT);
+  r.ws();
+  const v = readQuestionContent(r);
+  return [v, r.pos];
+}
+
+export function encodeQuestionContentAt(v, depth) {
+  if (depth < 0 || depth >= DEPTH_LIMIT) throw new Refusal("depth_exceeded", 0);
+  checkQuestionContent(v, depth, DEPTH_LIMIT);
+  const out = new Out();
+  writeQuestionContent(out, v, depth);
+  const bytes = out.bytes();
+  decodeQuestionContentAt(bytes, depth, DEPTH_LIMIT);
+  return bytes;
+}
+
+export function encodeQuestionContent(v) {
+  const bytes = encodeQuestionContentAt(v, 0);
+  const out = new Uint8Array(bytes.length + 1);
+  out.set(bytes);
+  out[bytes.length] = 0x0a;
+  return out;
+}
+
+export function decodeQuestionContent(data) {
+  const [v, n] = decodeQuestionContentAt(data, 0, DEPTH_LIMIT);
+  const r = new Reader(data);
+  r.pos = n;
+  r.ws();
+  if (r.pos !== r.buf.length) throw r.refuse("trailing_bytes");
+  return v;
+}
+
 export function decodeRequestRefAt(data, depth, limit) {
   const r = new Reader(data);
   if (depth < 0 || limit < 1) throw r.refuse("depth_exceeded");
@@ -11998,6 +12945,80 @@ export function decodeAnswerEntryPage(data) {
   return v;
 }
 
+export function decodeAnswerContentAt(data, depth, limit) {
+  const r = new Reader(data);
+  if (depth < 0 || limit < 1) throw r.refuse("depth_exceeded");
+  r.depth = depth;
+  r.limit = Math.min(limit, DEPTH_LIMIT);
+  r.ws();
+  const v = readAnswerContent(r);
+  return [v, r.pos];
+}
+
+export function encodeAnswerContentAt(v, depth) {
+  if (depth < 0 || depth >= DEPTH_LIMIT) throw new Refusal("depth_exceeded", 0);
+  checkAnswerContent(v, depth, DEPTH_LIMIT);
+  const out = new Out();
+  writeAnswerContent(out, v, depth);
+  const bytes = out.bytes();
+  decodeAnswerContentAt(bytes, depth, DEPTH_LIMIT);
+  return bytes;
+}
+
+export function encodeAnswerContent(v) {
+  const bytes = encodeAnswerContentAt(v, 0);
+  const out = new Uint8Array(bytes.length + 1);
+  out.set(bytes);
+  out[bytes.length] = 0x0a;
+  return out;
+}
+
+export function decodeAnswerContent(data) {
+  const [v, n] = decodeAnswerContentAt(data, 0, DEPTH_LIMIT);
+  const r = new Reader(data);
+  r.pos = n;
+  r.ws();
+  if (r.pos !== r.buf.length) throw r.refuse("trailing_bytes");
+  return v;
+}
+
+export function decodeAnswerContentPageAt(data, depth, limit) {
+  const r = new Reader(data);
+  if (depth < 0 || limit < 1) throw r.refuse("depth_exceeded");
+  r.depth = depth;
+  r.limit = Math.min(limit, DEPTH_LIMIT);
+  r.ws();
+  const v = readAnswerContentPage(r);
+  return [v, r.pos];
+}
+
+export function encodeAnswerContentPageAt(v, depth) {
+  if (depth < 0 || depth >= DEPTH_LIMIT) throw new Refusal("depth_exceeded", 0);
+  checkAnswerContentPage(v, depth, DEPTH_LIMIT);
+  const out = new Out();
+  writeAnswerContentPage(out, v, depth);
+  const bytes = out.bytes();
+  decodeAnswerContentPageAt(bytes, depth, DEPTH_LIMIT);
+  return bytes;
+}
+
+export function encodeAnswerContentPage(v) {
+  const bytes = encodeAnswerContentPageAt(v, 0);
+  const out = new Uint8Array(bytes.length + 1);
+  out.set(bytes);
+  out[bytes.length] = 0x0a;
+  return out;
+}
+
+export function decodeAnswerContentPage(data) {
+  const [v, n] = decodeAnswerContentPageAt(data, 0, DEPTH_LIMIT);
+  const r = new Reader(data);
+  r.pos = n;
+  r.ws();
+  if (r.pos !== r.buf.length) throw r.refuse("trailing_bytes");
+  return v;
+}
+
 export function decodeAnswerableChoiceAt(data, depth, limit) {
   const r = new Reader(data);
   if (depth < 0 || limit < 1) throw r.refuse("depth_exceeded");
@@ -12213,6 +13234,43 @@ export function encodeTypedPermissionDetails(v) {
 
 export function decodeTypedPermissionDetails(data) {
   const [v, n] = decodeTypedPermissionDetailsAt(data, 0, DEPTH_LIMIT);
+  const r = new Reader(data);
+  r.pos = n;
+  r.ws();
+  if (r.pos !== r.buf.length) throw r.refuse("trailing_bytes");
+  return v;
+}
+
+export function decodePendingQuestionAt(data, depth, limit) {
+  const r = new Reader(data);
+  if (depth < 0 || limit < 1) throw r.refuse("depth_exceeded");
+  r.depth = depth;
+  r.limit = Math.min(limit, DEPTH_LIMIT);
+  r.ws();
+  const v = readPendingQuestion(r);
+  return [v, r.pos];
+}
+
+export function encodePendingQuestionAt(v, depth) {
+  if (depth < 0 || depth >= DEPTH_LIMIT) throw new Refusal("depth_exceeded", 0);
+  checkPendingQuestion(v, depth, DEPTH_LIMIT);
+  const out = new Out();
+  writePendingQuestion(out, v, depth);
+  const bytes = out.bytes();
+  decodePendingQuestionAt(bytes, depth, DEPTH_LIMIT);
+  return bytes;
+}
+
+export function encodePendingQuestion(v) {
+  const bytes = encodePendingQuestionAt(v, 0);
+  const out = new Uint8Array(bytes.length + 1);
+  out.set(bytes);
+  out[bytes.length] = 0x0a;
+  return out;
+}
+
+export function decodePendingQuestion(data) {
+  const [v, n] = decodePendingQuestionAt(data, 0, DEPTH_LIMIT);
   const r = new Reader(data);
   r.pos = n;
   r.ws();

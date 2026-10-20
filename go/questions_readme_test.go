@@ -42,6 +42,9 @@ func optionMeaning(o Option) string {
 
 func questionRow(q Question) string {
 	var meanings []string
+	if q.Key == AgentUpdateKey {
+		return fmt.Sprintf("| `%s` | `%s` | `update`: permits only this prepared set · `not_now`: preserves the connections; remembered for this prepared set |", q.Key, q.Text)
+	}
 	for _, name := range q.OptionNames() {
 		o, _ := q.Option(name)
 		meanings = append(meanings, optionMeaning(o))
@@ -107,7 +110,7 @@ func TestSystemAccessQuestionIsOnceAndRuntimeOnly(t *testing.T) {
 	if refuse, ok := q.Option("refuse"); !ok || refuse.Yes {
 		t.Fatalf("refuse: %+v", refuse)
 	}
-	for _, key := range []string{FirstUseKey, TypedPermissionKey, SystemSecurityLogKey} {
+	for _, key := range []string{FirstUseKey, TypedPermissionKey, SystemSecurityLogKey, PairingKey} {
 		if !RuntimeOnlyKey(key) {
 			t.Fatalf("%s is admitted by applications", key)
 		}

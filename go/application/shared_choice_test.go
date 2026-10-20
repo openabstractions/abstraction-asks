@@ -39,6 +39,9 @@ func sharedHost(t *testing.T, b *asks.Book, authorize AuthorizeChoiceResponder) 
 		if err := h.EnableChoiceResponder(authorize); err != nil {
 			t.Fatal(err)
 		}
+		if err := h.EnableNotifications(func(context.Context, *identity.Peer) error { return nil }, func(context.Context, string) error { return nil }, nil); err != nil {
+			t.Fatal(err)
+		}
 	}
 	done := make(chan error, 1)
 	go func() { done <- h.Serve(context.Background()) }()
@@ -121,6 +124,10 @@ func TestEnrolledAnswererAnswersSharedChoice(t *testing.T) {
 	if replay, err := responder.AnswerChoiceContext(ctx, pending.ID, "keep"); err != nil || replay.Outcome != wire.ChoiceDecisionOutcomeAnswered || replay.Record.Answer.AnsweredMs != answered.Record.Answer.AnsweredMs || renewed.Load() != 1 {
 		t.Fatal("a lost reply must replay without renewing again", replay, err)
 	}
+	notices, _, err := b.NotificationHistory()
+	if err != nil || len(notices) != 1 || notices[0].Request.Title != "Answered for you" {
+		t.Fatal("shared answer needs one service notification", notices, err)
+	}
 	if conflict, err := responder.AnswerChoiceContext(ctx, pending.ID, "cancel"); err != nil || conflict.Outcome != wire.ChoiceDecisionOutcomeConflict {
 		t.Fatal(conflict, err)
 	}
@@ -181,9 +188,21 @@ func TestSharedChoiceRefusalsWithoutAnswerer(t *testing.T) {
 	if denied, err := responder.AnswerChoiceContext(ctx, pending.ID, "keep"); err != nil || denied.Outcome != wire.ChoiceDecisionOutcomeForbidden {
 		t.Fatal(denied, err)
 	}
-	for _, bad := range [][]string{nil, {}, {"absent"}, {"keep", "keep"}, {"keep", "cancel", "replace", "keep"}} {
-		if _, err := app.ShareContext(ctx, outputChoice("bad"), bad); err == nil {
-			t.Fatalf("shared options %q accepted", bad)
+	// Enter the receiver directly: SDK preflight must not mask its admission
+	// or turn the service's explicit invalid result into a transport error.
+	raw := wire.NewChoiceApplicationClient(listen.FrameClient{Endpoint: endpoint}.WithContext(ctx))
+	before, revision, err := b.SharedChoices()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, bad := range [][]string{nil, {}, {"absent"}, {"keep", "keep"}, {"keep", "cancel", "replace", "keep"}} {
+		result, err := raw.ShareChoice(outputChoice(fmt.Sprintf("bad-%d", i)), bad)
+		if err != nil || result.Outcome != wire.ChoiceOutcomeInvalid || result.ID != "" || result.Answer != nil {
+			t.Fatalf("shared options %q: %+v, %v", bad, result, err)
 		}
+	}
+	after, afterRevision, err := b.SharedChoices()
+	if err != nil || len(after) != len(before) || afterRevision != revision {
+		t.Fatal("invalid sharing changed the Book", after, afterRevision, revision, err)
 	}
 }

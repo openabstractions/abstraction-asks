@@ -55,6 +55,52 @@ func TestPermissionAdmissionRetainsLongTargetIndependentOfWording(t *testing.T) 
 	}
 }
 
+func TestPermissionRemoteTargetIsStructuredSyntaxOnly(t *testing.T) {
+	b, err := LoadApplicationBook(filepath.Join(t.TempDir(), "asks.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	program := "remote:" + strings.Repeat("a", 64)
+	target := PermissionTarget{Account: b.owner, Program: program, Action: "abstraction.facade/application.message", Resource: "app:receiver"}
+	permission, err := NewPermissionRequest(target)
+	if err != nil || permission.Targets[0] != target {
+		t.Fatal(permission, err)
+	}
+	for _, bad := range []string{"remote:", "remote:" + strings.Repeat("A", 64), program + "/child", program + " ", "remote:" + strings.Repeat("a", 63)} {
+		target.Program = bad
+		if _, err := NewPermissionRequest(target); err == nil {
+			t.Fatal("malformed remote normalized into native authority", bad)
+		}
+	}
+	record, outcome, err := b.AskPermissionFrom("runtime", "paired display", "remote", permission, listen.Seen{}, Publisher{})
+	if err != nil || outcome != "pending" || record.PublisherTrusted {
+		t.Fatal(record, outcome, err)
+	}
+	reopened, err := LoadApplicationBook(b.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored, found, err := reopened.ApplicationRecord(record.ID)
+	if err != nil || !found {
+		t.Fatal(found, err)
+	}
+	if got, ok := PermissionForRecord(b.owner, stored); !ok || got.Targets[0] != permission.Targets[0] {
+		t.Fatal(got, ok)
+	}
+	if _, ok := LegacyPermission(b.owner, FirstUseKey, program, program+" wants to "+permission.Targets[0].Action+" on app:receiver"); ok {
+		t.Fatal("remote English text became authority")
+	}
+	if validAskerProgram(program) || validAnswerer(program) {
+		t.Fatal("remote target became native asker/responder")
+	}
+	foreign := permission
+	foreign.Targets = append([]PermissionTarget{}, permission.Targets...)
+	foreign.Targets[0].Account = "another-account"
+	if _, outcome, err := b.AskPermissionFrom("runtime", "display", "foreign", foreign, listen.Seen{}, Publisher{}); err != nil || outcome != "invalid" {
+		t.Fatal(outcome, err)
+	}
+}
+
 func TestPinnedPermissionReadRefusesForeignCanonicalStateBeforeCallback(t *testing.T) {
 	b, err := LoadApplicationBook(filepath.Join(t.TempDir(), "asks.json"))
 	if err != nil {
@@ -77,6 +123,7 @@ func TestPinnedPermissionReadRefusesForeignCanonicalStateBeforeCallback(t *testi
 		t.Fatal(err)
 	}
 	f.Asks[0].Permission.Targets[0].Account = "foreign"
+	f.Asks[0].Content.Permission.Targets[0].Account = "foreign"
 	foreign, err := json.Marshal(f)
 	if err != nil {
 		t.Fatal(err)
@@ -139,6 +186,7 @@ func TestPermissionProfilesReadLegacyWithoutRewritingThenMigrate(t *testing.T) {
 			f.Profile = profile
 			f.ChoiceTimeMs = 0
 			f.Asks[0].Permission = nil
+			dropProgramHashes(&f)
 			legacy, err := json.Marshal(f)
 			if err != nil {
 				t.Fatal(err)

@@ -156,10 +156,10 @@ func TestVersion8DelegatedAuditMovesIntoTheAnswerAudit(t *testing.T) {
 	}
 	admitChoice(t, b, ordinaryRequest(at, "edit"))
 	migrated, err := os.ReadFile(path)
-	if err != nil || !bytes.Contains(migrated, []byte(`"profile":"asks-application@9"`)) || !bytes.Contains(migrated, []byte(`"answers":[`)) || bytes.Contains(migrated, []byte(`"delegated"`)) {
+	if err != nil || !bytes.Contains(migrated, []byte(`"profile":"`+ApplicationProfile+`"`)) || !bytes.Contains(migrated, []byte(`"answers":[`)) || bytes.Contains(migrated, []byte(`"delegated"`)) {
 		t.Fatalf("version 8 must migrate on edit: %s %v", migrated, err)
 	}
-	if _, err := decodeApplication(bytes.Replace(migrated, []byte(`"asks-application@9"`), []byte(`"asks-application@8"`), 1)); err == nil {
+	if _, err := decodeApplication(bytes.Replace(migrated, []byte(`"`+ApplicationProfile+`"`), []byte(`"asks-application@8"`), 1)); err == nil {
 		t.Fatal("version 8 must refuse the answer audit")
 	}
 	if _, err := decodeApplication(bytes.Replace(raw, []byte(`"asks-application@8"`), []byte(`"asks-application@9"`), 1)); err == nil {

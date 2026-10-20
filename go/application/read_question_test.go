@@ -134,8 +134,14 @@ func TestStructuredDetailsAreAdditiveAndPublicAdmissionCannotMintPermission(t *t
 		t.Fatal("existing response changed")
 	}
 	data, _ := json.Marshal(old)
-	if strings.Contains(string(data), "Permission") || strings.Contains(string(data), "Targets") {
-		t.Fatalf("old closed result changed: %s", data)
+	var closed map[string]json.RawMessage
+	if err := json.Unmarshal(data, &closed); err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"Permission", "Targets"} {
+		if _, present := closed[field]; present {
+			t.Fatalf("old closed result acquired %s: %s", field, data)
+		}
 	}
 	q := question()
 	q.Key = asks.FirstUseKey
@@ -165,6 +171,7 @@ func TestMetadataReadSurvivesUnrecoverableLegacyPermission(t *testing.T) {
 		t.Fatal(err)
 	}
 	record.Permission = nil
+	record.Content = nil
 	record.Text = "legacy first-use target was truncated"
 	raw, err := json.Marshal(struct {
 		Asks    []asks.Record `json:"asks"`

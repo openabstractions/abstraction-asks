@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +32,47 @@ func typedFixture(b *Book, all bool, bundle bool) TypedPermission {
 	}
 	p.Digest = PermissionEffectDigest(p.Effect)
 	return p
+}
+
+func TestTypedPermissionAllowOnceStaysWithItsServiceCall(t *testing.T) {
+	b, err := LoadApplicationBook(filepath.Join(t.TempDir(), "book.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := typedFixture(b, false, false)
+	check := func() error { return nil }
+	if _, outcome, _ := b.AskTypedPermissionWithOnceAuthorizedFrom("owner", "app", "first", p, listen.Seen{}, Publisher{}, check); outcome != "invalid" {
+		t.Fatal("an application-origin request acquired a once choice", outcome)
+	}
+	p.Origin = "service"
+	first, outcome, err := b.AskTypedPermissionWithOnceAuthorizedFrom("owner", "service", "first", p, listen.Seen{}, Publisher{}, check)
+	if outcome != "pending" || err != nil || !slices.Equal(first.Options, []string{"once", "allow", "refuse"}) {
+		t.Fatal(first, outcome, err)
+	}
+	second, outcome, err := b.AskTypedPermissionWithOnceAuthorizedFrom("owner", "service", "second", p, listen.Seen{}, Publisher{}, check)
+	if outcome != "pending" || err != nil || second.ID == first.ID {
+		t.Fatal("once choices coalesced across calls", second, outcome, err)
+	}
+	ordinary, outcome, err := b.AskTypedPermissionFrom("owner", "service", "ordinary", p, listen.Seen{}, Publisher{})
+	if outcome != "pending" || err != nil || !slices.Equal(ordinary.Options, []string{"allow", "refuse"}) {
+		t.Fatal("ordinary choices changed", ordinary, outcome, err)
+	}
+	guard := func(Record, string) error { return nil }
+	if _, outcome, err := b.AnswerTypedPermissionAsResponderAuthorized(first.ID, "allow", filepath.Join(t.TempDir(), "assistant.exe"), guard); err != nil || outcome != "invalid" {
+		t.Fatal("responder answered a person-only occurrence", outcome, err)
+	}
+	if _, outcome, err := b.AnswerTypedPermissionIfPendingAuthorized(ordinary.ID, "once", guard); err != nil || outcome != "invalid" {
+		t.Fatal("ordinary occurrence accepted an unoffered answer", outcome, err)
+	}
+	if _, outcome, err := b.AnswerTypedPermissionIfPendingAuthorized(first.ID, "once", guard); err != nil || outcome != "answered" {
+		t.Fatal(outcome, err)
+	}
+	for _, test := range []struct{ key, status, option string }{{"first", "answered", "once"}, {"second", "pending", ""}} {
+		row, status, err := b.ReplayTypedPermission("owner", test.key, p)
+		if err != nil || status != test.status || row.Option != test.option {
+			t.Fatal(test.key, status, row.Option, err)
+		}
+	}
 }
 
 func TestRefusedTypedAdmissionLogsOneBoundedLine(t *testing.T) {
@@ -159,6 +201,123 @@ func TestTypedPermissionRefusePacingAndInLockAdmission(t *testing.T) {
 	}
 	if _, outcome, err := b.ObserveApplication("owner", "stopped"); err != nil || outcome != "unknown" {
 		t.Fatal("stopped admission persisted", outcome, err)
+	}
+}
+
+func TestTypedPermissionOccurrenceFreshRefusalAndPendingCoalescing(t *testing.T) {
+	b, err := LoadApplicationBook(filepath.Join(t.TempDir(), "book.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := typedFixture(b, false, false)
+	p.Origin, p.Purpose = "service", ""
+	ask := func(key string) (Record, string, error) {
+		return b.AskTypedPermissionOccurrenceAuthorizedFrom("owner", "app", key, p, listen.Seen{}, Publisher{}, func() error { return nil })
+	}
+	r, outcome, err := ask("call-1")
+	if err != nil || outcome != "pending" {
+		t.Fatal(outcome, err)
+	}
+	shared, outcome, err := ask("call-2")
+	if err != nil || outcome != "pending" || shared.ID != r.ID {
+		t.Fatal("pending calls did not coalesce", outcome, err)
+	}
+	if _, _, err := b.AnswerTypedPermissionIfPendingAuthorized(r.ID, "refuse", func(Record, string) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"call-1", "call-2"} {
+		replay, outcome, err := ask(key)
+		if err != nil || outcome != "answered" || replay.ID != r.ID || replay.Option != "refuse" {
+			t.Fatal("lost occurrence replay", key, outcome, err)
+		}
+	}
+	fresh, outcome, err := ask("call-3")
+	if err != nil || outcome != "pending" || fresh.ID == r.ID {
+		t.Fatal("fresh native call paced by old Refuse", outcome, err)
+	}
+	if _, outcome, _ := b.AskTypedPermissionOccurrenceAuthorizedFrom("owner", "app", "no-auth", p, listen.Seen{}, Publisher{}, nil); outcome != "invalid" {
+		t.Fatal("missing trusted admission accepted", outcome)
+	}
+}
+
+func TestTypedPermissionResponderProfileAndLegacyIsolation(t *testing.T) {
+	b, err := LoadApplicationBook(filepath.Join(t.TempDir(), "book.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := typedFixture(b, false, false)
+	r, _, err := b.AskTypedPermissionFrom("owner", "app", "responder", p, listen.Seen{}, Publisher{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	actor := filepath.Join(t.TempDir(), "assistant.exe")
+	if _, _, err := b.AnswerApplicationAsResponder(r.ID, "allow", actor, func(Record, string) error { return nil }); !errors.Is(err, ErrTypedPermissionRequired) {
+		t.Fatal("legacy typed bypass", err)
+	}
+	answered, outcome, err := b.AnswerTypedPermissionAsResponderAuthorized(r.ID, "allow", actor, func(Record, string) error { return nil })
+	if err != nil || outcome != "answered" || answered.AnsweredBy != AnsweredByResponder || answered.Answerer != actor {
+		t.Fatal(answered, outcome, err)
+	}
+	raw, err := os.ReadFile(b.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := decodeApplication(raw); err != nil {
+		t.Fatal(err)
+	}
+	old := strings.Replace(string(raw), ApplicationProfile, shareApplicationProfile, 1)
+	if _, err := decodeApplication([]byte(old)); err == nil {
+		t.Fatal("old profile accepted typed responder")
+	}
+	var stored book
+	if err := json.Unmarshal(raw, &stored); err != nil {
+		t.Fatal(err)
+	}
+	stored.Asks[0].Answerer = ""
+	broken, err := json.Marshal(stored)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := decodeApplication(broken); err == nil {
+		t.Fatal("typed responder lost actor")
+	}
+}
+
+func TestTypedPermissionVersion10OperatorMigratesWithoutActorChange(t *testing.T) {
+	b, err := LoadApplicationBook(filepath.Join(t.TempDir(), "book.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := typedFixture(b, false, false)
+	r, _, err := b.AskTypedPermissionFrom("owner", "runtime", "old-operator", p, listen.Seen{}, Publisher{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := b.AnswerTypedPermissionIfPendingAuthorized(r.ID, "allow", func(Record, string) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(b.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := strings.Replace(string(raw), ApplicationProfile, shareApplicationProfile, 1)
+	if err := os.WriteFile(b.path, []byte(old), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := LoadApplicationBook(b.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, outcome, err := reopened.AskTypedPermissionFrom("owner", "runtime", "new-call", p, listen.Seen{}, Publisher{}); err != nil || outcome != "pending" {
+		t.Fatal(outcome, err)
+	}
+	saved, found, err := reopened.ApplicationRecord(r.ID)
+	if err != nil || !found || saved.AnsweredBy != AnsweredByOperator || saved.Answerer != "" || saved.Option != "allow" {
+		t.Fatal(saved, err)
+	}
+	raw, err = os.ReadFile(b.path)
+	if err != nil || !strings.Contains(string(raw), ApplicationProfile) {
+		t.Fatal(string(raw), err)
 	}
 }
 

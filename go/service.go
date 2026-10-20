@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	identity "github.com/openabstractions/abstraction-identity"
 	"github.com/openabstractions/abstraction-identity/listen"
 )
 
@@ -35,9 +34,17 @@ type Service struct {
 	wg       sync.WaitGroup
 }
 
+// ErrNoStateRoot refuses a start whose state folder is empty or relative:
+// the questions and admin secret are kept in an absolute folder of this
+// account and nowhere else (storage STO-L3).
+var ErrNoStateRoot = errors.New("asks: no state root: asks.json and admin.secret need an absolute folder of this account")
+
 func Start(endpoint, stateDir string) (*Service, error) {
-	if err := identity.CanEver(listen.Program); err != nil {
-		return nil, fmt.Errorf("asks: a question names who asked it, and this machine cannot say which program is calling: %w", err)
+	if err := startGuard(endpoint); err != nil {
+		return nil, err
+	}
+	if !filepath.IsAbs(stateDir) {
+		return nil, fmt.Errorf("%w (given %q)", ErrNoStateRoot, stateDir)
 	}
 	book, err := LoadBook(filepath.Join(stateDir, "asks.json"))
 	if err != nil {
@@ -155,9 +162,12 @@ func (s *Service) ask(k *listen.Call, req Request) {
 			reply(k, Response{Answer: &Answer{ID: r.ID, Pending: true}})
 			return
 		}
+		decided, stopWaiting := s.book.ObserveQuestionWait(r.ID)
 		select {
-		case <-s.book.Decided(r.ID):
+		case <-decided:
+			stopWaiting()
 		case <-k.Gone():
+			stopWaiting()
 			return
 		}
 		if r, _ = s.book.Get(r.ID); r.Pending() {
@@ -193,4 +203,14 @@ func (s *Service) administer(req Request, by listen.Seen) Response {
 		return Response{}
 	}
 	return Response{Code: CodeUnknownOperation, Error: "asks: unknown op " + req.Op}
+}
+
+// startGuard refuses an endpoint whose transport can never prove the calling
+// program: a macOS socket refuses, an xpc: endpoint passes, and each request
+// is still checked against its own peer evidence.
+func startGuard(endpoint string) error {
+	if err := listen.CanEver(endpoint, listen.Program); err != nil {
+		return fmt.Errorf("asks: a question names who asked it, and this machine cannot say which program is calling: %w", err)
+	}
+	return nil
 }

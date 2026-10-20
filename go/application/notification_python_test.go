@@ -63,6 +63,7 @@ func TestNotificationPythonGeneratedClientAndBook(t *testing.T) {
 	if _, err := exec.LookPath(python); err != nil {
 		t.Skip("Python interpreter unavailable")
 	}
+	skipBelowRequiresPython(t, python, args)
 	b, _ := book(t)
 	actor, err := os.Executable()
 	if err != nil {

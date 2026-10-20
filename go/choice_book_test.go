@@ -263,7 +263,12 @@ func TestOrdinaryByteQuotaRejectsBoundedValidRequests(t *testing.T) {
 		for n := range q.Options {
 			q.Options[n].Label = strings.Repeat("💡", 80)
 		}
-		r := admitChoice(t, b, q)
+		// Many programs ask, so the partition's byte budget, not one
+		// program's share (ASK-P5), is what runs out.
+		r, err := b.AskChoiceFrom(fmt.Sprintf("app-scope-%d", i%(ProgramShareDivisor*4)), "test app", q, listen.Seen{}, Publisher{}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
 		if r.Outcome == wire.ChoiceOutcomeExhausted {
 			if i == MaxOrdinaryAdmissions {
 				t.Fatal("byte budget never exhausted before count budget")
@@ -427,6 +432,7 @@ func TestOrdinaryClockBytesDoNotChargeFullLegacyPartition(t *testing.T) {
 	}
 	// Version 3 carries no answer audit (ASK-O15).
 	f.Profile, f.ChoiceTimeMs, f.Answers = structuredApplicationProfile, 0, nil
+	dropProgramHashes(&f)
 	data, _ := json.Marshal(f)
 	f.Asks[0].Text += strings.Repeat("x", MaxApplicationBytes-len(data))
 	data, _ = json.Marshal(f)

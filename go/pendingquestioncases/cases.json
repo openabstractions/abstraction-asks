@@ -1,0 +1,88 @@
+[
+  {
+    "name": "producer",
+    "reason": "rights:not_granted rights:question_pending:a rights:question_pending:b",
+    "ids": [
+      "a",
+      "b"
+    ],
+    "job": true,
+    "service": true
+  },
+  {
+    "name": "full",
+    "reason": "rights:not_granted content:read:forbidden rights:question_pending:q1",
+    "ids": [
+      "q1"
+    ],
+    "job": true,
+    "service": true
+  },
+  {
+    "name": "bare",
+    "reason": "rights:question_pending:q1",
+    "ids": [
+      "q1"
+    ],
+    "job": false,
+    "service": false
+  },
+  {
+    "name": "multiple",
+    "reason": "rights:not_granted\trights:question_pending:q2 rights:question_pending:q1 rights:question_pending:q2",
+    "ids": [
+      "q2",
+      "q1"
+    ],
+    "job": true,
+    "service": true
+  },
+  {
+    "name": "empty",
+    "reason": "rights:not_granted rights:question_pending:",
+    "ids": null,
+    "job": false,
+    "service": false
+  },
+  {
+    "name": "other",
+    "reason": "rights:not_granted upstream:forbidden rights:question_pending:q1",
+    "ids": [
+      "q1"
+    ],
+    "job": false,
+    "service": false
+  },
+  {
+    "name": "wrongprefix",
+    "reason": "rights:not_granted xrights:question_pending:q1",
+    "ids": null,
+    "job": false,
+    "service": false
+  },
+  {
+    "name": "none",
+    "reason": "",
+    "ids": null,
+    "job": false,
+    "service": false
+  },
+  {
+    "name": "denied",
+    "reason": "rights:denied rights:question_pending:q1",
+    "ids": [
+      "q1"
+    ],
+    "job": true,
+    "service": false
+  },
+  {
+    "name": "credential",
+    "reason": "credential:not_permitted:fixture rights:question_pending:q1",
+    "ids": [
+      "q1"
+    ],
+    "job": false,
+    "service": true
+  }
+]

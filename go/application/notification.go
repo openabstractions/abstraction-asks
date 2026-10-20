@@ -138,7 +138,7 @@ func (r *notificationReceiver) Post(q wire.NotificationRequest) (wire.Notificati
 	if code, proof := peer.Code.Get(); proof > identity.ProofNone {
 		publisher = asks.CodePublisher(code)
 	}
-	result, _, err := r.host.book.PostNotificationFrom(scope, program, q, r.call.Caller, publisher, r.policy)
+	result, _, err := r.nativeBookPostNotificationFrom(scope, program, q, r.call.Caller, publisher, r.policy)
 	if err != nil {
 		return wire.NotificationObservation{Outcome: notificationFailure(err)}, nil
 	}
@@ -153,7 +153,7 @@ func (r *notificationReceiver) Observe(ref wire.RequestRef, waitMS int64) (wire.
 	if waitMS < 0 || waitMS > 30000 || !asks.ValidChoiceReference(ref) {
 		return wire.NotificationObservation{Outcome: wire.NotificationOutcomeInvalid}, nil
 	}
-	result, err := r.host.book.ObserveNotification(scope, ref)
+	result, err := r.nativeBookObserveNotification(scope, ref)
 	if err != nil {
 		return wire.NotificationObservation{Outcome: wire.NotificationOutcomeUnavailable}, nil
 	}
@@ -168,19 +168,16 @@ func (r *notificationReceiver) Observe(ref wire.RequestRef, waitMS int64) (wire.
 			wait = max(until, 0)
 		}
 	}
-	timer := time.NewTimer(wait)
-	defer timer.Stop()
-	select {
-	case <-r.call.WaitContext().Done():
-		return wire.NotificationObservation{}, r.call.WaitContext().Err()
-	case <-timer.C:
-	case <-r.host.book.Decided(result.ID):
-	}
-	if _, _, err := r.scope(); err != nil {
+	waited, err := r.host.observeFor(r.call.WaitContext(), wait, func() bool {
+		result, err = r.nativeBookObserveNotification(scope, ref)
+		return err != nil || result.Outcome != wire.NotificationOutcomePosted && result.Outcome != wire.NotificationOutcomeScheduled
+	}, func() error { _, _, err := r.scope(); return err })
+	switch {
+	case waited == waitForbidden:
 		return wire.NotificationObservation{Outcome: wire.NotificationOutcomeForbidden}, nil
-	}
-	result, err = r.host.book.ObserveNotification(scope, ref)
-	if err != nil {
+	case waited == waitCancelled:
+		return wire.NotificationObservation{}, err
+	case waited == waitUnavailable, err != nil:
 		return wire.NotificationObservation{Outcome: wire.NotificationOutcomeUnavailable}, nil
 	}
 	return result, nil
@@ -214,7 +211,7 @@ func (r *notificationReceiver) Withdraw(ref wire.RequestRef) (wire.NotificationO
 	if err != nil {
 		return wire.NotificationObservation{Outcome: wire.NotificationOutcomeForbidden}, nil
 	}
-	decision, err := r.host.book.WithdrawOwnNotification(scope, ref, actor, r.ownRecheck(scope, actor))
+	decision, err := r.nativeBookWithdrawOwnNotification(scope, ref, actor, r.ownRecheck(scope, actor))
 	if err != nil {
 		return wire.NotificationObservation{Outcome: notificationFailure(err)}, nil
 	}
@@ -223,7 +220,7 @@ func (r *notificationReceiver) Withdraw(ref wire.RequestRef) (wire.NotificationO
 		// The full reference names no admission of this caller.
 		return wire.NotificationObservation{Outcome: wire.NotificationOutcomeUnknown}, nil
 	case wire.NotificationDecisionOutcomeConflict:
-		return r.host.book.ObserveNotification(scope, ref)
+		return r.nativeBookObserveNotification(scope, ref)
 	}
 	outcome, ok := wire.ParseNotificationOutcome(decision.Outcome.String())
 	if !ok {
@@ -241,7 +238,7 @@ func (r *notificationReceiver) Acknowledge(ref wire.RequestRef, result wire.Noti
 	if err != nil {
 		return wire.ChoiceAcknowledgement{Outcome: wire.ChoiceAckOutcomeForbidden}, nil
 	}
-	ack, err := r.host.book.AcknowledgeNotification(scope, ref, result, func() error {
+	ack, err := r.nativeBookAcknowledgeNotification(scope, ref, result, func() error {
 		if err := r.call.WaitContext().Err(); err != nil {
 			return err
 		}

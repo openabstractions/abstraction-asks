@@ -5,9 +5,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	typedpermission "github.com/openabstractions/abstraction-asks/go/typedpermission"
+	identity "github.com/openabstractions/abstraction-identity"
+	"github.com/openabstractions/abstraction-identity/fileid"
+	"github.com/openabstractions/abstraction-identity/remote"
 	"log/slog"
 	"slices"
-	"strings"
 	"time"
 
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
@@ -15,9 +18,9 @@ import (
 	rightswire "github.com/openabstractions/abstraction-rights/go/abstraction/rights/api"
 )
 
-const TypedPermissionKey = "rights.permission@2"
-const MaxPermissionSelections = 32
-const MaxPermissionTargetBytes = 4096
+const TypedPermissionKey = typedpermission.Key
+const MaxPermissionSelections = typedpermission.MaxPermissionSelections
+const MaxPermissionTargetBytes = typedpermission.MaxPermissionTargetBytes
 
 var ErrTypedPermissionRequired = errors.New("asks: typed permission operator required")
 
@@ -32,87 +35,13 @@ type TypedPermission struct {
 }
 
 func ValidTypedPermission(p TypedPermission) bool {
-	e := p.Effect
-	if !permissionString(e.Subject.Account, 128) || !permissionString(e.Subject.Program, 4096) ||
-		!ValidPermissionTarget(PermissionTarget{Account: e.Subject.Account, Program: e.Subject.Program, Action: "abstraction.asks/typed", Resource: "syntax"}) ||
-		len(e.Selections) < 1 || len(e.Selections) > MaxPermissionSelections || (p.Origin != "application" && p.Origin != "service") ||
-		p.Purpose != "" && !permissionString(p.Purpose, 800) || len(p.Display.Selections) != len(e.Selections) {
-		return false
-	}
-	for i, d := range p.Display.Selections {
-		if !permissionString(d.Operation, 512) || !permissionString(d.Target, 1024) || d.Collection != "" && !permissionString(d.Collection, 1024) || d.AllEffect != "" && !permissionString(d.AllEffect, 2048) || d.Disclosure != "" && !permissionString(d.Disclosure, 2048) {
-			return false
-		}
-		if e.Selections[i].Selector.Kind == rightswire.ResourceSelectorKindAll && (d.Collection == "" || d.AllEffect == "") {
-			return false
-		}
-	}
-	if p.Display.BundleLabel != "" && !permissionString(p.Display.BundleLabel, 512) || p.Display.BundleDisclosure != "" && !permissionString(p.Display.BundleDisclosure, 2048) {
-		return false
-	}
-	seen := map[string]bool{}
-	for _, s := range e.Selections {
-		if !permissionString(s.Permission.Action, 128) || !permissionString(s.Permission.ResourceProfile, 128) {
-			return false
-		}
-		switch s.Selector.Kind {
-		case rightswire.ResourceSelectorKindOne:
-			if len(s.Selector.Target) == 0 || len(s.Selector.Target) > MaxPermissionTargetBytes {
-				return false
-			}
-		case rightswire.ResourceSelectorKindAll:
-			if s.Selector.Target != nil {
-				return false
-			}
-		default:
-			return false
-		}
-		raw, err := json.Marshal(s)
-		if err != nil || seen[string(raw)] {
-			return false
-		}
-		seen[string(raw)] = true
-	}
-	if b := e.Bundle; b != nil {
-		if p.Display.BundleLabel == "" || p.Display.BundleDisclosure == "" {
-			return false
-		}
-		if !permissionString(b.BundleRef, 128) || !strings.HasPrefix(b.DefinitionDigest, "sha256:") || len(b.DefinitionDigest) != 71 || len(b.Selections) != len(e.Selections) {
-			return false
-		}
-		if digest, err := hex.DecodeString(strings.TrimPrefix(b.DefinitionDigest, "sha256:")); err != nil || len(digest) != 32 {
-			return false
-		}
-		for i, s := range b.Selections {
-			left, _ := json.Marshal(s)
-			right, _ := json.Marshal(e.Selections[i])
-			if string(left) != string(right) {
-				return false
-			}
-			if s.Selector.Kind != b.Selector.Kind || !slices.Equal(s.Selector.Target, b.Selector.Target) {
-				return false
-			}
-		}
-	}
-	return p.Digest == PermissionEffectDigest(e)
+	return typedpermission.ValidPermission(typedpermission.Permission(p), typedpermission.Validators{PackagedProgramPrefix: identity.PackagedProgramPrefix, NativeProgram: fileid.ValidSubjectProgram, RemoteProgram: remote.ValidSubjectProgram})
 }
-
-func PermissionEffectDigest(e rightswire.PermissionEffect) (digest string) {
-	defer func() {
-		if recover() != nil {
-			digest = ""
-		}
-	}()
-	raw := rightswire.EncodePermissionEffect(&e)
-	sum := sha256.Sum256(raw)
-	return hex.EncodeToString(sum[:])
+func PermissionEffectDigest(e rightswire.PermissionEffect) string {
+	return typedpermission.PermissionEffectDigest(e)
 }
-
 func CloneTypedPermission(p TypedPermission) TypedPermission {
-	raw, _ := json.Marshal(p)
-	var out TypedPermission
-	_ = json.Unmarshal(raw, &out)
-	return out
+	return TypedPermission(typedpermission.ClonePermission(typedpermission.Permission(p)))
 }
 
 func typedFingerprint(p TypedPermission) string {
@@ -163,7 +92,7 @@ func (b *Book) AskTypedPermissionFrom(scope, display, requestKey string, p Typed
 }
 
 func (b *Book) AskTypedPermissionAuthorizedFrom(scope, display, requestKey string, p TypedPermission, via listen.Seen, publisher Publisher, authorize func() error) (Record, string, error) {
-	out, outcome, err := b.askTypedPermission(scope, display, requestKey, p, via, publisher, authorize)
+	out, outcome, err := b.askTypedPermission(scope, display, requestKey, p, via, publisher, authorize, true, false)
 	if err == nil && (outcome == "invalid" || outcome == "conflict") {
 		// Bounded: program, key and outcome only; request text and resources stay out of logs.
 		slog.Info("permission admission refused", "program", boundedLogValue(display), "key", boundedLogValue(requestKey), "outcome", outcome)
@@ -178,12 +107,34 @@ func boundedLogValue(v string) string {
 	return v
 }
 
-func (b *Book) askTypedPermission(scope, display, requestKey string, p TypedPermission, via listen.Seen, publisher Publisher, authorize func() error) (Record, string, error) {
+// AskTypedPermissionOccurrenceAuthorizedFrom is trusted host composition for
+// finite service occurrences whose fresh request key must ask after Refuse.
+// Same-key replay and current pending coalescing remain unchanged; generic
+// typed admission keeps its ten-minute refusal pacing.
+func (b *Book) AskTypedPermissionOccurrenceAuthorizedFrom(scope, display, requestKey string, p TypedPermission, via listen.Seen, publisher Publisher, authorize func() error) (Record, string, error) {
+	if authorize == nil || p.Origin != "service" {
+		return Record{}, "invalid", nil
+	}
+	return b.askTypedPermission(scope, display, requestKey, p, via, publisher, authorize, false, false)
+}
+
+// AskTypedPermissionWithOnceAuthorizedFrom binds Allow once to one trusted
+// service request key. Only the person can answer it. Neither its decision
+// nor its pending slot can satisfy a different call by coalescing.
+func (b *Book) AskTypedPermissionWithOnceAuthorizedFrom(scope, display, requestKey string, p TypedPermission, via listen.Seen, publisher Publisher, authorize func() error) (Record, string, error) {
+	if authorize == nil || p.Origin != "service" {
+		return Record{}, "invalid", nil
+	}
+	return b.askTypedPermission(scope, display, requestKey, p, via, publisher, authorize, false, true)
+}
+
+func (b *Book) askTypedPermission(scope, display, requestKey string, p TypedPermission, via listen.Seen, publisher Publisher, authorize func() error, paceRefusal, once bool) (Record, string, error) {
 	if !b.application || !ValidTypedPermission(p) || p.Effect.Subject.Account != b.owner || !ValidRequestKey(scope) || !ValidRequestKey(requestKey) || display == "" {
 		return Record{}, "invalid", nil
 	}
 	p = CloneTypedPermission(p)
 	fingerprint := typedFingerprint(p)
+	options := typedpermission.Options(once)
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	var out Record
@@ -206,6 +157,10 @@ func (b *Book) askTypedPermission(scope, display, requestKey string, p TypedPerm
 					return nil
 				}
 				out = *f.Asks[i]
+				if !slices.Equal(out.Options, options) {
+					out, outcome = Record{}, "conflict"
+					return nil
+				}
 				outcome = recordOutcome(out)
 				return nil
 			}
@@ -213,31 +168,48 @@ func (b *Book) askTypedPermission(scope, display, requestKey string, p TypedPerm
 		// New request keys share the existing pending occurrence. A recent Refuse
 		// stands for the bounded interval even if an application varies its purpose.
 		for _, r := range f.Asks {
-			if r.TypedPermission == nil || r.TypedPermission.Digest != p.Digest {
+			if once || r.TypedPermission == nil || r.TypedPermission.Digest != p.Digest || !slices.Equal(r.Options, options) {
 				continue
 			}
-			if r.Pending() || r.Option == "refuse" && b.clock().Before(r.Answered.Add(10*time.Minute)) {
-				if len(f.Admissions) >= MaxApplicationAdmissions {
+			if r.Pending() || paceRefusal && r.Option == "refuse" && b.clock().Before(r.Answered.Add(10*time.Minute)) {
+				if len(f.Admissions) >= MaxApplicationAdmissions || f.applicationShareFull(recordShare(r, scope), false) {
 					return ErrApplicationCapacity
 				}
 				out = *r
-				f.Admissions = append(f.Admissions, applicationAdmission{scope, requestKey, fingerprint, out.ID})
+				f.Admissions = append(f.Admissions, applicationAdmission{Scope: scope, Key: requestKey, Fingerprint: fingerprint, ID: out.ID, ProgramHash: recordProgramHash(r)})
 				outcome = recordOutcome(out)
 				return nil
 			}
 		}
-		if len(f.Admissions) >= MaxApplicationAdmissions || len(f.Asks) >= MaxApplicationAdmissions {
-			return ErrApplicationCapacity
+		if len(f.Admissions) >= MaxApplicationAdmissions || len(f.Asks) >= MaxApplicationAdmissions ||
+			f.applicationShareFull(programShare(p.Effect.Subject.Program, scope), true) {
+			return ErrApplicationCapacity // the partition, or one program's share (ASK-P5)
 		}
 		publisher = publisher.recorded()
-		out = Record{ID: random(16), Asker: display, Key: TypedPermissionKey, About: p.Effect.Subject.Program, Text: "OA permission request", Options: []string{"allow", "refuse"}, Asked: b.clock().UTC(), Via: via, Publisher: publisher.Subject, PublisherTrusted: publisher.Trusted, ProgramDescription: publisher.Description, ProgramOriginalName: publisher.OriginalName, TypedPermission: &p}
+		out = Record{ID: random(16), Asker: display, Key: TypedPermissionKey, About: p.Effect.Subject.Program, Text: "OA permission request", Options: options, Asked: b.clock().UTC(), Via: via, Publisher: publisher.Subject, PublisherTrusted: publisher.Trusted, ProgramDescription: publisher.Description, ProgramOriginalName: publisher.OriginalName, TypedPermission: &p}
 		copy := out
 		f.Asks = append(f.Asks, &copy)
-		f.Admissions = append(f.Admissions, applicationAdmission{scope, requestKey, fingerprint, out.ID})
+		f.Admissions = append(f.Admissions, applicationAdmission{Scope: scope, Key: requestKey, Fingerprint: fingerprint, ID: out.ID, ProgramHash: recordProgramHash(&out)})
 		outcome = "pending"
 		return nil
 	})
 	return out, outcome, err
+}
+
+func typedPermissionOnce(r Record) bool {
+	return r.TypedPermission != nil && r.TypedPermission.Origin == "service" && slices.Equal(r.Options, typedpermission.Options(true))
+}
+
+func recordedQuestionOption(r Record, q Question, option, by string) (Option, bool) {
+	if r.TypedPermission != nil {
+		if !slices.Contains(r.Options, option) || typedPermissionOnce(r) && by != AnsweredByOperator {
+			return Option{}, false
+		}
+		if typedPermissionOnce(r) && option == "once" {
+			return Option{Name: "once", Yes: true}, true
+		}
+	}
+	return q.Option(option)
 }
 
 // PendingTypedPermissions lists the pending typed occurrences in Book order.
@@ -308,6 +280,21 @@ func (b *Book) AnswerTypedPermissionIfPendingAuthorized(id, option string, autho
 	})
 }
 
+// AnswerTypedPermissionAsResponderAuthorized records only a trusted host's
+// checked typed answer. The host owns capability eligibility; the Book keeps
+// the actual responder and audit, with no operator relabel or policy effect.
+func (b *Book) AnswerTypedPermissionAsResponderAuthorized(id, option, answerer string, authorize func(Record, string) error) (Record, string, error) {
+	if !validAnswerer(answerer) || authorize == nil {
+		return Record{}, "invalid", nil
+	}
+	return b.answerApplication(id, option, false, AnsweredByResponder, answerer, func(r Record, scope string) error {
+		if r.TypedPermission == nil || r.Key != TypedPermissionKey {
+			return ErrTypedPermissionRequired
+		}
+		return authorize(r, scope)
+	})
+}
+
 func (b *Book) AnswerLegacyApplicationAuthorized(id, option string, pending bool, authorize func() error) (Record, string, error) {
 	return b.answerApplication(id, option, pending, AnsweredByOperator, "", func(r Record, _ string) error {
 		if r.TypedPermission != nil {
@@ -318,4 +305,8 @@ func (b *Book) AnswerLegacyApplicationAuthorized(id, option string, pending bool
 		}
 		return nil
 	})
+}
+
+func permissionValidators() typedpermission.Validators {
+	return typedpermission.Validators{NativeProgram: fileid.ValidSubjectProgram, RemoteProgram: remote.ValidSubjectProgram, PackagedProgramPrefix: identity.PackagedProgramPrefix}
 }

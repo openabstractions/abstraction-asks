@@ -34,8 +34,9 @@ func FirstUseAnswerResource(program, action, resource, option string) (string, e
 	if err != nil {
 		return "", err
 	}
-	// Preserve every previously representable tuple's exact resource bytes.
-	if name, err := legacyFirstUseAnswerResource(program, action, resource, option); err == nil {
+	// Keep the first-use@1 form for every tuple it can represent, named from
+	// the normalized target so every spelling of one program names one rule.
+	if name, err := legacyFirstUseAnswerResource(target.Program, target.Action, target.Resource, option); err == nil {
 		return name, nil
 	}
 	encoded, err := json.Marshal([4]string{target.Program, target.Action, target.Resource, option})

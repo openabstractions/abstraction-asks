@@ -7,6 +7,40 @@ Asks keeps application requests and answers in a shared service. Applications
 own ordinary choice UI; OA owns permission presentation. The service holds
 pending records, verified requester attribution and bounded answer replay.
 
+Applications need shared pending and answer state across process exit and
+reconnection. Ordinary choices keep their app-owned presentation and effect;
+the service retains their immutable request and answer within declared bounds.
+
+## Use the runtime
+
+Install the runtime first: https://openabstractions.org/adopt.html. It owns the
+question book and exposes the authorized operator over local IPC. Use the
+runtime command to inspect and answer questions:
+
+    openabstractions questions pending
+    openabstractions questions answer 0da747 once
+    openabstractions questions permissions
+
+`pending` and `answer` resolve `abstraction.asks/operator@1`, whose list
+holds ordinary questions. `permissions` resolves
+`abstraction.asks/permission-operator@1` and lists pending typed permission
+requests; the person answers those in the OA permission dialog or the Panel.
+The runtime checks the calling program's operator authority.
+`openabstractions questions --help` shows the supported options and answer
+outcomes.
+
+## Compatibility and development evidence
+
+Published application@1 keeps its original request-key/wait codec language and
+its existing receiver-level `invalid` outcomes. Current application@2 and
+permission profiles retain their separately declared early bounds.
+
+**0.8.0:** Go adds `ProgramReviewKey`, `ProgramReviewFacts`/`ProgramReviewTarget`,
+`ProgramReviewSlots`, `ProgramReviewFactsFromSlots`, `ProgramReviewOptions`,
+`ProgramReviewPresentation`, and the `Book.WithdrawProgramReview`/
+`Book.WithdrawProgramReviewPredecessor` methods for runtime-owned grouped program
+review; existing wire contracts stay unchanged.
+
 The [permission journey](https://github.com/openabstractions/abstractions/blob/main/examples/rights-playground/README.md)
 explains how Identity, Rights and Asks connect native consent to an applied
 rule and an actual credential-bearing operation. It preserves the accepted
@@ -20,7 +54,7 @@ has its own package contents and qualification.
 | --- | --- | --- |
 | **App-owned choices** | `application@2` admits an app's title and stable offered option IDs, with pending/replay deadlines, own answering, observation and acknowledgement. The application maps the answer to its own behavior; the record grants no OA permission (ASK-A9). | Caller-scoped Answer/Dismiss integrated at `ed97c10f8`; Go terminal example integrated at `f27944846`; ordinary agent answering planned |
 | **OA permission requests** | `rights.first_use` carries the exact program, action and structured target. Rights applies the answer's permission effect. Authorized operators answer; enrolled responders answer eligible routine first-use requests under the existing scope and tier rules. Legacy `application@1` keeps its fixed catalogue. | Windows 11 renderer integrated through `957df22bd`, with bounded native guards passed; final visual acceptance and system/privacy forms remain open |
-| **Notifications with actions** | `notification@1` admits an app's one-way notification with up to two actions and an absolute expiry; the service holds the person's chosen action after the app exits, and the app observes and acknowledges it on its next run. A Rights block on `abstraction.asks/notification.post` turns one app's notifications off (ASK-N1..N7). | Service, Go client and generated bindings in source; native presenters and an application journey in progress |
+| **Notifications with actions** | `notification@1` admits an app's one-way notification with up to two actions and an absolute expiry; the service holds the person's chosen action after the app exits, and the app observes and acknowledges it on its next run. A Rights block on `abstraction.asks/notification.post` turns one app's notifications off (ASK-N1..N7). | Service, Go and Python clients and generated bindings in source; native presenters and an application journey in progress |
 
 | Before | With asks |
 | --- | --- |
@@ -36,6 +70,13 @@ and answerer route. Revoke answering access ends future answers, with optional c
 of current permissions granted through the app. Undo removes only the
 still-current permission effect of one answer. Paired write/read effects
 commit together or not at all.
+
+`ReadQuestionContent` adds the retained catalogue slots to the existing trusted
+question read. `ListAnswerContents` supplies those slots and immutable first-use
+details with each audit entry, including after the question is retired. Both
+are opt-in operator reads. Older occurrences have absent content; presentation
+uses generic wording rather than extracting fields from English. Existing
+metadata methods and permission effects stay unchanged.
 
 The legacy `application@1` catalogue remains closed. Current `application@2`
 admits ordinary app-authored choices. Both require explicit asking authority;
@@ -60,6 +101,30 @@ For legacy catalogue requests the service supplies wording/options; ordinary
 choices carry app-authored titles and stable IDs.
 
 ## Presentation ownership
+
+The Go catalogue's `presentation.go` owns native semantic families. Each
+catalogue entry explicitly declares its family. Service-reserved and typed
+permission occurrences select consent; application-callable catalogue records
+and free prose remain ordinary. `application/receiver.go` rejects every
+`RuntimeOnlyKey` before admission. This metadata carries no
+admission or answering authority. `TestQuestionPresentationCatalogueComplete`
+rejects a new catalogue entry without a declared route.
+
+Monitor projects recorded wording, options and publisher evidence, then validates
+the declared family in `native_question_presentation.go`. Its Windows mapper and
+native bridge consume that same selection. Windows chooses the running OS
+generation, theme and genuine viewport fallback in `win`; the macOS launcher
+renders the derived native flags. Existing theme, sound, safe defaults and
+unanswered dismissal remain platform-owned. Installer register/remove local
+confirmations and explicit personal-management review use ordinary OA policy
+(ASK-O14), without a security-consent display payload. `pollTray` automatically
+presents only service-reserved occurrences; ordinary legacy records remain
+available for explicit manual review. Application@2 choices retain app UI.
+`TestQuestionPresentationCatalogueToNativeBridge` and
+`TestQuestionPresentationCatalogueToWindows` cover actual catalogue projection
+through both adapters. Ordinary application choices retain their own UI policy.
+
+### Historical implementation and acceptance
 
 An application presents ordinary choices in its own window, CLI or existing
 controls. Automatic OA ordinary popup calls are removed at `0b6c877ae`; the
@@ -124,9 +189,6 @@ Breadth warnings and actual OS elevation remain separate.
 
 ## The problem
 
-Applications need shared pending and answer state across process exit and
-reconnection. Ordinary choices keep their app-owned presentation and effect;
-the service retains their immutable request and answer within declared bounds.
 The legacy walkthrough below names a question the service already knows.
 
 The example is in [Ask from an application](#ask-from-an-application).
@@ -162,7 +224,7 @@ being asked again. The `never` option is a retained refusal.
 | word | meaning |
 |---|---|
 | **question** | one name from the closed list in [`go/questions.go`](go/questions.go), with the slots it declares |
-| **ask** | an application filling a question's slots; pending until a person answers, and one record however many times it is asked |
+| **[ask](https://openabstractions.github.io/reference.html#concept-asks.question-ask)** | an application filling a question's slots; pending until a person answers, and one record however many times it is asked |
 | **answer** | a record the person keeps: the text as the person saw it, who asked, what the platform proved about who connected, and when |
 | **kept** | an answer that stops the question being asked again; `once` is not kept, `never` always is |
 | **via** / **for** | the program that connected, bound by this service; and the program it asks on behalf of, on its word (deprecated, kept for explicitly selected native integration; CONTRACT.md ASK-A5) |
@@ -180,12 +242,18 @@ the table in place.
 <!-- questions-table:start -->
 | id | wording shown to the person | what answering allows |
 |---|---|---|
+| `registry.program.review` | `Review updated programs (native presentation from retained image facts).` | `keep`: the app stays registered, confirmed · `not_now`: refused now, asked again next time · `repair`: refused now, asked again next time |
+| `setup.models` | `Set up models (native presentation from retained Setup facts).` | `setup`: permitted now, asked again next time · `not_now`: refused now, asked again next time |
+| `application.agent_update` | `Update the {members}{membersmore}{memberslast} connections? Keep these updated connections as your assistants. Each access permission is reviewed separately. Restart {members}{membersmore}{memberslast} to finish. Request {code}.` | `update`: permits only this prepared set · `not_now`: preserves the connections; remembered for this prepared set |
+| `application.command.once` | `{operation}{operationmore}? {program} requests this once. Command {command}. Request {code} expires {until}.` | `once`: permitted now, asked again next time · `refuse`: refused now, asked again next time |
+| `application.agent_enrollment` | `Connect {title} to OpenAbstractions? Keep it as your assistant. Each access permission is reviewed separately.` | `keep`: the app stays registered, confirmed · `refuse`: refused now, asked again next time |
+| `runtime.machine.pair` | `Pair these computers? Check that both computers show {check}. This computer allows: {given} {givenmore} The other computer allows: {received} {receivedmore} Permissions stay until removed in the Panel. {givenreplacement} {receivedreplacement} Each computer approves separately. Details: Verified peer key {peer}. Local binding {binding}. This computer's source: {givensource}. The other computer's source: {receivedsource}. Request {code} expires {until}.` | `once`: permitted now, asked again next time · `refuse`: refused now, asked again next time |
 | `content.replace` | `{asker} requests a one-time replacement of {target} with {replacement}. Request {code} expires {until}.` | `once`: permitted now, asked again next time · `never`: refused permanently, remembered |
 | `rights.register` | `{asker} wants to: {rights}` | `allow`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
 | `opencode.project.edit` | `OpenCode requests permission to read, run, create, edit and delete files throughout {folder}, including its subfolders, until this sandbox session exits. Request {code} expires {until}.` | `once`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
 | `download.reach` | `{asker} wants to fetch from {host}` | `allow`: permitted permanently, remembered · `once`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
 | `rights.first_use` | `{program} wants to {action} on {resource}` | `allow`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
-| `application.self_registered` | `{program} added itself to OpenAbstractions as {title}. Keep it?` | `keep`: the app stays registered, confirmed · `remove`: the app's entry is removed and it may not register itself again |
+| `application.self_registered` | `{program} was added to OpenAbstractions as {title}. Keep it?` | `keep`: the app stays registered, confirmed · `remove`: the app's entry is removed and it may not register itself again |
 | `system.securitylog.read` | `{asker} wants to read one page of the Windows Security log. Windows asks for administrator approval next. Request {code} expires {until}.` | `once`: permitted now, asked again next time · `refuse`: refused now, asked again next time · `never`: refused permanently, remembered |
 <!-- questions-table:end -->
 
@@ -254,7 +322,7 @@ uncertain reply reaches the same record rather than opening a second question.
 ## Obtain
 
 - **Go.** `go get github.com/openabstractions/abstraction-asks/go`. Current
-  release [`go/v0.1.1`](https://github.com/openabstractions/abstraction-asks/releases/tag/go%2Fv0.1.1).
+  release [`go/v0.5.0`](https://github.com/openabstractions/abstraction-asks/releases/tag/go%2Fv0.5.0).
   Standard library plus
   [abstraction-identity](https://github.com/openabstractions/abstraction-identity)
   (which brings `golang.org/x/sys`).
@@ -263,21 +331,7 @@ uncertain reply reaches the same record rather than opening a second question.
 
 ## Run
 
-Install the runtime first: https://openabstractions.org/adopt.html. It owns the
-question book and exposes the authorized operator over local IPC. Use the
-runtime command to inspect and answer questions:
-
-    openabstractions questions pending
-    openabstractions questions answer 0da747 once
-    openabstractions questions permissions
-
-`pending` and `answer` resolve `abstraction.asks/operator@1`, whose list
-holds ordinary questions. `permissions` resolves
-`abstraction.asks/permission-operator@1` and lists pending typed permission
-requests; the person answers those in the OA permission dialog or the Panel.
-The runtime checks the calling program's operator authority.
-`openabstractions questions --help` shows the supported options and answer
-outcomes.
+The [runtime instructions above](#use-the-runtime) show the current operator commands.
 
 ### Legacy standalone mode
 
@@ -331,7 +385,7 @@ unclassified service failure uses `internal`. Diagnostic wording is not an API.
   Applications cannot read the queue.
 - **Every operation binds its caller before it reads the request.** All five
   go through `listen.Receive`; a caller the kernel cannot identify to
-  `listen.Program` is refused with the reason (`asks: refused, identity: ...`)
+  [`listen.Program`](https://openabstractions.github.io/reference.html#concept-identity.listener-program-need) is refused with the reason (`asks: refused, identity: ...`)
   and its request is never parsed. The service refuses to start on a machine
   that cannot bind (`identity.CanEver`). A test sends every operation with a
   valid credential and no identity and expects five refusals.
@@ -401,7 +455,7 @@ release. Linux native prompt qualification remains open.
 
 ## Status
 
-**In development.** Tagged `go/v0.1.1`, but no conformance scenario cites this
+**In development.** Tagged `go/v0.5.0`, but no conformance scenario cites this
 layer, and the API carries no stability promise.
 
 ## Licence
@@ -410,12 +464,12 @@ Apache-2.0. See [LICENSE](https://github.com/openabstractions/abstraction-asks/b
 
 ### Operator answering and history
 
-The generated `QuestionOperator` service provides bounded latest-book history
+The generated [`QuestionOperator`](https://openabstractions.github.io/reference.html#concept-asks.question-operator) service provides bounded latest-book history
 and explicit catalog-option answering. A host enables it with a typed peer
 authorization callback before serving. The callback can use the rights service;
 ordinary same-account applications remain unauthorized by default.
 
-Go applications use `client.NewOperator(selectedEndpoint)` and
+Go applications use the [client.Operator](https://openabstractions.github.io/reference.html#concept-asks.question-operator-client) wrapper through `client.NewOperator(selectedEndpoint)` and
 `ListQuestionsContext` / `AnswerQuestionContext`. Resolve the
 `abstraction.asks/operator@1` contract before selecting its endpoint. A history
 gap requires restarting enumeration from an empty cursor. After an uncertain

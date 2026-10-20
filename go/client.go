@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/openabstractions/abstraction-facade/go-core/bootstrap"
 	"github.com/openabstractions/abstraction-identity/listen"
 )
 
@@ -20,12 +21,25 @@ type Client struct {
 	Admin    string
 }
 
-func DefaultEndpoint() string { return listen.Endpoint("asks") }
+// DefaultEndpoint returns empty when the account namespace is unavailable.
+func DefaultEndpoint() string { value, _ := bootstrap.Endpoint("asks"); return value }
+func missingEndpointError() error {
+	_, err := bootstrap.Endpoint("asks")
+	if err != nil {
+		return err
+	}
+	return errors.New("asks: empty endpoint")
+}
 
+// DefaultStateDir is the legacy service's state folder in the account's
+// configuration folder, or "" when the account has none: Start then refuses
+// rather than keep the questions and admin secret in the temporary directory
+// (storage STO-L3). The folder leaves with the legacy service (0.8.0 plan
+// W2-01a).
 func DefaultStateDir() string {
 	d, err := os.UserConfigDir()
 	if err != nil {
-		d = os.TempDir()
+		return ""
 	}
 	return filepath.Join(d, "openabstractions", "asks")
 }
@@ -33,6 +47,9 @@ func DefaultStateDir() string {
 func (c *Client) do(ctx context.Context, req Request) (Response, error) {
 	if err := ctx.Err(); err != nil {
 		return Response{}, err
+	}
+	if c.Endpoint == "" {
+		return Response{}, missingEndpointError()
 	}
 	req.Admin = c.Admin
 	nc, err := listen.Dial(c.Endpoint)

@@ -150,6 +150,20 @@ func (b *Book) ChoiceAttributed(id string) (ChoiceAttribution, bool, error) {
 // it is complete (zero when nothing was evicted) and the revision a cursor
 // binds (ASK-O15).
 func (b *Book) AuditedAnswers() ([]wire.AnswerEntry, int64, string, error) {
+	contents, since, revision, err := b.AuditedAnswerContents()
+	if err != nil {
+		return nil, 0, "", err
+	}
+	answers := make([]wire.AnswerEntry, len(contents))
+	for i, content := range contents {
+		answers[i] = content.Answer
+	}
+	return answers, since, revision, nil
+}
+
+// AuditedAnswerContents projects content retained with the audit itself. It
+// never reads the original question, which may already have been retired.
+func (b *Book) AuditedAnswerContents() ([]wire.AnswerContent, int64, string, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if !b.application {
@@ -159,13 +173,12 @@ func (b *Book) AuditedAnswers() ([]wire.AnswerEntry, int64, string, error) {
 	if err != nil {
 		return nil, 0, "", err
 	}
-	out := slices.Clone(f.Answers)
-	slices.Reverse(out)
-	if out == nil {
-		out = []wire.AnswerEntry{}
+	out := make([]wire.AnswerContent, len(f.Answers))
+	for i, answer := range f.Answers {
+		out[len(out)-1-i] = wire.AnswerContent{Answer: answer.AnswerEntry, Content: cloneCatalogueContent(answer.Content)}
 	}
 	return out, f.AnswersSinceMs, choiceFingerprint(struct {
-		Answers []wire.AnswerEntry
+		Answers []retainedAnswer
 		SinceMs int64
 	}{f.Answers, f.AnswersSinceMs}), nil
 }

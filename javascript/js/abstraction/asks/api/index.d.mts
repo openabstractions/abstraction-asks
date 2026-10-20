@@ -17,6 +17,28 @@ export interface Answer {
   kept: boolean;
 }
 
+// One unchanged answer audit entry with optional content retained with that
+// answer. Content survives retirement of the original question under the same
+// audit lifetime and byte bounds. Absence explicitly means unavailable content;
+// it is never reconstructed from title text. Ordinary choices carry no
+// catalogue content.
+export interface AnswerContent {
+  answer: AnswerEntry;
+  content: CatalogueContent | null;
+}
+
+// The existing bounded answer-audit page semantics with content included.
+// Exactly page carries entries; every refusal has no entries or cursor. The
+// completeness time, authorization and cursor binding retain ListAnswers
+// semantics.
+export interface AnswerContentPage {
+  outcome: OperatorPageOutcome;
+  answers: AnswerContent[];
+  next: string;
+  complete: boolean;
+  completeSinceMs: bigint;
+}
+
 // One answer the service recorded through operator@1, permission-operator@1 or
 // responder@1, as it recorded it. kind question is a catalogue question: key is
 // its catalogue key, about its About slot, title its text, and label its
@@ -102,6 +124,17 @@ export interface ApplicationQuestion {
 export interface AttributedQuestion {
   question: OperatorQuestion;
   answerer: string;
+}
+
+// Immutable catalogue content retained at admission. Slots are admitted display
+// data, never instructions or authority. Permission is present only for a
+// trusted runtime first-use occurrence and retains its existing immutable exact
+// targets; this read neither grants nor applies it. An empty slot map is valid
+// for a structured first-use admission. Missing old content is not
+// reconstructed from rendered text.
+export interface CatalogueContent {
+  slots: { [key: string]: string };
+  permission: PermissionRequest | null;
 }
 
 export type ChoiceAckOutcome = (typeof ChoiceAckOutcome)[keyof typeof ChoiceAckOutcome];
@@ -248,6 +281,63 @@ export declare const ChoiceState: Readonly<{ Pending: "pending"; Answered: "answ
 export declare class DispatchError extends Error {
   constructor(code: string);
   code: string;
+}
+
+// JsonRecords maps each record name toJson and fromJson take to its type.
+export interface JsonRecords {
+  Question: Question;
+  Request: Request;
+  Answer: Answer;
+  RecordMetadata: RecordMetadata;
+  ResponseMetadata: ResponseMetadata;
+  ApplicationQuestion: ApplicationQuestion;
+  QuestionObservation: QuestionObservation;
+  OperatorPage: OperatorPage;
+  OperatorDecision: OperatorDecision;
+  OperatorRetirement: OperatorRetirement;
+  OperatorQuestion: OperatorQuestion;
+  AttributedQuestion: AttributedQuestion;
+  PermissionTarget: PermissionTarget;
+  PermissionRequest: PermissionRequest;
+  QuestionDetails: QuestionDetails;
+  QuestionAsker: QuestionAsker;
+  CatalogueContent: CatalogueContent;
+  QuestionContent: QuestionContent;
+  RequestRef: RequestRef;
+  ChoiceOption: ChoiceOption;
+  ChoiceRequest: ChoiceRequest;
+  ChoiceAnswer: ChoiceAnswer;
+  ChoiceObservation: ChoiceObservation;
+  ChoiceAcknowledgement: ChoiceAcknowledgement;
+  ChoiceRecord: ChoiceRecord;
+  ChoicePage: ChoicePage;
+  ChoiceRead: ChoiceRead;
+  ChoiceDecision: ChoiceDecision;
+  ChoiceDetails: ChoiceDetails;
+  AnswerEntry: AnswerEntry;
+  AnswerEntryPage: AnswerEntryPage;
+  AnswerContent: AnswerContent;
+  AnswerContentPage: AnswerContentPage;
+  AnswerableChoice: AnswerableChoice;
+  AnswerableChoicePage: AnswerableChoicePage;
+  ResponderDecision: ResponderDecision;
+  PermissionIntent: PermissionIntent;
+  PermissionObservation: PermissionObservation;
+  TypedPermissionDetails: TypedPermissionDetails;
+  PendingQuestion: PendingQuestion;
+  PermissionDisplaySelection: PermissionDisplaySelection;
+  PermissionDisplay: PermissionDisplay;
+  NotificationAction: NotificationAction;
+  NotificationRequest: NotificationRequest;
+  NotificationResult: NotificationResult;
+  NotificationObservation: NotificationObservation;
+  NotificationRecord: NotificationRecord;
+  NotificationPage: NotificationPage;
+  NotificationRead: NotificationRead;
+  NotificationDecision: NotificationDecision;
+  NotifierDay: NotifierDay;
+  NotifierCount: NotifierCount;
+  NotifierPage: NotifierPage;
 }
 
 // Stable application action ID, 1..64 UTF-8 bytes without controls, and a
@@ -514,11 +604,21 @@ export interface OperatorRetirement {
 export type OperatorRetirementOutcome = (typeof OperatorRetirementOutcome)[keyof typeof OperatorRetirementOutcome];
 export declare const OperatorRetirementOutcome: Readonly<{ Retired: "retired"; Unknown: "unknown"; Invalid: "invalid"; Forbidden: "forbidden"; Unavailable: "unavailable" }>;
 
+// observation reads pending or answered with the question's id, or a refusal
+// with no answer. pending_until_ms is the Unix millisecond time a pending
+// question expires (ASK-A7) and is zero for every other outcome.
+export interface PendingQuestion {
+  observation: PermissionObservation;
+  pendingUntilMs: bigint;
+}
+
 /** Native caller-bound OA permission requests under compiled served definitions and supported first-use selectors, current explicit-block checks and Book quota/replay/refusal pacing. This capability-owned consent admission requires no ordinary question.ask permit. Trusted service missing-permit admission remains separate. Neither admission nor application prose grants Rights authority. This profile exposes no application answering or operator methods. */
 export declare class PermissionApplicationClient {
   constructor(transport: FrameTransport);
   request(request: PermissionIntent): Promise<PermissionObservation>;
   observe(requestKey: string, waitMs: bigint): Promise<PermissionObservation>;
+  /** Wait up to wait_ms for the person's answer to one first-use question about this proven caller's own program, named by a refusal (inference INF-W11) or by Request. Any other id, another program's question included, reads unknown and discloses nothing. Pending at the end of the wait is not consent; an Allow is no proof of a committed rule, so retry the enforcing call once. Grants, answers and admits nothing (ASK-A14). An earlier permission@1 service answers unknown_method. */
+  observeQuestion(id: string, waitMs: bigint): Promise<PendingQuestion>;
 }
 
 export declare const PermissionApplicationService: Readonly<{ wireName: "abstraction.asks/permission@1"; Client: typeof PermissionApplicationClient }>;
@@ -602,16 +702,19 @@ export interface PermissionTarget {
   resource: string;
 }
 
-// Own Ask fields. The service owns question text/options; callers supply a
-// known key and slots. Native Ask.For carries optional peer observation
-// evidence and remains a transport supplement, never caller authority.
+// [Question](https://openabstractions.github.io/reference.html#concept-asks.question-ask)
+// projects native
+// [Ask](https://openabstractions.github.io/reference.html#concept-asks.question-ask)
+// fields. The service owns question text/options; callers supply a known key
+// and slots. Native Ask.For carries optional peer observation evidence and
+// remains a transport supplement, never caller authority.
 export interface Question {
   asker: string;
   key: string;
   slots: { [key: string]: string };
 }
 
-/** Application-side human question admission and observation. Server derives caller scope and text, preserves native Via evidence, and owns a versioned bounded Book. Operator answering/history use the separately authorized QuestionOperator service; this application service exposes no administrative secret or operator methods. */
+/** Application-side human question admission and observation. Server derives caller scope and text, preserves native Via evidence, and owns a versioned bounded [Book](https://openabstractions.github.io/reference.html#concept-asks.book). Operator answering/history use the separately authorized [QuestionOperator](https://openabstractions.github.io/reference.html#concept-asks.question-operator) service; this application service exposes no administrative secret or operator methods. */
 export declare class QuestionApplicationClient {
   constructor(transport: FrameTransport);
   /** Admit or replay one caller-scoped question. No automatic retry. Identical key/content returns the original admission even after an answer marked once and a service restart. Existing unscoped kept answers are not promoted. */
@@ -633,6 +736,15 @@ export declare const QuestionApplicationService: Readonly<{ wireName: "abstracti
 export interface QuestionAsker {
   details: QuestionDetails;
   program: string;
+}
+
+// Opt-in content from the same retained occurrence as question. Content is
+// present only when the Book retained it; absence explicitly means unavailable
+// structured content, including legacy occurrences. Every refusal carries no
+// content. Existing QuestionAsker and RecordMetadata stay unchanged.
+export interface QuestionContent {
+  question: QuestionAsker;
+  content: CatalogueContent | null;
 }
 
 // Opt-in structured permission details from the same retained occurrence as
@@ -658,9 +770,13 @@ export interface QuestionObservation {
   answer: Answer | null;
 }
 
-/** Operator history, answering and retirement on the configured application Book. Host must explicitly authorize the receiving operator; requests contain no credentials, authority claims or provider paths. Authorization callbacks are trusted service configuration and may use the rights service. Retirement and native Forget both retain admission tombstones. */
+/** [QuestionOperator](https://openabstractions.github.io/reference.html#concept-asks.question-operator) provides operator history, answering and retirement on the configured application [Book](https://openabstractions.github.io/reference.html#concept-asks.book). [Host](https://openabstractions.github.io/reference.html#concept-asks.application-host) must explicitly authorize the receiving operator; requests contain no credentials, authority claims or provider paths. Authorization callbacks are trusted service configuration and may use the rights service. Retirement and native Forget both retain admission tombstones. */
 export declare class QuestionOperatorClient {
   constructor(transport: FrameTransport);
+  /** Read the existing authenticated QuestionAsker projection and optional retained catalogue content for the same occurrence. The same operator authorization and ID bounds apply, with no disclosure on refusal. Legacy absent content stays absent; no rendered-English recovery occurs. An earlier operator@1 service answers unknown_method. */
+  readQuestionContent(id: string): Promise<QuestionContent>;
+  /** Read the existing answer audit with optional immutable catalogue content in each entry, including after the original question is retired. Reuse operator authorization, newest-first audit snapshots, caller/epoch/revision cursor binding, seven-day retention and 1..64/256-KiB encoded page bounds including content. No per-entry follow-up read is needed. Legacy content is absent. An earlier operator@1 service answers unknown_method; ListAnswers keeps its closed result. */
+  listAnswerContents(cursor: string, limit: bigint): Promise<AnswerContentPage>;
   /** Opt-in bounded enumeration of application-authored ordinary choices. Existing ListQuestions returns its unchanged catalogue records. The same operator authorization, caller/epoch/revision cursor binding and 1..64/256-KiB page bounds apply. */
   listChoices(cursor: string, limit: bigint): Promise<ChoicePage>;
   /** Read one ordinary occurrence and verified requester attribution. Recheck authorization before disclosure. No permission target exists on this record. */
@@ -669,7 +785,7 @@ export declare class QuestionOperatorClient {
   answerChoice(id: string, option: string, ifPending: boolean): Promise<ChoiceDecision>;
   /** Close one ordinary choice without selecting an option. The same dismissal replays; an answered choice conflicts. Expired pending choices cannot be answered or dismissed. No application work or resource policy is changed. */
   dismissChoice(id: string): Promise<ChoiceDecision>;
-  /** Read bounded current-book pages. Empty cursor starts enumeration; a gap requires an explicit restart. Receiver checks same-account Program identity and its configured operator authorization on every call before reading the Book. Slow/disconnected callers retain no server enumeration state. */
+  /** Read bounded current-book pages. Empty cursor starts enumeration; a gap requires an explicit restart. Receiver checks same-account [Program](https://openabstractions.github.io/reference.html#concept-identity.listener-program-need) identity and its configured operator authorization on every call before reading the [Book](https://openabstractions.github.io/reference.html#concept-asks.book). Slow/disconnected callers retain no server enumeration state. */
   listQuestions(cursor: string, limit: bigint): Promise<OperatorPage>;
   /** Record an explicitly authorized operator's choice using the catalog's existing options. ID and option are 1..128 UTF-8 bytes without control characters. Atomic same-option replay preserves the original decision. No automatic retry and no implicit resource authorization. A missing operator policy refuses; account identity alone is insufficient. */
   answerQuestion(id: string, option: string): Promise<OperatorDecision>;
@@ -706,9 +822,12 @@ export declare class QuestionResponderClient {
 
 export declare const QuestionResponderService: Readonly<{ wireName: "abstraction.asks/responder@1"; Client: typeof QuestionResponderClient }>;
 
-// Own question-history fields; timestamps retain existing RFC3339
-// representation. Native Record includes Via/For Seen evidence from shared
-// identity. Empty option means pending.
+// [RecordMetadata](https://openabstractions.github.io/reference.html#concept-asks.question-history-record)
+// projects native question-history fields; timestamps retain existing RFC3339
+// representation. Native
+// [Record](https://openabstractions.github.io/reference.html#concept-asks.question-history-record)
+// includes Via/For Seen evidence from shared identity. Empty option means
+// pending.
 export interface RecordMetadata {
   id: string;
   asker: string;
@@ -725,13 +844,15 @@ export interface RecordMetadata {
 
 export declare class Refusal extends Error {
   constructor(word: string, offset: number);
-  word: "malformed" | "bad_string" | "number_spelling" | "wrong_type" | "depth_exceeded" | "duplicate_key" | "duplicate_field" | "unknown_field" | "missing_field" | "bad_enum" | "trailing_bytes";
+  word: "malformed" | "bad_string" | "number_spelling" | "wrong_type" | "depth_exceeded" | "duplicate_key" | "duplicate_field" | "unknown_field" | "missing_field" | "bad_enum" | "bad_value" | "trailing_bytes";
   offset: number;
 }
 
-// Existing question operation concepts. Wait cancellation belongs to the native
-// client context. This metadata descriptor does not replace the existing
-// handwritten line transport.
+// Deprecated native question-operation request descriptor. Removal is scheduled
+// for Train B (expected 0.9.0), W2-01a.1, under TD13/TD57's stored-state and
+// declared outside-adopter retirement conditions. Wait cancellation belongs to
+// the native client context. This metadata descriptor does not replace the
+// existing handwritten line transport.
 export interface Request {
   op: string;
   ask: Question | null;
@@ -774,9 +895,12 @@ export interface ResponderDecision {
 export type ResponderEffectOutcome = (typeof ResponderEffectOutcome)[keyof typeof ResponderEffectOutcome];
 export declare const ResponderEffectOutcome: Readonly<{ None: "none"; Applied: "applied"; Conflict: "conflict"; Forbidden: "forbidden"; Unavailable: "unavailable" }>;
 
-// Own response projection. Any nonempty code/error refuses, including unknown
-// future codes. Evidence supplement and existing wire handling remain native;
-// no generated complete service interface is claimed.
+// Deprecated native question-operation response descriptor. Removal is
+// scheduled for Train B (expected 0.9.0), W2-01a.1, under TD13/TD57's
+// stored-state and declared outside-adopter retirement conditions. Own response
+// projection. Any nonempty code/error refuses, including unknown future codes.
+// Evidence supplement and existing wire handling remain native; no generated
+// complete service interface is claimed.
 export interface ResponseMetadata {
   code: string;
   error: string;
@@ -809,6 +933,10 @@ export declare function decode(data: Uint8Array): Request;
 
 export declare function decodeAnswer(data: Uint8Array): Answer;
 
+export declare function decodeAnswerContent(data: Uint8Array): AnswerContent;
+
+export declare function decodeAnswerContentPage(data: Uint8Array): AnswerContentPage;
+
 export declare function decodeAnswerEntry(data: Uint8Array): AnswerEntry;
 
 export declare function decodeAnswerEntryPage(data: Uint8Array): AnswerEntryPage;
@@ -820,6 +948,8 @@ export declare function decodeAnswerableChoicePage(data: Uint8Array): Answerable
 export declare function decodeApplicationQuestion(data: Uint8Array): ApplicationQuestion;
 
 export declare function decodeAttributedQuestion(data: Uint8Array): AttributedQuestion;
+
+export declare function decodeCatalogueContent(data: Uint8Array): CatalogueContent;
 
 export declare function decodeChoiceAcknowledgement(data: Uint8Array): ChoiceAcknowledgement;
 
@@ -871,6 +1001,8 @@ export declare function decodeOperatorQuestion(data: Uint8Array): OperatorQuesti
 
 export declare function decodeOperatorRetirement(data: Uint8Array): OperatorRetirement;
 
+export declare function decodePendingQuestion(data: Uint8Array): PendingQuestion;
+
 export declare function decodePermissionDisplay(data: Uint8Array): PermissionDisplay;
 
 export declare function decodePermissionDisplaySelection(data: Uint8Array): PermissionDisplaySelection;
@@ -886,6 +1018,8 @@ export declare function decodePermissionTarget(data: Uint8Array): PermissionTarg
 export declare function decodeQuestion(data: Uint8Array): Question;
 
 export declare function decodeQuestionAsker(data: Uint8Array): QuestionAsker;
+
+export declare function decodeQuestionContent(data: Uint8Array): QuestionContent;
 
 export declare function decodeQuestionDetails(data: Uint8Array): QuestionDetails;
 
@@ -907,6 +1041,10 @@ export declare function encode(v: Request): Uint8Array;
 
 export declare function encodeAnswer(v: Answer): Uint8Array;
 
+export declare function encodeAnswerContent(v: AnswerContent): Uint8Array;
+
+export declare function encodeAnswerContentPage(v: AnswerContentPage): Uint8Array;
+
 export declare function encodeAnswerEntry(v: AnswerEntry): Uint8Array;
 
 export declare function encodeAnswerEntryPage(v: AnswerEntryPage): Uint8Array;
@@ -918,6 +1056,8 @@ export declare function encodeAnswerableChoicePage(v: AnswerableChoicePage): Uin
 export declare function encodeApplicationQuestion(v: ApplicationQuestion): Uint8Array;
 
 export declare function encodeAttributedQuestion(v: AttributedQuestion): Uint8Array;
+
+export declare function encodeCatalogueContent(v: CatalogueContent): Uint8Array;
 
 export declare function encodeChoiceAcknowledgement(v: ChoiceAcknowledgement): Uint8Array;
 
@@ -969,6 +1109,8 @@ export declare function encodeOperatorQuestion(v: OperatorQuestion): Uint8Array;
 
 export declare function encodeOperatorRetirement(v: OperatorRetirement): Uint8Array;
 
+export declare function encodePendingQuestion(v: PendingQuestion): Uint8Array;
+
 export declare function encodePermissionDisplay(v: PermissionDisplay): Uint8Array;
 
 export declare function encodePermissionDisplaySelection(v: PermissionDisplaySelection): Uint8Array;
@@ -984,6 +1126,8 @@ export declare function encodePermissionTarget(v: PermissionTarget): Uint8Array;
 export declare function encodeQuestion(v: Question): Uint8Array;
 
 export declare function encodeQuestionAsker(v: QuestionAsker): Uint8Array;
+
+export declare function encodeQuestionContent(v: QuestionContent): Uint8Array;
 
 export declare function encodeQuestionDetails(v: QuestionDetails): Uint8Array;
 
@@ -1001,7 +1145,13 @@ export declare function encodeResponseMetadata(v: ResponseMetadata): Uint8Array;
 
 export declare function encodeTypedPermissionDetails(v: TypedPermissionDetails): Uint8Array;
 
+export declare const fromJson: <K extends keyof JsonRecords>(kind: K, data: Uint8Array) => JsonRecords[K];
+
 export declare function newAnswer(): Answer;
+
+export declare function newAnswerContent(): AnswerContent;
+
+export declare function newAnswerContentPage(): AnswerContentPage;
 
 export declare function newAnswerEntry(): AnswerEntry;
 
@@ -1014,6 +1164,8 @@ export declare function newAnswerableChoicePage(): AnswerableChoicePage;
 export declare function newApplicationQuestion(): ApplicationQuestion;
 
 export declare function newAttributedQuestion(): AttributedQuestion;
+
+export declare function newCatalogueContent(): CatalogueContent;
 
 export declare function newChoiceAcknowledgement(): ChoiceAcknowledgement;
 
@@ -1065,6 +1217,8 @@ export declare function newOperatorQuestion(): OperatorQuestion;
 
 export declare function newOperatorRetirement(): OperatorRetirement;
 
+export declare function newPendingQuestion(): PendingQuestion;
+
 export declare function newPermissionDisplay(): PermissionDisplay;
 
 export declare function newPermissionDisplaySelection(): PermissionDisplaySelection;
@@ -1080,6 +1234,8 @@ export declare function newPermissionTarget(): PermissionTarget;
 export declare function newQuestion(): Question;
 
 export declare function newQuestionAsker(): QuestionAsker;
+
+export declare function newQuestionContent(): QuestionContent;
 
 export declare function newQuestionDetails(): QuestionDetails;
 
@@ -1102,5 +1258,7 @@ export declare const operations: readonly ["ask", "pending", "answered", "answer
 export declare const refusalCodes: readonly ["internal", "invalid_request", "caller_refused", "unknown_operation", "not_administrator", "withdrawn", "unknown_question", "unknown_option", "bad_slot", "nothing_pending", "no_record"];
 
 export declare const resourceActions: readonly ["abstraction.asks/question.ask", "abstraction.asks/question.answer", "abstraction.asks/notification.post"];
+
+export declare const toJson: <K extends keyof JsonRecords>(kind: K, value: JsonRecords[K]) => Uint8Array;
 
 export {};

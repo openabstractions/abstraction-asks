@@ -9,7 +9,9 @@ import (
 )
 
 func TestObservationRefusesInventedAnswer(t *testing.T) {
-	for _, r := range []QuestionObservation{{Outcome: wire.ObservationOutcomePending}, {Outcome: wire.ObservationOutcomeUnknown, Answer: &wire.Answer{ID: "x"}}, {Outcome: wire.ObservationOutcomePending, Answer: &wire.Answer{ID: "x", Pending: true, Yes: true}}, {Outcome: wire.ObservationOutcomeAnswered, Answer: &wire.Answer{ID: "x"}}, {Outcome: wire.ObservationOutcomeAnswered, Answer: &wire.Answer{ID: "x", Option: "allow", Pending: true}}} {
+	// Presence relationships are received through every generated RPC client and
+	// dispatcher by the common IDL corpus. This helper retains answer content.
+	for _, r := range []QuestionObservation{{Outcome: wire.ObservationOutcomePending, Answer: &wire.Answer{ID: "x", Pending: true, Yes: true}}, {Outcome: wire.ObservationOutcomeAnswered, Answer: &wire.Answer{ID: "x"}}, {Outcome: wire.ObservationOutcomeAnswered, Answer: &wire.Answer{ID: "x", Option: "allow", Pending: true}}} {
 		if _, e := checked(r, nil); e == nil {
 			t.Fatal("accepted", r)
 		}

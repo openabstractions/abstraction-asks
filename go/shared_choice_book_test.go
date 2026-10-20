@@ -68,12 +68,18 @@ func TestDelegatedAnswerSurvivesAcknowledgementAndAgesOut(t *testing.T) {
 // time up to which the list is incomplete.
 func TestDelegatedAnswerBoundEvictsOldestAndRecordsSince(t *testing.T) {
 	b, clock := ordinaryBook(t)
-	requester, answerer := choiceActorPath(t, "app.exe"), choiceActorPath(t, "assistant.exe")
+	answerer := choiceActorPath(t, "assistant.exe")
+	// The audit's bound is past one program's ordinary share (ASK-P5), and an
+	// acknowledged choice stays in it, so four requesters share the asking.
+	var requesters []string
+	for i := range 4 {
+		requesters = append(requesters, choiceActorPath(t, fmt.Sprintf("app%d.exe", i)))
+	}
 	var first int64
 	for i := range MaxDelegatedAnswers + 2 {
 		*clock = clock.Add(time.Second)
 		q := ordinaryRequest(*clock, fmt.Sprintf("bound-%d", i))
-		pending := shareChoice(t, b, requester, q, "keep")
+		pending := shareChoice(t, b, requesters[i%len(requesters)], q, "keep")
 		d, _, err := b.AnswerSharedChoice(pending.ID, "keep", answerer, allow)
 		if err != nil || d.Outcome != wire.ChoiceDecisionOutcomeAnswered {
 			t.Fatal(i, d, err)
@@ -131,10 +137,10 @@ func TestApplicationVersion7Migration(t *testing.T) {
 	b, clock := ordinaryBook(t)
 	old := admitChoice(t, b, ordinaryRequest(*clock, "old"))
 	current, err := os.ReadFile(b.path)
-	if err != nil || !bytes.Contains(current, []byte(`"profile":"asks-application@9"`)) {
+	if err != nil || !bytes.Contains(current, []byte(`"profile":"`+ApplicationProfile+`"`)) {
 		t.Fatalf("%s %v", current, err)
 	}
-	v6 := bytes.Replace(current, []byte(`"asks-application@9"`), []byte(`"asks-application@6"`), 1)
+	v6 := bytes.Replace(current, []byte(`"`+ApplicationProfile+`"`), []byte(`"asks-application@6"`), 1)
 	if err := os.WriteFile(b.path, v6, 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -145,13 +151,13 @@ func TestApplicationVersion7Migration(t *testing.T) {
 	reopened.now = b.now
 	shareChoice(t, reopened, choiceActorPath(t, "app.exe"), ordinaryRequest(*clock, "new"), "keep")
 	migrated, err := os.ReadFile(b.path)
-	if err != nil || !bytes.Contains(migrated, []byte(`"profile":"asks-application@9"`)) {
+	if err != nil || !bytes.Contains(migrated, []byte(`"profile":"`+ApplicationProfile+`"`)) {
 		t.Fatalf("version 6 must migrate on edit: %s %v", migrated, err)
 	}
 	if attributed, found, err := reopened.ChoiceAttributed(old.ID); err != nil || !found || attributed.AskerProgram != "" || attributed.Shared != nil || attributed.Route != "" {
 		t.Fatal("an earlier choice gains no attribution", attributed, err)
 	}
-	downgraded := bytes.Replace(migrated, []byte(`"asks-application@9"`), []byte(`"asks-application@6"`), 1)
+	downgraded := bytes.Replace(migrated, []byte(`"`+ApplicationProfile+`"`), []byte(`"asks-application@6"`), 1)
 	if _, err := decodeApplication(downgraded); err == nil {
 		t.Fatal("version 6 must refuse shared-choice fields")
 	}

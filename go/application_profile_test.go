@@ -1,13 +1,46 @@
 package asks
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/openabstractions/abstraction-identity/listen"
 )
+
+func TestApplicationAdmissionRefusesInvalidScopeBeforeWriting(t *testing.T) {
+	book, _, program := notifyBook(t)
+	before, beforeErr := os.ReadFile(book.path)
+	for _, scope := range []string{strings.Repeat("a", 129), strings.Repeat("é", 65), string([]byte{0xff}), "bad\x00scope", ""} {
+		r, out, err := book.AskApplicationFrom(scope, "runtime", "key", AgentEnrollmentKey, map[string]string{"program": program, "title": "Fixture agent"}, listen.Seen{}, Publisher{})
+		if err != nil || out != "invalid" || r.ID != "" {
+			t.Fatal(out, err)
+		}
+		after, afterErr := os.ReadFile(book.path)
+		if !bytes.Equal(before, after) || (beforeErr == nil) != (afterErr == nil) {
+			t.Fatal("invalid scope changed Book bytes")
+		}
+	}
+	for _, scope := range []string{strings.Repeat("a", 128), strings.Repeat("é", 64)} {
+		r, out, err := book.AskApplicationFrom(scope, "runtime", "boundary", AgentEnrollmentKey, map[string]string{"program": program, "title": "Fixture agent"}, listen.Seen{}, Publisher{})
+		if err != nil || out != "pending" {
+			t.Fatal("valid scope boundary refused", out, err)
+		}
+		if _, found, err := book.ApplicationRecord(r.ID); err != nil || !found {
+			t.Fatal("valid scope boundary unreadable", found, err)
+		}
+	}
+	r, out, err := book.AskApplicationFrom("valid", "runtime", "valid", AgentEnrollmentKey, map[string]string{"program": program, "title": "Fixture agent"}, listen.Seen{}, Publisher{})
+	if err != nil || out != "pending" {
+		t.Fatal(out, err)
+	}
+	if _, found, err := book.ApplicationRecord(r.ID); err != nil || !found {
+		t.Fatal("invalid scope poisoned Book", found, err)
+	}
+}
 
 func TestApplicationVersionOneReadsAndMigratesOnWrite(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "application.json")

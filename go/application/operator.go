@@ -9,6 +9,8 @@ import (
 	asks "github.com/openabstractions/abstraction-asks/go"
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
 	identity "github.com/openabstractions/abstraction-identity"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -192,6 +194,26 @@ func (r *operatorReceiver) RetireQuestion(id string) (wire.OperatorRetirement, e
 func (r *operatorReceiver) ReadQuestionAsker(id string) (wire.QuestionAsker, error) {
 	details, record := r.readDetails(id)
 	return wire.QuestionAsker{Details: details, Program: record.AskerProgram}, nil
+}
+
+func (r *operatorReceiver) ReadQuestionContent(id string) (wire.QuestionContent, error) {
+	details, record := r.readDetails(id)
+	out := wire.QuestionContent{Question: wire.QuestionAsker{Details: details, Program: record.AskerProgram}}
+	if details.Question.Question.Outcome == wire.OperatorQuestionOutcomeFound {
+		// The Book returned a detached record. Clone again across the response
+		// projection so callers cannot share mutable admission data.
+		if record.Content != nil {
+			content := *record.Content
+			content.Slots = maps.Clone(content.Slots)
+			if content.Permission != nil {
+				permission := *content.Permission
+				permission.Targets = slices.Clone(permission.Targets)
+				content.Permission = &permission
+			}
+			out.Content = &content
+		}
+	}
+	return out, nil
 }
 
 // readDetails reads one occurrence for an authorized operator. The record is

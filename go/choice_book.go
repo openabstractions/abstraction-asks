@@ -5,10 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"github.com/openabstractions/abstraction-asks/go/typedpermission"
 	"slices"
-	"strings"
-	"unicode"
-	"unicode/utf8"
 
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
 	"github.com/openabstractions/abstraction-identity/listen"
@@ -24,8 +22,13 @@ const MaxOrdinaryBytes = 1 << 20
 const MaxDelegatedAnswers = 256
 const MaxDelegatedBytes = 256 << 10
 const DelegatedRetentionMilliseconds int64 = 7 * 24 * 60 * 60 * 1000
-const MaxApplicationFileBytes = MaxApplicationBytes + MaxOrdinaryBytes + MaxDelegatedBytes + MaxNotificationBytes + 4096
-const MaxChoiceReplayMilliseconds int64 = 7 * 24 * 60 * 60 * 1000
+const MaxApplicationFileBytes = MaxApplicationBytes + MaxOrdinaryBytes + MaxDelegatedBytes + MaxNotificationBytes + maxProgramHashBytes + 4096
+
+// maxProgramHashBytes bounds the legacy admissions' program fingerprints
+// (ASK-P5): the 82 bytes of `,"program_hash":"<64 hex>"` for each of at
+// most MaxApplicationAdmissions admissions, 328 KiB.
+const maxProgramHashBytes = MaxApplicationAdmissions * 82
+const MaxChoiceReplayMilliseconds int64 = typedpermission.MaxChoiceReplayMilliseconds
 
 var ErrOrdinaryCapacity = errors.New("asks: ordinary choice capacity reached")
 
@@ -45,17 +48,21 @@ const (
 // AskerProgram is the bound requester program, Shared the options its
 // application shared with an assistant and Route the service route of the
 // recorded decision; all three go with the record at acknowledgement.
+// ProgramHash, from version 10, is the bound requester's fingerprint an
+// acknowledgement keeps, so the tombstone stays in its share (ASK-P5).
 type choiceAdmission struct {
-	Scope        string             `json:"scope"`
-	Reference    wire.RequestRef    `json:"reference"`
-	Fingerprint  string             `json:"fingerprint"`
-	ID           string             `json:"id"`
-	Record       *wire.ChoiceRecord `json:"record,omitempty"`
-	AnswerHash   string             `json:"answer_hash,omitempty"`
-	Via          *listen.Seen       `json:"via,omitempty"`
-	AskerProgram string             `json:"asker_program,omitempty"`
-	Shared       []string           `json:"shared,omitempty"`
-	Route        string             `json:"route,omitempty"`
+	NativeOwner  *nativeApplicationOwner `json:"native_owner,omitempty"`
+	Scope        string                  `json:"scope"`
+	Reference    wire.RequestRef         `json:"reference"`
+	Fingerprint  string                  `json:"fingerprint"`
+	ID           string                  `json:"id"`
+	Record       *wire.ChoiceRecord      `json:"record,omitempty"`
+	AnswerHash   string                  `json:"answer_hash,omitempty"`
+	Via          *listen.Seen            `json:"via,omitempty"`
+	AskerProgram string                  `json:"asker_program,omitempty"`
+	Shared       []string                `json:"shared,omitempty"`
+	Route        string                  `json:"route,omitempty"`
+	ProgramHash  string                  `json:"program_hash,omitempty"`
 }
 
 // ChoiceCandidate is a pending shared choice as the trusted answerer check
@@ -71,15 +78,7 @@ type ChoiceCandidate struct {
 // ValidAssistantOptions reports whether shared names 1..3 distinct options
 // the request offers (ASK-A12).
 func ValidAssistantOptions(q wire.ChoiceRequest, shared []string) bool {
-	if len(shared) < 1 || len(shared) > 3 {
-		return false
-	}
-	for i, id := range shared {
-		if !choiceOption(q, id) || slices.Contains(shared[:i], id) {
-			return false
-		}
-	}
-	return true
+	return typedpermission.ValidAssistantOptions(q, shared)
 }
 
 // choiceContent is the immutable content of a reference: the request alone
@@ -94,35 +93,15 @@ func choiceContent(q wire.ChoiceRequest, shared []string) string {
 	}{q, shared})
 }
 
-func choiceText(s string) bool {
-	return utf8.ValidString(s) && utf8.RuneCountInString(s) <= 80 && strings.TrimSpace(s) != "" && strings.IndexFunc(s, func(r rune) bool {
-		return unicode.IsControl(r) || unicode.Is(unicode.Zl, r) || unicode.Is(unicode.Zp, r)
-	}) < 0
-}
-func ValidChoiceOptionID(s string) bool {
-	return len(s) > 0 && len(s) <= 64 && utf8.ValidString(s) && strings.TrimSpace(s) != "" && strings.IndexFunc(s, unicode.IsControl) < 0
-}
-func ValidChoiceReference(ref wire.RequestRef) bool {
-	return ValidRequestKey(ref.Key) && ref.ReplayUntilMs > 0
-}
+func choiceText(s string) bool                      { return typedpermission.ChoiceText(s) }
+func ValidChoiceOptionID(s string) bool             { return typedpermission.ValidChoiceOptionID(s) }
+func ValidChoiceReference(ref wire.RequestRef) bool { return typedpermission.ValidChoiceReference(ref) }
 func ValidChoiceAnswer(answer wire.ChoiceAnswer) bool {
-	return ValidRequestKey(answer.ID) && answer.AnsweredMs > 0 && validAnswerer(answer.AnsweredBy) && (answer.Option == "" || ValidChoiceOptionID(answer.Option))
+	return typedpermission.ValidChoiceAnswer(answer, permissionValidators())
 }
 
 // ValidChoiceRequest checks immutable shape independently of the service clock.
-func ValidChoiceRequest(q wire.ChoiceRequest) bool {
-	if !ValidChoiceReference(q.RequestRef) || !choiceText(q.Title) || len(q.Options) < 1 || len(q.Options) > 3 || q.PendingUntilMs <= 0 || q.PendingUntilMs > q.RequestRef.ReplayUntilMs {
-		return false
-	}
-	ids := map[string]bool{}
-	for _, option := range q.Options {
-		if !ValidChoiceOptionID(option.ID) || !choiceText(option.Label) || ids[option.ID] {
-			return false
-		}
-		ids[option.ID] = true
-	}
-	return true
-}
+func ValidChoiceRequest(q wire.ChoiceRequest) bool { return typedpermission.ValidChoiceRequest(q) }
 func choiceFingerprint(v any) string {
 	data, _ := json.Marshal(v)
 	sum := sha256.Sum256(data)
@@ -132,9 +111,7 @@ func validChoiceHash(s string) bool {
 	b, e := hex.DecodeString(s)
 	return e == nil && len(b) == 32 && hex.EncodeToString(b) == s
 }
-func choiceOption(q wire.ChoiceRequest, id string) bool {
-	return slices.ContainsFunc(q.Options, func(o wire.ChoiceOption) bool { return o.ID == id })
-}
+func choiceOption(q wire.ChoiceRequest, id string) bool { return typedpermission.ChoiceOffers(q, id) }
 func cloneChoice(r wire.ChoiceRecord) wire.ChoiceRecord {
 	r.Request.Options = append([]wire.ChoiceOption{}, r.Request.Options...)
 	if r.Answer != nil {
@@ -144,23 +121,7 @@ func cloneChoice(r wire.ChoiceRecord) wire.ChoiceRecord {
 	return r
 }
 func ValidChoiceRecord(r wire.ChoiceRecord) bool {
-	if !ValidRequestKey(r.ID) || r.Asker == "" || !ValidChoiceRequest(r.Request) || r.AskedMs <= 0 || r.AskedMs >= r.Request.PendingUntilMs || r.Request.RequestRef.ReplayUntilMs-r.AskedMs > MaxChoiceReplayMilliseconds {
-		return false
-	}
-	p := Record{Publisher: r.Publisher, PublisherTrusted: r.PublisherTrusted, ProgramDescription: r.ProgramDescription, ProgramOriginalName: r.ProgramOriginalName}
-	if !validRecordedPublisher(&p) {
-		return false
-	}
-	switch r.State {
-	case wire.ChoiceStatePending, wire.ChoiceStateExpired:
-		return r.Answer == nil
-	case wire.ChoiceStateAnswered, wire.ChoiceStateDismissed:
-		if r.Answer == nil || !ValidChoiceAnswer(*r.Answer) || r.Answer.ID != r.ID || r.Answer.AnsweredMs < r.AskedMs || r.Answer.AnsweredMs >= r.Request.PendingUntilMs {
-			return false
-		}
-		return r.State == wire.ChoiceStateAnswered && choiceOption(r.Request, r.Answer.Option) || r.State == wire.ChoiceStateDismissed && r.Answer.Option == ""
-	}
-	return false
+	return typedpermission.ValidChoiceRecord(r, permissionValidators())
 }
 
 func validateChoicePartition(f book) error {
@@ -170,6 +131,14 @@ func validateChoicePartition(f book) error {
 	legacy.Delegated, legacy.DelegatedSinceMs = nil, 0
 	legacy.Answers, legacy.AnswersSinceMs = nil, 0
 	legacy.Notifications, legacy.Notifiers = nil, nil
+	// Program fingerprints have their own bound (maxProgramHashBytes) and the
+	// version label is the file's, so a full legacy partition still migrates
+	// to version 10.
+	legacy.Profile = ""
+	legacy.Admissions = slices.Clone(f.Admissions)
+	for i := range legacy.Admissions {
+		legacy.Admissions[i].ProgramHash = ""
+	}
 	raw, e := json.Marshal(legacy)
 	if e != nil || len(raw) > MaxApplicationBytes {
 		return ErrApplicationCapacity
@@ -191,10 +160,10 @@ func validateChoicePartition(f book) error {
 			return errors.New("asks: invalid ordinary admission")
 		}
 		if a.Record == nil {
-			if !validChoiceHash(a.AnswerHash) || a.AskerProgram != "" || a.Shared != nil || a.Route != "" {
+			if !validChoiceHash(a.AnswerHash) || a.AskerProgram != "" || a.Shared != nil || a.Route != "" || a.ProgramHash != "" && !validChoiceHash(a.ProgramHash) {
 				return errors.New("asks: invalid ordinary acknowledgement")
 			}
-		} else if a.AnswerHash != "" || !ValidChoiceRecord(*a.Record) || a.Record.AskedMs > f.ChoiceTimeMs || a.Record.Answer != nil && a.Record.Answer.AnsweredMs > f.ChoiceTimeMs || a.Record.ID != a.ID || a.Record.Request.RequestRef != a.Reference || choiceContent(a.Record.Request, a.Shared) != a.Fingerprint {
+		} else if a.AnswerHash != "" || a.ProgramHash != "" || !ValidChoiceRecord(*a.Record) || a.Record.AskedMs > f.ChoiceTimeMs || a.Record.Answer != nil && a.Record.Answer.AnsweredMs > f.ChoiceTimeMs || a.Record.ID != a.ID || a.Record.Request.RequestRef != a.Reference || choiceContent(a.Record.Request, a.Shared) != a.Fingerprint {
 			return errors.New("asks: invalid ordinary record")
 		} else if !validChoiceAttribution(a) {
 			return errors.New("asks: invalid ordinary attribution")
@@ -231,7 +200,7 @@ func validChoiceAttribution(a choiceAdmission) bool {
 // version 7 or 8 delegated list has already moved into it.
 func validateAnswers(f book) error {
 	raw, e := json.Marshal(struct {
-		Answers []wire.AnswerEntry
+		Answers []retainedAnswer
 		SinceMs int64
 	}{f.Answers, f.AnswersSinceMs})
 	if e != nil || len(raw) > MaxDelegatedBytes || len(f.Answers) > MaxDelegatedAnswers || f.AnswersSinceMs < 0 || len(f.Delegated) != 0 || f.DelegatedSinceMs != 0 {
@@ -239,7 +208,7 @@ func validateAnswers(f book) error {
 	}
 	ids := map[string]bool{}
 	for i, d := range f.Answers {
-		if !ValidAnswerEntry(d) || ids[d.ID] || d.AnsweredMs > f.ChoiceTimeMs || i > 0 && d.AnsweredMs < f.Answers[i-1].AnsweredMs {
+		if !ValidAnswerEntry(d.AnswerEntry) || d.Content != nil && (d.Kind != wire.AnswerKindQuestion || !ValidCatalogueContent(d.Key, d.About, *d.Content)) || ids[d.ID] || d.AnsweredMs > f.ChoiceTimeMs || i > 0 && d.AnsweredMs < f.Answers[i-1].AnsweredMs {
 			return errors.New("asks: invalid audited answer")
 		}
 		ids[d.ID] = true
@@ -249,41 +218,13 @@ func validateAnswers(f book) error {
 
 // MaxAnswerTitleBytes bounds a catalogue question's text in the answer audit:
 // a first-use sentence names a program path, an action and a resource.
-const MaxAnswerTitleBytes = 8192
+const MaxAnswerTitleBytes = typedpermission.MaxAnswerTitleBytes
 
 // ValidAnswerEntry reports whether e is a well-formed answer audit entry
 // (ASK-O15): a catalogue question's key, About, text and option, or an
 // ordinary choice's title, option and label, and the route's answerer.
 func ValidAnswerEntry(e wire.AnswerEntry) bool {
-	p := Record{Publisher: e.Publisher, PublisherTrusted: e.PublisherTrusted}
-	if !ValidRequestKey(e.ID) || e.Asker == "" || e.AskerProgram != "" && (!validAnswerer(e.AskerProgram) || e.Asker != AskerDisplay(e.AskerProgram)) ||
-		!validRecordedPublisher(&p) || e.AnsweredMs <= 0 {
-		return false
-	}
-	switch e.AnsweredBy {
-	case wire.AnswererOperator:
-		if e.Answerer != "" {
-			return false
-		}
-	case wire.AnswererResponder:
-		if !validAnswerer(e.Answerer) {
-			return false
-		}
-	default:
-		return false
-	}
-	switch e.Kind {
-	case wire.AnswerKindQuestion:
-		q, ok := Find(e.Key)
-		if !ok {
-			return false
-		}
-		_, ok = q.Option(e.Option)
-		return ok && e.Label == e.Option && (e.About == "" || permissionString(e.About, 4096)) && permissionString(e.Title, MaxAnswerTitleBytes)
-	case wire.AnswerKindChoice:
-		return e.Key == "" && e.About == "" && choiceText(e.Title) && ValidChoiceOptionID(e.Option) && choiceText(e.Label)
-	}
-	return false
+	return typedpermission.ValidAnswerEntry(e, permissionValidators())
 }
 
 // delegatedEntry is a version 7 or 8 delegated answer as an audit entry.
@@ -294,7 +235,7 @@ func delegatedEntry(d legacyDelegatedAnswer) wire.AnswerEntry {
 
 // collectAnswers drops audit entries older than their retention.
 func (f *book) collectAnswers(now int64) {
-	f.Answers = slices.DeleteFunc(f.Answers, func(d wire.AnswerEntry) bool { return now-d.AnsweredMs >= DelegatedRetentionMilliseconds })
+	f.Answers = slices.DeleteFunc(f.Answers, func(d retainedAnswer) bool { return now-d.AnsweredMs >= DelegatedRetentionMilliseconds })
 	if len(f.Answers) == 0 {
 		f.Answers = nil
 	}
@@ -308,16 +249,20 @@ func (f *book) collectAnswers(now int64) {
 // the oldest while either bound would be exceeded and recording the eviction
 // time. An entry that is not well formed is not recorded: the audit never
 // refuses the answer it describes.
-func (f *book) recordAnswer(d wire.AnswerEntry, now int64) {
+func (f *book) recordAnswer(d wire.AnswerEntry, now int64, content ...*wire.CatalogueContent) {
 	d.AnsweredMs = f.choiceTime(now)
-	if !ValidAnswerEntry(d) || slices.ContainsFunc(f.Answers, func(e wire.AnswerEntry) bool { return e.ID == d.ID }) {
+	if !ValidAnswerEntry(d) || slices.ContainsFunc(f.Answers, func(e retainedAnswer) bool { return e.ID == d.ID }) {
 		return
 	}
 	f.noteChoiceTime(d.AnsweredMs)
-	f.Answers = append(f.Answers, d)
+	entry := retainedAnswer{AnswerEntry: d}
+	if len(content) != 0 {
+		entry.Content = cloneCatalogueContent(content[0])
+	}
+	f.Answers = append(f.Answers, entry)
 	for len(f.Answers) > 1 {
 		raw, e := json.Marshal(struct {
-			Answers []wire.AnswerEntry
+			Answers []retainedAnswer
 			SinceMs int64
 		}{f.Answers, f.AnswersSinceMs})
 		if e == nil && len(raw) <= MaxDelegatedBytes-64 && len(f.Answers) <= MaxDelegatedAnswers {
@@ -409,7 +354,7 @@ func (f *book) choiceID(id string) int {
 // AskChoiceFrom accepts only service-derived scope, display and attribution.
 // Trusted authorization is checked inside the same edit that admits the choice.
 func (b *Book) AskChoiceFrom(scope, display string, q wire.ChoiceRequest, via listen.Seen, publisher Publisher, authorize func() error) (wire.ChoiceObservation, error) {
-	return b.askChoice(scope, display, "", q, nil, via, publisher, authorize)
+	return b.askChoice(nil, scope, display, "", q, nil, via, publisher, authorize)
 }
 
 // AskChoiceAs is AskChoiceFrom for the bound program the receiver derived
@@ -426,10 +371,10 @@ func (b *Book) AskChoiceAs(scope, program string, q wire.ChoiceRequest, shared [
 		// An unshared choice keeps its earlier display-only attribution.
 		program = ""
 	}
-	return b.askChoice(scope, display, program, q, slices.Clone(shared), via, publisher, authorize)
+	return b.askChoice(nil, scope, display, program, q, slices.Clone(shared), via, publisher, authorize)
 }
 
-func (b *Book) askChoice(scope, display, program string, q wire.ChoiceRequest, shared []string, via listen.Seen, publisher Publisher, authorize func() error) (wire.ChoiceObservation, error) {
+func (b *Book) askChoice(native *nativeApplicationOwner, scope, display, program string, q wire.ChoiceRequest, shared []string, via listen.Seen, publisher Publisher, authorize func() error) (wire.ChoiceObservation, error) {
 	if !b.application || !ValidRequestKey(scope) || display == "" || !ValidChoiceRequest(q) {
 		return wire.ChoiceObservation{Outcome: wire.ChoiceOutcomeInvalid}, nil
 	}
@@ -443,6 +388,12 @@ func (b *Book) askChoice(scope, display, program string, q wire.ChoiceRequest, s
 				return e
 			}
 		}
+		selected, nativeErr := f.nativeScope(native, scope, "choice", q.RequestRef)
+		if nativeErr != nil {
+			return nativeErr
+		}
+		scope = selected
+
 		now := f.choiceTime(b.clock().UnixMilli())
 		if now <= 0 {
 			return errors.New("asks: ordinary service time unavailable")
@@ -477,7 +428,10 @@ func (b *Book) askChoice(scope, display, program string, q wire.ChoiceRequest, s
 		record := wire.ChoiceRecord{ID: random(16), Asker: display, Request: q, State: wire.ChoiceStatePending, AskedMs: now,
 			Publisher: publisher.Subject, PublisherTrusted: publisher.Trusted, ProgramDescription: publisher.Description, ProgramOriginalName: publisher.OriginalName}
 		record = cloneChoice(record)
-		a := choiceAdmission{Scope: scope, Reference: q.RequestRef, Fingerprint: content, ID: record.ID, Record: &record, Via: &via, AskerProgram: program, Shared: shared}
+		a := choiceAdmission{NativeOwner: native.recorded(scope), Scope: scope, Reference: q.RequestRef, Fingerprint: content, ID: record.ID, Record: &record, Via: &via, AskerProgram: program, Shared: shared}
+		if f.ordinaryShareFull(a) {
+			return ErrOrdinaryCapacity // one program's share (ASK-P5)
+		}
 		f.Choices = append(f.Choices, a)
 		f.noteChoiceTime(now)
 		result = choiceObservation(a)
@@ -488,7 +442,7 @@ func (b *Book) askChoice(scope, display, program string, q wire.ChoiceRequest, s
 	}
 	return result, err
 }
-func (b *Book) ObserveChoice(scope string, ref wire.RequestRef) (wire.ChoiceObservation, error) {
+func (b *Book) nativeObserveChoice(native *nativeApplicationOwner, scope string, ref wire.RequestRef) (wire.ChoiceObservation, error) {
 	if !b.application || !ValidRequestKey(scope) || !ValidChoiceReference(ref) {
 		return wire.ChoiceObservation{Outcome: wire.ChoiceOutcomeInvalid}, nil
 	}
@@ -498,6 +452,13 @@ func (b *Book) ObserveChoice(scope string, ref wire.RequestRef) (wire.ChoiceObse
 	if err != nil {
 		return wire.ChoiceObservation{}, err
 	}
+
+	selected, nativeErr := f.nativeScope(native, scope, "choice", ref)
+	if nativeErr != nil {
+		return wire.ChoiceObservation{}, nativeErr
+	}
+	scope = selected
+
 	now := f.choiceTime(b.clock().UnixMilli())
 	if now >= ref.ReplayUntilMs {
 		if now > f.ChoiceTimeMs {
@@ -512,7 +473,7 @@ func (b *Book) ObserveChoice(scope string, ref wire.RequestRef) (wire.ChoiceObse
 	}
 	return wire.ChoiceObservation{Outcome: wire.ChoiceOutcomeUnknown}, nil
 }
-func (b *Book) AcknowledgeChoice(scope string, ref wire.RequestRef, answer wire.ChoiceAnswer, authorize func() error) (wire.ChoiceAcknowledgement, error) {
+func (b *Book) nativeAcknowledgeChoice(native *nativeApplicationOwner, scope string, ref wire.RequestRef, answer wire.ChoiceAnswer, authorize func() error) (wire.ChoiceAcknowledgement, error) {
 	if !b.application || !ValidRequestKey(scope) || !ValidChoiceReference(ref) || !ValidChoiceAnswer(answer) {
 		return wire.ChoiceAcknowledgement{Outcome: wire.ChoiceAckOutcomeInvalid}, nil
 	}
@@ -525,6 +486,12 @@ func (b *Book) AcknowledgeChoice(scope string, ref wire.RequestRef, answer wire.
 				return e
 			}
 		}
+		selected, nativeErr := f.nativeScope(native, scope, "choice", ref)
+		if nativeErr != nil {
+			return nativeErr
+		}
+		scope = selected
+
 		now := f.choiceTime(b.clock().UnixMilli())
 		if now <= 0 {
 			return errors.New("asks: ordinary service time unavailable")
@@ -545,6 +512,12 @@ func (b *Book) AcknowledgeChoice(scope string, ref wire.RequestRef, answer wire.
 			return nil
 		}
 		if a.Record != nil {
+			if a.AskerProgram != "" {
+				a.ProgramHash = programHash(a.AskerProgram) // stays in its share (ASK-P5)
+				if a.NativeOwner != nil {
+					a.ProgramHash = programHash(a.NativeOwner.Subject.Program)
+				}
+			}
 			a.Record, a.AnswerHash, a.Via = nil, hash, nil
 			a.AskerProgram, a.Shared, a.Route = "", nil, ""
 			f.noteChoiceTime(now)
@@ -597,19 +570,19 @@ func (b *Book) DecideChoiceAuthorized(id, option, actor string, dismiss, ifPendi
 	if !ValidRequestKey(id) {
 		return wire.ChoiceDecision{Outcome: wire.ChoiceDecisionOutcomeInvalid}, nil
 	}
-	return b.decideChoiceAuthorized(id, "", nil, option, actor, dismiss, ifPending, authorize)
+	return b.decideChoiceAuthorized(nil, id, "", nil, option, actor, dismiss, ifPending, authorize)
 }
 
 // DecideOwnChoiceAuthorized addresses only the proven requester's full reference.
 // Ownership lookup and authorization run inside the same atomic decision edit.
-func (b *Book) DecideOwnChoiceAuthorized(scope string, ref wire.RequestRef, option, actor string, dismiss, ifPending bool, authorize func() error) (wire.ChoiceDecision, error) {
+func (b *Book) nativeDecideOwnChoiceAuthorized(native *nativeApplicationOwner, scope string, ref wire.RequestRef, option, actor string, dismiss, ifPending bool, authorize func() error) (wire.ChoiceDecision, error) {
 	if !ValidRequestKey(scope) || !ValidChoiceReference(ref) {
 		return wire.ChoiceDecision{Outcome: wire.ChoiceDecisionOutcomeInvalid}, nil
 	}
-	return b.decideChoiceAuthorized("", scope, &ref, option, actor, dismiss, ifPending, authorize)
+	return b.decideChoiceAuthorized(native, "", scope, &ref, option, actor, dismiss, ifPending, authorize)
 }
 
-func (b *Book) decideChoiceAuthorized(id, scope string, ref *wire.RequestRef, option, actor string, dismiss, ifPending bool, authorize func() error) (wire.ChoiceDecision, error) {
+func (b *Book) decideChoiceAuthorized(native *nativeApplicationOwner, id, scope string, ref *wire.RequestRef, option, actor string, dismiss, ifPending bool, authorize func() error) (wire.ChoiceDecision, error) {
 	if !b.application || !validAnswerer(actor) || dismiss && option != "" || !dismiss && !ValidChoiceOptionID(option) {
 		return wire.ChoiceDecision{Outcome: wire.ChoiceDecisionOutcomeInvalid}, nil
 	}
@@ -622,6 +595,14 @@ func (b *Book) decideChoiceAuthorized(id, scope string, ref *wire.RequestRef, op
 				return e
 			}
 		}
+		if ref != nil {
+			selected, nativeErr := f.nativeScope(native, scope, "choice", *ref)
+			if nativeErr != nil {
+				return nativeErr
+			}
+			scope = selected
+		}
+
 		i, now := -1, int64(0)
 		if ref != nil {
 			now = f.choiceTime(b.clock().UnixMilli())

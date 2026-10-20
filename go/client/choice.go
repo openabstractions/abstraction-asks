@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/openabstractions/abstraction-asks/go/typedpermission"
 	"slices"
 	"time"
 
-	asks "github.com/openabstractions/abstraction-asks/go"
 	wire "github.com/openabstractions/abstraction-asks/go/abstraction/asks/api"
 	"github.com/openabstractions/abstraction-identity/listen"
 )
@@ -34,9 +34,6 @@ func (c *ChoiceClient) AskContext(ctx context.Context, q ChoiceRequest) (ChoiceO
 	if err := ctx.Err(); err != nil {
 		return ChoiceObservation{}, err
 	}
-	if !asks.ValidChoiceRequest(q) {
-		return ChoiceObservation{}, errors.New("asks: invalid ordinary choice")
-	}
 	result, err := wire.NewChoiceApplicationClient(c.transport.WithContext(ctx)).Ask(q)
 	result, err = checkedChoice(result, err)
 	if err == nil && result.Outcome == ChoiceOutcomeAnswered {
@@ -60,9 +57,6 @@ func (c *ChoiceClient) ShareContext(ctx context.Context, q ChoiceRequest, assist
 	if err := ctx.Err(); err != nil {
 		return ChoiceObservation{}, err
 	}
-	if !asks.ValidChoiceRequest(q) || !asks.ValidAssistantOptions(q, assistantOptions) {
-		return ChoiceObservation{}, errors.New("asks: invalid shared ordinary choice")
-	}
 	result, err := wire.NewChoiceApplicationClient(c.transport.WithContext(ctx)).ShareChoice(q, assistantOptions)
 	result, err = checkedChoice(result, err)
 	if err == nil && result.Outcome == ChoiceOutcomeAnswered && !slices.ContainsFunc(q.Options, func(o ChoiceOption) bool { return o.ID == result.Answer.Option }) {
@@ -73,9 +67,6 @@ func (c *ChoiceClient) ShareContext(ctx context.Context, q ChoiceRequest, assist
 func (c *ChoiceClient) ObserveContext(ctx context.Context, ref RequestRef, waitMS int64) (ChoiceObservation, error) {
 	if err := ctx.Err(); err != nil {
 		return ChoiceObservation{}, err
-	}
-	if !asks.ValidChoiceReference(ref) || waitMS < 0 || waitMS > 30000 {
-		return ChoiceObservation{}, errors.New("asks: invalid ordinary observation")
 	}
 	return checkedChoice(wire.NewChoiceApplicationClient(c.transport.WithContext(ctx)).Observe(ref, waitMS))
 }
@@ -101,18 +92,12 @@ func (c *ChoiceClient) answer(ctx context.Context, ref RequestRef, option string
 	if err := ctx.Err(); err != nil {
 		return ChoiceDecision{}, err
 	}
-	if !asks.ValidChoiceReference(ref) || !asks.ValidChoiceOptionID(option) {
-		return ChoiceDecision{}, errors.New("asks: invalid ordinary answer")
-	}
 	result, err := wire.NewChoiceApplicationClient(c.transport.WithContext(ctx)).Answer(ref, option, ifPending)
 	return checkedOwnChoiceDecision(result, err, ref, option, false)
 }
 func (c *ChoiceClient) DismissContext(ctx context.Context, ref RequestRef) (ChoiceDecision, error) {
 	if err := ctx.Err(); err != nil {
 		return ChoiceDecision{}, err
-	}
-	if !asks.ValidChoiceReference(ref) {
-		return ChoiceDecision{}, errors.New("asks: invalid ordinary dismissal")
 	}
 	result, err := wire.NewChoiceApplicationClient(c.transport.WithContext(ctx)).Dismiss(ref)
 	return checkedOwnChoiceDecision(result, err, ref, "", true)
@@ -136,10 +121,10 @@ func checkedChoice(result ChoiceObservation, err error) (ChoiceObservation, erro
 	}
 	pending := result.Outcome == ChoiceOutcomePending
 	answered, dismissed := result.Outcome == ChoiceOutcomeAnswered, result.Outcome == ChoiceOutcomeDismissed
-	if (pending || answered || dismissed) != (result.ID != "") || (answered || dismissed) != (result.Answer != nil) || result.ID != "" && !asks.ValidRequestKey(result.ID) {
+	if (pending || answered || dismissed) != (result.ID != "") || (answered || dismissed) != (result.Answer != nil) || result.ID != "" && !operatorWord(result.ID) {
 		return ChoiceObservation{}, errors.New("asks: inconsistent ordinary observation")
 	}
-	if a := result.Answer; a != nil && (!asks.ValidChoiceAnswer(*a) || a.ID != result.ID || dismissed && a.Option != "" || answered && !asks.ValidChoiceOptionID(a.Option)) {
+	if a := result.Answer; a != nil && (!typedpermission.ValidChoiceAnswer(*a, nativePermissionValidators()) || a.ID != result.ID || dismissed && a.Option != "" || answered && !typedpermission.ValidChoiceOptionID(a.Option)) {
 		return ChoiceObservation{}, errors.New("asks: inconsistent ordinary answer")
 	}
 	return result, nil
@@ -178,7 +163,7 @@ func checkedChoiceDecision(result ChoiceDecision, err error, id, option string, 
 	if terminal != (result.Record != nil) {
 		return ChoiceDecision{}, errors.New("asks: inconsistent ordinary decision")
 	}
-	if r := result.Record; r != nil && (!asks.ValidChoiceRecord(*r) || r.ID != id || r.Answer == nil || r.Answer.Option != option || result.Outcome.String() != r.State.String() || dismiss != (r.State == ChoiceStateDismissed)) {
+	if r := result.Record; r != nil && (!typedpermission.ValidChoiceRecord(*r, nativePermissionValidators()) || r.ID != id || r.Answer == nil || r.Answer.Option != option || result.Outcome.String() != r.State.String() || dismiss != (r.State == ChoiceStateDismissed)) {
 		return ChoiceDecision{}, errors.New("asks: mismatched ordinary decision")
 	}
 	return result, nil
@@ -191,7 +176,7 @@ func (c *Operator) ReadChoiceContext(ctx context.Context, id string) (ChoiceRead
 	if err != nil {
 		return ChoiceRead{}, err
 	}
-	if (result.Outcome == OperatorQuestionOutcomeFound) != (result.Record != nil) || result.Record != nil && (!asks.ValidChoiceRecord(*result.Record) || result.Record.ID != id) {
+	if (result.Outcome == OperatorQuestionOutcomeFound) != (result.Record != nil) || result.Record != nil && (!typedpermission.ValidChoiceRecord(*result.Record, nativePermissionValidators()) || result.Record.ID != id) {
 		return ChoiceRead{}, errors.New("asks: inconsistent ordinary read")
 	}
 	return result, nil
@@ -209,9 +194,9 @@ func (c *Operator) ReadChoiceDetailsContext(ctx context.Context, id string) (Cho
 		return ChoiceDetails{}, err
 	}
 	found := result.Choice.Outcome == OperatorQuestionOutcomeFound
-	if found != (result.Choice.Record != nil) || result.Choice.Record != nil && (!asks.ValidChoiceRecord(*result.Choice.Record) || result.Choice.Record.ID != id) ||
+	if found != (result.Choice.Record != nil) || result.Choice.Record != nil && (!typedpermission.ValidChoiceRecord(*result.Choice.Record, nativePermissionValidators()) || result.Choice.Record.ID != id) ||
 		!found && (result.AskerProgram != "" || len(result.AssistantOptions) != 0 || result.AnsweredVia != nil) ||
-		found && len(result.AssistantOptions) != 0 && !asks.ValidAssistantOptions(result.Choice.Record.Request, result.AssistantOptions) {
+		found && len(result.AssistantOptions) != 0 && !typedpermission.ValidAssistantOptions(result.Choice.Record.Request, result.AssistantOptions) {
 		return ChoiceDetails{}, errors.New("asks: inconsistent ordinary details")
 	}
 	return result, nil
@@ -242,7 +227,7 @@ func (c *Operator) ListAnswersContext(ctx context.Context, cursor string, limit 
 		return AnswerEntryPage{}, errors.New("asks: inconsistent answer audit page")
 	}
 	for i, a := range page.Answers {
-		if !asks.ValidAnswerEntry(a) || i > 0 && a.AnsweredMs > page.Answers[i-1].AnsweredMs {
+		if !typedpermission.ValidAnswerEntry(a, nativePermissionValidators()) || i > 0 && a.AnsweredMs > page.Answers[i-1].AnsweredMs {
 			return AnswerEntryPage{}, errors.New("asks: invalid audited answer")
 		}
 	}
@@ -267,7 +252,7 @@ func (c *Operator) ListChoicesContext(ctx context.Context, cursor string, limit 
 	}
 	ids, used := map[string]bool{}, 2048
 	for _, r := range page.Records {
-		if !asks.ValidChoiceRecord(r) || ids[r.ID] {
+		if !typedpermission.ValidChoiceRecord(r, nativePermissionValidators()) || ids[r.ID] {
 			return ChoicePage{}, errors.New("asks: invalid ordinary record")
 		}
 		ids[r.ID] = true

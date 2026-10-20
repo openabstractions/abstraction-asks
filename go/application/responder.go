@@ -25,7 +25,8 @@ type ResponderEffect func(context.Context, func() error, bool) (wire.ResponderEf
 // The receiving peer is rebound on each call and before the Book edit.
 type AuthorizeResponder func(context.Context, *identity.Peer, asks.Record, string, string) (ResponderEffect, error)
 
-var ErrResponderForbidden = errors.New("asks: responder forbidden")
+// ErrResponderForbidden is the answerer rule's refusal (asks.ErrAnswererForbidden).
+var ErrResponderForbidden = asks.ErrAnswererForbidden
 
 func (h *Host) EnableResponder(authorize AuthorizeResponder) error {
 	h.lifecycle.Lock()
@@ -37,9 +38,47 @@ func (h *Host) EnableResponder(authorize AuthorizeResponder) error {
 	return nil
 }
 
+// EnableResponderPreparation configures the outer eligibility refresh before
+// Serve. It runs once after native caller admission, before any responder Book
+// read/edit. Its returned operation context reaches every inner authorization
+// and effect. Nil configuration leaves existing hosts unchanged.
+func (h *Host) EnableResponderPreparation(prepare func(context.Context) (context.Context, error)) error {
+	h.lifecycle.Lock()
+	defer h.lifecycle.Unlock()
+	if h.serving || h.ctx.Err() != nil || prepare == nil {
+		return errors.New("asks: configure responder preparation before Serve")
+	}
+	h.responderPreparation = prepare
+	return nil
+}
+
 type responderReceiver struct {
 	receiver
 	ctx context.Context
+}
+
+func (r *responderReceiver) prepare() error {
+	if r.host.responderPreparation == nil {
+		return nil
+	}
+	if err := r.call.Recheck(); err != nil {
+		return ErrResponderForbidden
+	}
+	if r.ctx.Err() != nil {
+		return r.ctx.Err()
+	}
+	ctx, err := r.host.responderPreparation(r.ctx)
+	if err != nil {
+		return err
+	}
+	if ctx == nil {
+		return errors.New("asks: responder preparation returned no context")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	r.ctx = ctx
+	return nil
 }
 
 func (r *responderReceiver) authorize(record asks.Record, scope, option string) (ResponderEffect, error) {
@@ -63,13 +102,46 @@ func responderPageRefusal(outcome wire.OperatorPageOutcome) wire.OperatorPage {
 	return wire.OperatorPage{Outcome: outcome, Records: []wire.RecordMetadata{}}
 }
 
+// A responder sees the immutable trusted operation list. Stored/archival Text
+// stays unchanged; this presentation never supplies authority to Answer.
+func responderMetadata(record asks.Record) wire.RecordMetadata {
+	meta := operatorMetadata(record)
+	if p := record.TypedPermission; p != nil {
+		var text strings.Builder
+		text.WriteString("Program: " + p.Effect.Subject.Program + "\nAccount: " + p.Effect.Subject.Account)
+		for _, d := range p.Display.Selections {
+			text.WriteString("\n" + d.Operation + " — " + d.Target)
+			if d.Disclosure != "" {
+				text.WriteString("\n" + d.Disclosure)
+			}
+		}
+		meta.Text = text.String()
+	}
+	return meta
+}
+
 func (r *responderReceiver) ListAnswerable(cursor string, limit int64) (wire.OperatorPage, error) {
+	return r.listAnswerable(cursor, limit, false)
+}
+
+func (r *responderReceiver) listAnswerable(cursor string, limit int64, waiting bool) (wire.OperatorPage, error) {
 	caller, _, err := r.scope()
 	if err != nil || r.host.responder == nil {
 		return responderPageRefusal(wire.OperatorPageOutcomeForbidden), nil
 	}
 	if len(cursor) > 256 || !utf8.ValidString(cursor) || limit < 1 || limit > 64 {
 		return responderPageRefusal(wire.OperatorPageOutcomeInvalid), nil
+	}
+	if err := r.prepare(); err != nil {
+		if errors.Is(err, ErrResponderForbidden) {
+			return responderPageRefusal(wire.OperatorPageOutcomeForbidden), nil
+		}
+		return responderPageRefusal(wire.OperatorPageOutcomeUnavailable), nil
+	}
+	if waiting {
+		if outcome := r.waitEnrollment(); outcome != wire.OperatorPageOutcomePage {
+			return responderPageRefusal(outcome), nil
+		}
 	}
 	entries, revision, err := r.host.book.ApplicationHistoryScoped()
 	if err != nil {
@@ -94,7 +166,7 @@ func (r *responderReceiver) ListAnswerable(cursor string, limit int64) (wire.Ope
 		if !entry.Record.Pending() || entry.Scope == "" {
 			continue
 		}
-		meta := operatorMetadata(entry.Record)
+		meta := responderMetadata(entry.Record)
 		meta.Options = nil
 		for _, option := range entry.Record.Options {
 			if _, e := r.authorize(entry.Record, entry.Scope, option); e == nil {
@@ -138,6 +210,11 @@ func (r *responderReceiver) ListAnswerable(cursor string, limit int64) (wire.Ope
 			}
 		}
 	}
+	if waiting {
+		if outcome := r.waitEnrollment(); outcome != wire.OperatorPageOutcomePage {
+			return responderPageRefusal(outcome), nil
+		}
+	}
 	return page, nil
 }
 
@@ -159,9 +236,23 @@ func (r *responderReceiver) Answer(id, option string) (wire.ResponderDecision, e
 		result.Outcome = wire.OperatorDecisionOutcomeForbidden
 		return result, nil
 	}
+	if err := r.prepare(); err != nil {
+		if errors.Is(err, ErrResponderForbidden) {
+			result.Outcome = wire.OperatorDecisionOutcomeForbidden
+		}
+		return result, nil
+	}
 	var effect ResponderEffect
 	wasPending := false
-	record, outcome, err := r.host.book.AnswerApplicationAsResponder(id, option, answerer, func(record asks.Record, scope string) error {
+	answer := r.host.book.AnswerApplicationAsResponder
+	stored, found, readErr := r.host.book.ApplicationRecord(id)
+	if readErr != nil {
+		return result, nil
+	}
+	if found && stored.TypedPermission != nil {
+		answer = r.host.book.AnswerTypedPermissionAsResponderAuthorized
+	}
+	record, outcome, err := answer(id, option, answerer, func(record asks.Record, scope string) error {
 		wasPending = record.Pending()
 		var e error
 		effect, e = r.authorize(record, scope, option)
@@ -180,8 +271,11 @@ func (r *responderReceiver) Answer(id, option string) (wire.ResponderDecision, e
 	}
 	result.Outcome = parsed
 	if parsed == wire.OperatorDecisionOutcomeAnswered {
-		meta := operatorMetadata(record)
+		meta := responderMetadata(record)
 		result.Record = &meta
+		if record.AnsweredBy == asks.AnsweredByResponder {
+			r.notifyAnswered(record.ID, record.Answered.UnixMilli(), false)
+		}
 		if effect != nil {
 			result.Effect, result.TargetOutcome = effect(r.ctx, r.call.Recheck, wasPending)
 		}

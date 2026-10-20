@@ -1,0 +1,305 @@
+{
+  "methods": [
+    {
+      "class": "submit",
+      "contract": "abstraction.asks/application@1",
+      "idempotency_key": "question.request_key",
+      "method": "Ask",
+      "trait": "keyed"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/application@1",
+      "idempotency_key": "",
+      "method": "Observe",
+      "trait": "readonly"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "ReadQuestionContent",
+      "trait": "readonly"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "ListAnswerContents",
+      "trait": "readonly"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "ListChoices",
+      "trait": "readonly"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "ReadChoice",
+      "trait": "readonly"
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "AnswerChoice",
+      "trait": ""
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "DismissChoice",
+      "trait": ""
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "ListQuestions",
+      "trait": "readonly"
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "AnswerQuestion",
+      "trait": ""
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "RetireQuestion",
+      "trait": ""
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "ReadAttributedQuestion",
+      "trait": "readonly"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "ReadChoiceDetails",
+      "trait": "readonly"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "ReadQuestionAsker",
+      "trait": "readonly"
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "AnswerQuestionIfPending",
+      "trait": ""
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/operator@1",
+      "idempotency_key": "",
+      "method": "ListAnswers",
+      "trait": "readonly"
+    },
+    {
+      "class": "submit",
+      "contract": "abstraction.asks/application@2",
+      "idempotency_key": "request.request_ref.key",
+      "method": "Ask",
+      "trait": "keyed"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/application@2",
+      "idempotency_key": "",
+      "method": "Observe",
+      "trait": "readonly"
+    },
+    {
+      "class": "submit",
+      "contract": "abstraction.asks/application@2",
+      "idempotency_key": "request_ref.key",
+      "method": "Answer",
+      "trait": "keyed"
+    },
+    {
+      "class": "submit",
+      "contract": "abstraction.asks/application@2",
+      "idempotency_key": "request_ref.key",
+      "method": "Dismiss",
+      "trait": "keyed"
+    },
+    {
+      "class": "submit",
+      "contract": "abstraction.asks/application@2",
+      "idempotency_key": "request.request_ref.key",
+      "method": "ShareChoice",
+      "trait": "keyed"
+    },
+    {
+      "class": "submit",
+      "contract": "abstraction.asks/application@2",
+      "idempotency_key": "request_ref.key",
+      "method": "Acknowledge",
+      "trait": "keyed"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/responder@1",
+      "idempotency_key": "",
+      "method": "ListAnswerable",
+      "trait": "readonly"
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/responder@1",
+      "idempotency_key": "",
+      "method": "Answer",
+      "trait": ""
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/responder@1",
+      "idempotency_key": "",
+      "method": "ListChoices",
+      "trait": "readonly"
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/responder@1",
+      "idempotency_key": "",
+      "method": "RequestAnswering",
+      "trait": ""
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/responder@1",
+      "idempotency_key": "",
+      "method": "AnswerChoice",
+      "trait": ""
+    },
+    {
+      "class": "submit",
+      "contract": "abstraction.asks/permission@1",
+      "idempotency_key": "request.request_key",
+      "method": "Request",
+      "trait": "keyed"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/permission@1",
+      "idempotency_key": "",
+      "method": "Observe",
+      "trait": "readonly"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/permission@1",
+      "idempotency_key": "",
+      "method": "ObserveQuestion",
+      "trait": "readonly"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/permission-operator@1",
+      "idempotency_key": "",
+      "method": "ListPermissions",
+      "trait": "readonly"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/permission-operator@1",
+      "idempotency_key": "",
+      "method": "ReadPermissionDetails",
+      "trait": "readonly"
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/permission-operator@1",
+      "idempotency_key": "",
+      "method": "AnswerPermissionIfPending",
+      "trait": ""
+    },
+    {
+      "class": "submit",
+      "contract": "abstraction.asks/notification@1",
+      "idempotency_key": "request.request_ref.key",
+      "method": "Post",
+      "trait": "keyed"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/notification@1",
+      "idempotency_key": "",
+      "method": "Observe",
+      "trait": "readonly"
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/notification@1",
+      "idempotency_key": "",
+      "method": "Withdraw",
+      "trait": "idempotent"
+    },
+    {
+      "class": "submit",
+      "contract": "abstraction.asks/notification@1",
+      "idempotency_key": "request_ref.key",
+      "method": "Acknowledge",
+      "trait": "keyed"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/notification-operator@1",
+      "idempotency_key": "",
+      "method": "ListNotifications",
+      "trait": "readonly"
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/notification-operator@1",
+      "idempotency_key": "",
+      "method": "ReadNotification",
+      "trait": "readonly"
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/notification-operator@1",
+      "idempotency_key": "",
+      "method": "Act",
+      "trait": ""
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/notification-operator@1",
+      "idempotency_key": "",
+      "method": "Dismiss",
+      "trait": ""
+    },
+    {
+      "class": "effect",
+      "contract": "abstraction.asks/notification-operator@1",
+      "idempotency_key": "",
+      "method": "WithdrawProgram",
+      "trait": ""
+    },
+    {
+      "class": "read",
+      "contract": "abstraction.asks/notification-operator@1",
+      "idempotency_key": "",
+      "method": "ListNotifiers",
+      "trait": "readonly"
+    }
+  ]
+}

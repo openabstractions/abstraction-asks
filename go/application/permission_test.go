@@ -19,7 +19,7 @@ import (
 	rightsclient "github.com/openabstractions/abstraction-rights/go/client"
 )
 
-func liveTyped(t *testing.T, b *asks.Book, prepare PreparePermission) (*Host, *client.PermissionClient, *client.PermissionOperator, *client.Operator, string) {
+func liveTyped(t *testing.T, b *asks.Book, prepare PreparePermission, observations ...ObservePermission) (*Host, *client.PermissionClient, *client.PermissionOperator, *client.Operator, string) {
 	t.Helper()
 	if runtime.GOOS == "darwin" {
 		t.Skip("native Program fixture uses non-XPC test transport")
@@ -31,6 +31,11 @@ func liveTyped(t *testing.T, b *asks.Book, prepare PreparePermission) (*Host, *c
 	}
 	if err = h.EnablePermission(prepare); err != nil {
 		t.Fatal(err)
+	}
+	for _, observe := range observations {
+		if err := h.EnablePermissionObservation(observe); err != nil {
+			t.Fatal(err)
+		}
 	}
 	if err = h.EnableOperator(func(context.Context, *identity.Peer) error { return nil }); err != nil {
 		t.Fatal(err)

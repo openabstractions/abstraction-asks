@@ -60,8 +60,45 @@ func TestWithdrawRuntimeBoundAtStartup(t *testing.T) {
 		t.Fatalf("a second startup withdrew %+v %v", again, err)
 	}
 	for _, q := range Questions {
-		if q.RuntimeBound != (q.Key == SystemSecurityLogKey) {
-			t.Fatalf("%s RuntimeBound=%v: only the system-access question is bound to runtime memory", q.Key, q.RuntimeBound)
+		if q.RuntimeBound != (q.Key == ProgramReviewKey || q.Key == SystemSecurityLogKey || q.Key == PairingKey || q.Key == ApplicationCommandOnceKey) {
+			t.Fatalf("%s RuntimeBound=%v: system-access, pairing and one-call command questions follow runtime operation lifetime", q.Key, q.RuntimeBound)
 		}
+	}
+}
+
+func TestOneCallCommandQuestionWithdrawsAtRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "application.json")
+	b, err := LoadApplicationBook(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q, ok := Find(ApplicationCommandOnceKey)
+	if !ok || !q.Closed || !q.RuntimeBound || !RuntimeOnlyKey(q.Key) {
+		t.Fatalf("question: %+v", q)
+	}
+	if once, ok := q.Option("once"); !ok || !once.Yes || once.Kept {
+		t.Fatalf("one-call option: %+v", once)
+	}
+	if _, ok := q.Option("allow"); ok {
+		t.Fatal("one-call question offers persistent policy")
+	}
+	program := filepath.Join(filepath.Dir(path), "caller.exe")
+	r, state, err := b.AskApplicationAs("runtime", program, "command-occurrence", q.Key, map[string]string{"program": "Caller", "operation": "Delete or overwrite in Notes", "operationmore": "", "command": "note.delete", "code": "1234", "until": "later"}, listen.Seen{}, Publisher{})
+	if err != nil || state != "pending" {
+		t.Fatal(state, err)
+	}
+	reopened, err := LoadApplicationBook(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withdrawn, err := reopened.WithdrawRuntimeBound()
+	if err != nil || len(withdrawn) != 1 || withdrawn[0].ID != r.ID {
+		t.Fatalf("withdrawal: %+v %v", withdrawn, err)
+	}
+	if _, state, err := reopened.AnswerApplication(r.ID, "once"); err != nil || state == "answered" {
+		t.Fatalf("retired occurrence answered: %s %v", state, err)
+	}
+	if _, state, err := reopened.ObserveApplication("runtime", "command-occurrence"); err != nil || state != "gone" {
+		t.Fatalf("retired occurrence replay: %s %v", state, err)
 	}
 }
