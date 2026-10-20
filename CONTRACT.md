@@ -1143,7 +1143,7 @@ text, asker, option or ID. While the program is enrolled, one held watch lasts
 at most 15 seconds, so a new occurrence reaches the chat within that time. A
 host adapter that receives a greater key for a chat with a live inbox
 (attached and open) wakes that idle chat once, through its existing
-message-wake path, with the fixed pointer `OA: question to answer.` from the
+message-wake path, with the fixed pointer `OpenAbstractions: a question is waiting for your answer.` from the
 generated wake catalogue. An adapter that holds several open chats of one
 program wakes only the one the person used last; the others take the key
 without a turn. A busy chat takes it at its next idle; a returned drop

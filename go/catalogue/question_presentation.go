@@ -37,6 +37,8 @@ func QuestionPopupChoices(key string) (PopupChoicePolicy, bool) {
 		return PopupChoicePolicy{Labels: map[string]string{"allow": "Allow", "refuse": "Not now"}, DefaultOption: "refuse"}, true
 	case projectEditQuestionKey:
 		return PopupChoicePolicy{Labels: map[string]string{"once": "Allow", "refuse": "Not now"}, DefaultOption: "refuse"}, true
+	case AgentEnrollmentKey:
+		return PopupChoicePolicy{Labels: map[string]string{"keep": "Connect", "refuse": "Not now"}, DefaultOption: "refuse"}, true
 	}
 	return PopupChoicePolicy{}, false
 }

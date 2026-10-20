@@ -59,10 +59,10 @@ var Questions = []Question{
 	{Key: ApplicationCommandOnceKey,
 		Text:  "{operation}{operationmore}? {program} requests this once. Command {command}. Request {code} expires {until}.",
 		About: "program", Options: []Option{{Name: "once", Yes: true}, {Name: "refuse"}}, Closed: true, RuntimeBound: true},
-	// Proposed P-J15 person-facing copy, reserved for owner C-59 acceptance.
-	// Facade binds this runtime-only choice to an exact registration generation.
+	// Facade binds this runtime-only choice to an exact registration
+	// generation. Each access permission is a separate question.
 	{Key: AgentEnrollmentKey,
-		Text:    "Connect {title} to OpenAbstractions? Keep it as your assistant. Each access permission is reviewed separately.",
+		Text:    "Connect {title}?",
 		About:   "program",
 		Options: []Option{{Name: "keep", Yes: true}, {Name: "refuse"}},
 		Closed:  true},
